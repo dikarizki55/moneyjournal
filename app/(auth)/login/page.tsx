@@ -61,6 +61,16 @@ const Login = () => {
           Sign In
         </button>
       </form>
+
+      <div className=" mt-6 text-center">
+        <p className=" mb-2">Or Sign in With:</p>
+        <button
+          onClick={() => signIn("google")}
+          className=" w-full bg-red-500 text-white py-2 rounded hover:bg-red-600"
+        >
+          Sign in With Google
+        </button>
+      </div>
     </div>
   );
 };

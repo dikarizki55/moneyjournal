@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@auth/supabase-adapter": "^1.10.0",
     "@supabase/supabase-js": "^2.50.3",
     "bcryptjs": "^3.0.2",
     "next": "15.3.5",
