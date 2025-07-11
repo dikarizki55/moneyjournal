@@ -65,7 +65,7 @@ const Login = () => {
       <div className=" mt-6 text-center">
         <p className=" mb-2">Or Sign in With:</p>
         <button
-          onClick={() => signIn("google")}
+          onClick={() => signIn("google", { redirectTo: "/dashboard" })}
           className=" w-full bg-red-500 text-white py-2 rounded hover:bg-red-600"
         >
           Sign in With Google
