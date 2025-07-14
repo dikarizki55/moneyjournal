@@ -9,9 +9,9 @@ const page = async () => {
   return (
     <div>
       <img src={String(sesion?.user?.image)} alt="user avatar" />
-      {sesion?.user?.id}
-      {sesion?.user?.email}
-      {sesion?.user?.name}
+      <p>id {sesion?.user?.id}</p>
+      <p>email {sesion?.user?.email}</p>
+      <p>Name {sesion?.user?.name}</p>
       <button
         onClick={async () => {
           "use server";
