@@ -29,8 +29,6 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { title, amount, type, category, notes, date } = body;
 
-    console.log("datenya adalah:", date);
-
     const transaction = await prisma.transaction.create({
       data: {
         user_id: user.id,

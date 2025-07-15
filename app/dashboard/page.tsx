@@ -1,17 +1,8 @@
-import { auth, signOut } from "@/auth";
-import { redirect } from "next/navigation";
+import { signOut } from "@/auth";
 
 const page = async () => {
-  const sesion = await auth();
-
-  if (!sesion?.user) redirect("/login");
-
   return (
     <div>
-      <img src={String(sesion?.user?.image)} alt="user avatar" />
-      <p>id {sesion?.user?.id}</p>
-      <p>email {sesion?.user?.email}</p>
-      <p>Name {sesion?.user?.name}</p>
       <button
         onClick={async () => {
           "use server";
