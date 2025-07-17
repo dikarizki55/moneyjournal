@@ -12,10 +12,12 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import { NavUser } from "./navuser";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
+import { useState } from "react";
 
 // Menu items.
 const items = [
@@ -34,6 +36,8 @@ const items = [
 export function AppSidebar() {
   const pathname = usePathname();
 
+  const { setOpenMobile } = useSidebar();
+
   return (
     <Sidebar>
       <SidebarContent>
@@ -47,7 +51,7 @@ export function AppSidebar() {
                     asChild
                     isActive={pathname === item.url ? true : false}
                   >
-                    <Link href={item.url}>
+                    <Link href={item.url} onClick={() => setOpenMobile(false)}>
                       <item.icon />
                       <span>{item.title}</span>
                     </Link>
