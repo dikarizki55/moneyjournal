@@ -206,16 +206,6 @@ function ProfileForm({
           }
         ></RupiahInput>
       </div>
-      <div
-        style={{
-          width: "100vw",
-          background: "red",
-          wordBreak: "break-all",
-          overflowWrap: "break-word",
-        }}
-      >
-        <p>{JSON.stringify(form)}</p>
-      </div>
       <Button type="submit">Save changes</Button>
     </form>
   );
