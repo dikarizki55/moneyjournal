@@ -25,16 +25,16 @@ import {
 } from "@/components/ui/drawer";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useRouter } from "next/navigation";
 import { Dispatch, SetStateAction } from "react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import RupiahInput from "../RupiahInput";
 
 type DrawerDialogProps = {
   customButton: React.ReactNode;
   title: string;
   description: string;
   initialData?: FormInput;
-  onSubmit: (values: any) => void;
+  onSubmit: (values: any) => Promise<void>;
   updateData?: () => void;
 };
 
@@ -75,7 +75,6 @@ export function DrawerDialog({
             initialData={initialData}
             onSubmit={onSubmit}
             updateData={updateData}
-            isDesktop={isDesktop}
           />
         </DialogContent>
       </Dialog>
@@ -99,7 +98,6 @@ export function DrawerDialog({
           initialData={initialData}
           onSubmit={onSubmit}
           updateData={updateData}
-          isDesktop={isDesktop}
         />
         <DrawerFooter className="pt-2">
           <DrawerClose asChild>
@@ -116,17 +114,13 @@ function ProfileForm({
   onSubmit,
   setOpen,
   updateData,
-  isDesktop,
   initialData,
 }: React.ComponentProps<"form"> & {
-  onSubmit: (values: any) => void;
+  onSubmit: (values: any) => Promise<void>;
   setOpen: Dispatch<SetStateAction<boolean>>;
   updateData?: () => void;
-  isDesktop: boolean;
   initialData: FormInput | undefined;
 }) {
-  const router = useRouter();
-
   const [form, setForm] = React.useState<FormInput>({
     title: initialData?.title || "",
     type: initialData?.type || "income",
@@ -143,10 +137,9 @@ function ProfileForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit({ ...form });
+    await onSubmit(form);
     setOpen(false);
     if (updateData) updateData();
-    // isDesktop ? router.refresh() : window.location.reload();
     window.location.reload();
   };
 
@@ -202,16 +195,28 @@ function ProfileForm({
       </div>
       <div className="grid gap-3">
         <Label htmlFor="amount">Amount</Label>
-        <Input
+        <RupiahInput
           id="amount"
-          type="number"
-          onChange={handleOnChange}
-          value={form?.amount ?? ""}
-        />
+          defaultValue={form.amount ?? undefined}
+          onChange={(value) =>
+            setForm({
+              ...form,
+              amount: value,
+            })
+          }
+        ></RupiahInput>
       </div>
-      <Button type="submit" onClick={handleSubmit}>
-        Save changes
-      </Button>
+      <div
+        style={{
+          width: "100vw",
+          background: "red",
+          wordBreak: "break-all",
+          overflowWrap: "break-word",
+        }}
+      >
+        <p>{JSON.stringify(form)}</p>
+      </div>
+      <Button type="submit">Save changes</Button>
     </form>
   );
 }

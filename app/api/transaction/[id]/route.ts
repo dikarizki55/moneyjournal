@@ -8,6 +8,7 @@ export async function POST(
 ) {
   try {
     const user = await verifyUser(req);
+
     const { id } = await params;
     const body = await req.json();
     const { title, amount, type, category, notes, date } = body;

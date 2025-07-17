@@ -1,10 +1,10 @@
 import { signOut } from "@/auth";
-import Pie from "./pie";
+import PieChartBlock from "./pieChartBlock";
 
 const page = async () => {
   return (
     <div>
-      <Pie></Pie>
+      <PieChartBlock></PieChartBlock>
       <button
         onClick={async () => {
           "use server";
