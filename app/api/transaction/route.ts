@@ -8,7 +8,7 @@ export async function GET(req: NextRequest) {
 
     const transaction = await prisma.transaction.findMany({
       where: { user_id: user.id },
-      orderBy: { date: "desc" },
+      orderBy: { created_at: "desc" },
     });
 
     return NextResponse.json({
@@ -27,6 +27,7 @@ export async function POST(req: NextRequest) {
     const user = await verifyUser(req);
 
     const body = await req.json();
+
     const { title, amount, type, category, notes, date } = body;
 
     const transaction = await prisma.transaction.create({

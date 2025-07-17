@@ -19,11 +19,15 @@ export async function verifyUser(req: NextRequest): Promise<VerifiedUser> {
     const session: Session | null = await auth();
 
     if (!session?.user && !session?.user?.email) {
-      throw new Error("Unauthorized");
+      const error = new Error("Unauthorized");
+      error.name = "Auth";
+      throw error;
     }
 
     if (!session?.user.id) {
-      throw new Error("user id not found in sessioin");
+      const error = new Error("user id not found in sessioin");
+      error.name = "Auth";
+      throw error;
     }
 
     return { id: session.user.id, email: session.user.email as string };

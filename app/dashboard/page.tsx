@@ -1,8 +1,10 @@
 import { signOut } from "@/auth";
+import Pie from "./pie";
 
 const page = async () => {
   return (
     <div>
+      <Pie></Pie>
       <button
         onClick={async () => {
           "use server";
