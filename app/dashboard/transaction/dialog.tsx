@@ -25,9 +25,10 @@ import {
 } from "@/components/ui/drawer";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Dispatch, SetStateAction } from "react";
+import { Dispatch, SetStateAction, useEffect } from "react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import RupiahInput from "../RupiahInput";
+import ComboboxInput from "./comboboxinput";
 
 type DrawerDialogProps = {
   customButton: React.ReactNode;
@@ -143,6 +144,17 @@ function ProfileForm({
     window.location.reload();
   };
 
+  const [categoryList, setCategoryList] = React.useState([]);
+
+  useEffect(() => {
+    const getCategoryList = async () => {
+      const data = await fetch().then((res) => res.json());
+      setCategoryList(data.data);
+    };
+
+    getCategoryList();
+  }, []);
+
   return (
     <form
       className={cn("grid items-start gap-6", className)}
@@ -183,6 +195,17 @@ function ProfileForm({
           onChange={handleOnChange}
           value={form?.category}
         />
+        <ComboboxInput
+          id="category"
+          defaultValue={form.category ?? undefined}
+          onChange={(value) =>
+            setForm({
+              ...form,
+              category: value,
+            })
+          }
+          list={["Makanan", "Gaji", "Lainnya"]}
+        ></ComboboxInput>
       </div>
       <div className="grid gap-3">
         <Label htmlFor="notes">Notes</Label>
