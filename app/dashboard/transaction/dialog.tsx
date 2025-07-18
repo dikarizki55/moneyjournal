@@ -148,7 +148,9 @@ function ProfileForm({
 
   useEffect(() => {
     const getCategoryList = async () => {
-      const data = await fetch().then((res) => res.json());
+      const data = await fetch("/api/transaction/distinct/category", {
+        credentials: "include",
+      }).then((res) => res.json());
       setCategoryList(data.data);
     };
 
@@ -189,12 +191,6 @@ function ProfileForm({
       </div>
       <div className="grid gap-3">
         <Label htmlFor="category">Category</Label>
-        <Input
-          type="text"
-          id="category"
-          onChange={handleOnChange}
-          value={form?.category}
-        />
         <ComboboxInput
           id="category"
           defaultValue={form.category ?? undefined}
@@ -204,7 +200,7 @@ function ProfileForm({
               category: value,
             })
           }
-          list={["Makanan", "Gaji", "Lainnya"]}
+          list={categoryList}
         ></ComboboxInput>
       </div>
       <div className="grid gap-3">

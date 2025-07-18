@@ -38,6 +38,12 @@ export default function ComboboxInput({
           id={id}
           className=" w-full rounded-2 border px-3 py-2"
           value={value}
+          onChange={(e) => {
+            setOpen(true);
+            setValue(e.target.value);
+            onChange(e.target.value);
+          }}
+          autoComplete="off"
           type="text"
         ></Input>
       </PopoverTrigger>

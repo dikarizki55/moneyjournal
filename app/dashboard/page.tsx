@@ -6,16 +6,6 @@ const page = async () => {
   return (
     <div>
       <PieChartBlock></PieChartBlock>
-      <ComboboxInputContainer></ComboboxInputContainer>
-      <button
-        onClick={async () => {
-          "use server";
-          await signOut();
-        }}
-        className=" text-white bg-red-500 rounded px-5 py-3 cursor-pointer"
-      >
-        Signout
-      </button>
     </div>
   );
 };
