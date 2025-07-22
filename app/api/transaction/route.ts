@@ -6,15 +6,40 @@ export async function GET(req: NextRequest) {
   try {
     const user = await verifyUser(req);
 
+    function parseParams(paramsName: string, datatype: "string" | "number") {
+      const param = req.nextUrl.searchParams.get(paramsName);
+      if (datatype === "number") return param ? Number(param) : undefined;
+      return param ?? undefined;
+    }
+
+    const limit = parseParams("limit", "number");
+    const offset = parseParams("offset", "number");
+    const sortField = parseParams("sortBy", "string") ?? "date";
+    const sortDirection =
+      parseParams("sort", "string") === "asc" ? "asc" : "desc";
+
     const transaction = await prisma.transaction.findMany({
       where: { user_id: user.id },
-      orderBy: { created_at: "desc" },
+      orderBy: {
+        [sortField]: sortDirection,
+      },
+      ...(typeof offset === "number" ? { skip: offset } : {}),
+      ...(typeof limit === "number" ? { take: limit } : {}),
+    });
+
+    const total = await prisma.transaction.count({
+      where: { user_id: user.id },
     });
 
     return NextResponse.json({
       success: true,
       message: "success",
       data: transaction,
+      pagination: {
+        total,
+        limit: limit ?? null,
+        offset: offset ?? null,
+      },
     });
   } catch (error) {
     console.log(error);

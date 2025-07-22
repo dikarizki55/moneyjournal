@@ -25,13 +25,16 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { useSearchParams } from "next/navigation";
 
 export const columns: ColumnDef<transaction>[] = [
   {
     id: "number",
     header: "No.",
     cell: ({ row }) => {
-      return row.index + 1;
+      const searchParams = useSearchParams();
+      const page = Number(searchParams?.get("page") ?? 1);
+      return row.index + 1 + (page - 1) * 25;
     },
   },
   {

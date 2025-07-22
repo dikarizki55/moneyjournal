@@ -1,8 +1,17 @@
+import { auth } from "@/auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
-export default function Home() {
+export default async function Home() {
+  const session = await auth();
+
+  if (session?.user) {
+    redirect("/dashboard");
+  } else {
+    redirect("/login");
+  }
   return (
     <div className=" w-full h-screen flex items-center justify-center">
       <Card className="w-full max-w-sm">

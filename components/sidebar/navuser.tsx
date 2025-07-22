@@ -28,9 +28,24 @@ import {
 import { useSession } from "next-auth/react";
 import { signOut } from "next-auth/react";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 
 export function NavUser() {
   const session = useSession();
+
+  const [imageProfile, setImageProfile] = useState("");
+
+  useEffect(() => {
+    const fetchImage = async () => {
+      const res = await fetch("/api/getAccountImage", {
+        method: "GET",
+        credentials: "include",
+      }).then((res) => res.json());
+
+      setImageProfile(res.data);
+    };
+    fetchImage();
+  }, []);
 
   const { isMobile } = useSidebar();
 
@@ -45,8 +60,9 @@ export function NavUser() {
             >
               <Avatar className="h-8 w-8 rounded-lg">
                 <AvatarImage
-                  src={session.data?.user?.image ?? ""}
+                  src={imageProfile}
                   alt={session.data?.user?.name ?? ""}
+                  className="w-full h-full object-cover"
                 />
                 <AvatarFallback className="rounded-lg">CN</AvatarFallback>
               </Avatar>
@@ -71,8 +87,9 @@ export function NavUser() {
               <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                 <Avatar className="h-8 w-8 rounded-lg">
                   <AvatarImage
-                    src={session.data?.user?.image ?? ""}
+                    src={imageProfile}
                     alt={session.data?.user?.name ?? ""}
+                    className="w-full h-full object-cover"
                   />
                   <AvatarFallback className="rounded-lg">CN</AvatarFallback>
                 </Avatar>

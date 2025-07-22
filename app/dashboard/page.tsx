@@ -1,10 +1,11 @@
-import { signOut } from "@/auth";
+import ThemeToggle from "@/components/block/themeToggle";
 import PieChartBlock from "./pieChartBlock";
-import { ComboboxInputContainer } from "./transaction/comboboxinput";
+import Wallet from "@/components/block/wallet";
 
 const page = async () => {
   return (
-    <div>
+    <div className=" px-5 w-full">
+      <Wallet></Wallet>
       <PieChartBlock></PieChartBlock>
     </div>
   );

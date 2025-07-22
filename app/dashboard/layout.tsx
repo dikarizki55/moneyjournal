@@ -17,7 +17,7 @@ export default async function Layout({
     <SessionProvider session={session}>
       <SidebarProvider>
         <AppSidebar />
-        <main>
+        <main className=" w-full">
           <SidebarTrigger />
           {children}
         </main>

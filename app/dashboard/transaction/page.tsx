@@ -4,17 +4,36 @@ import { columns } from "./columns";
 import { DataTable } from "./data-table";
 import { DrawerDialog } from "./dialog";
 import { Button } from "@/components/ui/button";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
+import { useSearchParams } from "next/navigation";
 
 const page = () => {
+  const searchParams = useSearchParams();
+  const page = Number(searchParams?.get("page") ?? 1);
   const [data, setData] = useState([]);
-
+  const [sort, setSort] = useState("desc");
+  const [sortBy, setSortBy] = useState("date");
   const [updateData, setUpdateData] = useState(true);
+  const [total, setTotal] = useState(0);
 
   useEffect(() => {
     const fetchTransactions = async () => {
-      const res = await fetch("/api/transaction", {
-        credentials: "include", // ⬅️ WAJIB untuk bawa cookie session
-      });
+      const res = await fetch(
+        `/api/transaction?limit=25&offset=${
+          (page - 1) * 25
+        }&sort=${sort}&sortBy=${sortBy}`,
+        {
+          credentials: "include",
+        }
+      );
 
       if (!res.ok) {
         console.error("Failed to fetch transactions");
@@ -24,6 +43,7 @@ const page = () => {
       const data = await res.json();
 
       setData(data.data);
+      setTotal(data.pagination.total);
     };
 
     fetchTransactions();
@@ -52,9 +72,92 @@ const page = () => {
           }}
         />
         <DataTable columns={columns} data={data} />
+        <PaginationComponent total={total} page={page}></PaginationComponent>
       </div>
     </div>
   );
 };
 
 export default page;
+
+function PaginationComponent({ total, page }: { total: number; page: number }) {
+  const searchParams = useSearchParams();
+  const params = new URLSearchParams(searchParams ?? "");
+  const [showAll, setShowAll] = useState(false);
+
+  const totalPage = Math.ceil(total / 25);
+  const maxVisiblePage = 7;
+
+  const startPage =
+    page < maxVisiblePage / 2
+      ? 1
+      : totalPage - maxVisiblePage / 2 < page
+      ? totalPage - maxVisiblePage + 1
+      : page - Math.floor(maxVisiblePage / 2);
+
+  const pageArray = Array.from(
+    { length: maxVisiblePage },
+    (_, i) => startPage + i
+  );
+
+  useEffect(() => {
+    console.log(startPage);
+    console.log(pageArray);
+  }, [page]);
+
+  function pageSet(page: number) {
+    params.set("page", String(page));
+    return `?${params.toString()}`;
+  }
+
+  return (
+    <div>
+      <Pagination className=" mt-5">
+        <PaginationContent>
+          <PaginationItem>
+            <PaginationPrevious href={pageSet(page - 1)} />
+          </PaginationItem>
+          {total &&
+            pageArray.map((item) => (
+              <PaginationItem key={item}>
+                <PaginationLink
+                  href={pageSet(item)}
+                  isActive={item === page ? true : false}
+                >
+                  {item}
+                </PaginationLink>
+              </PaginationItem>
+            ))}
+          <PaginationItem onClick={() => setShowAll(!showAll)}>
+            <PaginationEllipsis />
+          </PaginationItem>
+          <PaginationItem>
+            <PaginationNext href={pageSet(page + 1)} />
+          </PaginationItem>
+        </PaginationContent>
+      </Pagination>
+      <div
+        className=" relative overflow-hidden transition-all duration-500"
+        style={{ height: showAll ? 500 : 0 }}
+      >
+        <Pagination
+          className=" relative transition-all duration-500"
+          style={{ top: showAll ? 0 : -300 }}
+        >
+          <PaginationContent className=" relative flex flex-wrap w-full py-2 lg:px-30 px-5 justify-center ">
+            {Array.from({ length: totalPage }).map((_, i) => (
+              <PaginationItem key={i + 1} onClick={() => setShowAll(false)}>
+                <PaginationLink
+                  href={pageSet(i + 1)}
+                  isActive={i + 1 === page ? true : false}
+                >
+                  {i + 1}
+                </PaginationLink>
+              </PaginationItem>
+            ))}
+          </PaginationContent>
+        </Pagination>
+      </div>
+    </div>
+  );
+}

@@ -18,6 +18,7 @@ import { NavUser } from "./navuser";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { useState } from "react";
+import ThemeToggle from "../block/themeToggle";
 
 // Menu items.
 const items = [
@@ -63,6 +64,7 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter>
+        <ThemeToggle></ThemeToggle>
         <NavUser />
       </SidebarFooter>
     </Sidebar>
