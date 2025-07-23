@@ -43,7 +43,10 @@ type ChartKey = keyof typeof chartConfig; // "income" | "outcome"
 
 import { TooltipProps } from "recharts";
 
-function CustomTooltip({ active, payload }: TooltipProps<number, string>) {
+export function CustomTooltip({
+  active,
+  payload,
+}: TooltipProps<number, string>) {
   if (!active || !payload || !payload.length) return null;
 
   const data = payload[0];
@@ -112,7 +115,7 @@ export default function PieChartBlock() {
             >
               <LabelList
                 dataKey="name"
-                className="fill-background"
+                className="fill-primary font-medium"
                 stroke="none"
                 fontSize={12}
                 formatter={(value: keyof typeof chartConfig) =>

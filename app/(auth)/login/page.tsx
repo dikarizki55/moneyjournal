@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import {
@@ -19,6 +19,7 @@ import Link from "next/link";
 const Login = () => {
   const router = useRouter();
   const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   const [form, setForm] = useState({
     email: "",
@@ -34,6 +35,7 @@ const Login = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setIsLoading(true);
 
     const res = await signIn("credentials", {
       redirect: false,
@@ -42,13 +44,38 @@ const Login = () => {
     });
 
     if (res?.error) {
+      setIsLoading(false);
       setError(error);
     } else {
       router.push("/dashboard");
     }
   };
+
+  const loginDemo = async () => {
+    setIsLoading(true);
+    const res = await signIn("credentials", {
+      redirect: false,
+      email: "demo@demo.com",
+      password: "123456",
+    });
+
+    if (res?.error) {
+      setError(error);
+      setIsLoading(false);
+    } else {
+      router.push("/dashboard");
+    }
+  };
+
+  if (isLoading)
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <h1 className=" text-5xl font-bold">Loading...</h1>
+      </div>
+    );
+
   return (
-    <div className=" w-full h-screen flex justify-center items-center">
+    <div className=" w-full h-screen flex justify-center items-center flex-col gap-5">
       <Card className=" w-full max-w-sm">
         <CardHeader>
           <CardTitle>Sign In</CardTitle>
@@ -78,6 +105,7 @@ const Login = () => {
                   onChange={handleOnChange}
                 />
               </div>
+              <button type="submit" className="hidden"></button>
             </div>
           </form>
         </CardContent>
@@ -90,7 +118,6 @@ const Login = () => {
             Sign In
           </Button>
           <Button
-            type="submit"
             onClick={() => signIn("google", { redirectTo: "/dashboard" })}
             variant={"outline"}
             className=" w-full cursor-pointer"
@@ -105,51 +132,12 @@ const Login = () => {
           </div>
         </CardFooter>
       </Card>
-      {/* <div className=" max-w-md mx-auto mt-10 p-6 bg-white rounded shadow">
-        <h2 className=" text-2xl font-bold mb-4">Sign In</h2>
-        {error && <p className=" text-red-500 mb-2">{error}</p>}
-
-        <form onSubmit={handleSubmit} className=" space-y-4">
-          <div>
-            <label className="block mb-1">Email</label>
-            <input
-              type="email"
-              required
-              className=" w-full border p-2 rounded"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-          </div>
-
-          <div>
-            <label className="block mb-1">Password</label>
-            <input
-              type="password"
-              required
-              className=" w-full border p-2 rounded"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-          </div>
-
-          <button
-            type="submit"
-            className=" w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700"
-          >
-            Sign In
-          </button>
-        </form>
-
-        <div className=" mt-6 text-center">
-          <p className=" mb-2">Or Sign in With:</p>
-          <button
-            onClick={() => signIn("google", { redirectTo: "/dashboard" })}
-            className=" w-full bg-red-500 text-white py-2 rounded hover:bg-red-600"
-          >
-            Sign in With Google
-          </button>
-        </div>
-      </div> */}
+      <Button
+        className=" mt-5 py-7 px-10 text-2xl cursor-pointer"
+        onClick={loginDemo}
+      >
+        use Demo Account
+      </Button>
     </div>
   );
 };

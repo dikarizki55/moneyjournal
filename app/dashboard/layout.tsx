@@ -14,14 +14,16 @@ export default async function Layout({
   if (!session?.user) redirect("/login");
 
   return (
-    <SessionProvider session={session}>
-      <SidebarProvider>
-        <AppSidebar />
-        <main className=" w-full">
-          <SidebarTrigger />
-          {children}
-        </main>
-      </SidebarProvider>
-    </SessionProvider>
+    <div className=" w-[100vw] relative">
+      <SessionProvider session={session}>
+        <SidebarProvider>
+          <AppSidebar />
+          <main className=" w-full lg:w-[calc(100%-256px)]">
+            <SidebarTrigger />
+            {children}
+          </main>
+        </SidebarProvider>
+      </SessionProvider>
+    </div>
   );
 }

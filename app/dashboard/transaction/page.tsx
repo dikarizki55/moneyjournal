@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { columns } from "./columns";
 import { DataTable } from "./data-table";
 import { DrawerDialog } from "./dialog";
@@ -18,9 +18,10 @@ import { useSearchParams } from "next/navigation";
 const page = () => {
   const searchParams = useSearchParams();
   const page = Number(searchParams?.get("page") ?? 1);
+
   const [data, setData] = useState([]);
-  const [sort, setSort] = useState("desc");
-  const [sortBy, setSortBy] = useState("date");
+  const sort = searchParams?.get("sort") ?? "desc";
+  const sortBy = searchParams?.get("sortBy") ?? "date";
   const [updateData, setUpdateData] = useState(true);
   const [total, setTotal] = useState(0);
 
@@ -47,7 +48,7 @@ const page = () => {
     };
 
     fetchTransactions();
-  }, [updateData]);
+  }, [updateData, page, sort, sortBy]);
 
   return (
     <div className="p-6">
@@ -100,15 +101,13 @@ function PaginationComponent({ total, page }: { total: number; page: number }) {
     (_, i) => startPage + i
   );
 
-  useEffect(() => {
-    console.log(startPage);
-    console.log(pageArray);
-  }, [page]);
-
   function pageSet(page: number) {
     params.set("page", String(page));
     return `?${params.toString()}`;
   }
+
+  const getHeightRef = useRef<HTMLDivElement | null>(null);
+  const height = getHeightRef.current?.getBoundingClientRect().height;
 
   return (
     <div>
@@ -137,26 +136,28 @@ function PaginationComponent({ total, page }: { total: number; page: number }) {
         </PaginationContent>
       </Pagination>
       <div
-        className=" relative overflow-hidden transition-all duration-500"
-        style={{ height: showAll ? 500 : 0 }}
+        className="relative overflow-hidden transition-all duration-500 mt-5"
+        style={{ height: showAll ? height : 0 }}
       >
-        <Pagination
-          className=" relative transition-all duration-500"
-          style={{ top: showAll ? 0 : -300 }}
-        >
-          <PaginationContent className=" relative flex flex-wrap w-full py-2 lg:px-30 px-5 justify-center ">
-            {Array.from({ length: totalPage }).map((_, i) => (
-              <PaginationItem key={i + 1} onClick={() => setShowAll(false)}>
-                <PaginationLink
-                  href={pageSet(i + 1)}
-                  isActive={i + 1 === page ? true : false}
-                >
-                  {i + 1}
-                </PaginationLink>
-              </PaginationItem>
-            ))}
-          </PaginationContent>
-        </Pagination>
+        <div ref={getHeightRef} className=" relative">
+          <Pagination
+            className=" w-full lg:px-30 px-5"
+            style={{ top: showAll ? 0 : height ? height - 5 : 0 }}
+          >
+            <PaginationContent className="  flex flex-wrap py-2 px-5 justify-center border rounded-2xl">
+              {Array.from({ length: totalPage }).map((_, i) => (
+                <PaginationItem key={i + 1} onClick={() => setShowAll(false)}>
+                  <PaginationLink
+                    href={pageSet(i + 1)}
+                    isActive={i + 1 === page ? true : false}
+                  >
+                    {i + 1}
+                  </PaginationLink>
+                </PaginationItem>
+              ))}
+            </PaginationContent>
+          </Pagination>
+        </div>
       </div>
     </div>
   );

@@ -1,7 +1,7 @@
 "use client";
 
 import { ColumnDef } from "@tanstack/react-table";
-import { MoreHorizontal, Pencil, Trash } from "lucide-react";
+import { ArrowUpDown, MoreHorizontal, Pencil, Trash } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -14,7 +14,7 @@ import {
 
 import type { transaction } from "@prisma/client";
 import { DrawerDialog } from "./dialog";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,6 +26,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 
 export const columns: ColumnDef<transaction>[] = [
   {
@@ -39,16 +40,19 @@ export const columns: ColumnDef<transaction>[] = [
   },
   {
     accessorKey: "title",
-    header: "Title",
+    header: () => <AscDesc params="title">{"Title"}</AscDesc>,
   },
   {
     accessorKey: "category",
-    header: "Category",
+    header: () => <AscDesc params="category">{"Category"}</AscDesc>,
   },
-  { accessorKey: "notes", header: "Notes" },
+  {
+    accessorKey: "notes",
+    header: () => <AscDesc params="notes">{"Notes"}</AscDesc>,
+  },
   {
     accessorKey: "date",
-    header: "Date",
+    header: () => <AscDesc params="date">{"Date"}</AscDesc>,
     cell: ({ row }) => {
       const rawDate: string = row.getValue("date");
       const date = new Date(rawDate);
@@ -63,7 +67,11 @@ export const columns: ColumnDef<transaction>[] = [
   },
   {
     accessorKey: "amount",
-    header: () => <div className=" text-right">Amount</div>,
+    header: () => (
+      <div className=" text-right flex justify-end">
+        <AscDesc params="amount">{"Amount"}</AscDesc>
+      </div>
+    ),
     cell: ({ row }) => {
       const amount = parseFloat(row.getValue("amount"));
       const formatted = new Intl.NumberFormat("id-ID", {
@@ -169,3 +177,36 @@ export const columns: ColumnDef<transaction>[] = [
     },
   },
 ];
+
+function AscDesc({
+  children,
+  params,
+}: {
+  children: React.ReactNode;
+  params: string;
+}) {
+  const searchParams = useSearchParams();
+  const newParams = new URLSearchParams(searchParams ?? "");
+
+  const sortBy = searchParams?.get("sortBy") ?? "date";
+  const sort = searchParams?.get("sort") ?? "desc";
+
+  newParams.set("page", "1");
+  newParams.set("sortBy", params);
+  newParams.set(
+    "sort",
+    params !== sortBy ? "asc" : sort === "asc" ? "desc" : "asc"
+  );
+
+  return (
+    <Link href={`?${newParams}`} className=" flex gap-2 items-center">
+      {params === sortBy && (
+        <ArrowUpDown
+          className="w-3 text-primary "
+          style={{ opacity: sort === "desc" ? "0.5" : "1" }}
+        />
+      )}
+      {children}
+    </Link>
+  );
+}

@@ -57,41 +57,41 @@ export default function Wallet() {
   }, [balance]);
 
   return (
-    <div className=" w-full h-80 bg-chart-2 rounded-2xl border flex">
-      <div className=" w-[70%] flex flex-col gap-2 p-10 justify-center">
-        <span className=" -mt-5 text-2xl">Your balance</span>
+    <div className=" w-full h-80 bg-chart-2 rounded-2xl border flex flex-col lg:flex-row text-white">
+      <div className=" lg:w-[70%] flex flex-col gap-2 lg:ps-10 lg:p-0 p-6 justify-center">
+        <span className=" lg:-mt-5 text-2xl">Your balance</span>
         <div className=" flex flex-col overflow-hidden relative">
           <h1
-            className=" font-bold text-8xl transition-all duration-500 relative"
+            className=" font-bold md:text-5xl lg:text-[80px] text-4xl transition-all duration-500 relative"
             style={{ bottom: isLoading ? 0 : 110 }}
           >
             Rp 0
           </h1>
           <h1
-            className="absolute font-bold text-8xl transition-all duration-500"
+            className="absolute font-bold md:text-5xl lg:text-[80px] text-4xl transition-all duration-500"
             style={{ bottom: isLoading ? -110 : 0 }}
           >
             {balance}
           </h1>
         </div>
       </div>
-      <div className=" w-[30%] flex justify-center items-end px-20 flex-col gap-3">
+      <div className=" lg:w-[30%] flex lg:justify-center lg:items-end lg:px-20 px-6 flex-col gap-3">
         <div className=" flex gap-3 flex-col">
-          <h2 className=" font-black text-2xl">This Month</h2>
+          <h2 className=" font-black lg:text-2xl text-xl">This Month</h2>
           <div>
-            <h4 className="font-bold text-xl">Income</h4>
+            <h4 className="font-bold lg:text-xl text-base">Income</h4>
             <div className=" flex gap-2">
-              <ArrowDownCircle></ArrowDownCircle>
-              <span className=" font-medium">
+              <ArrowDownCircle className=" lg:w-auto w-5"></ArrowDownCircle>
+              <span className=" font-medium lg:text-base text-[15px]">
                 {formatRupiah(String(income))}
               </span>
             </div>
           </div>
           <div>
-            <h4 className=" font-bold text-xl">Outcome</h4>
+            <h4 className=" font-bold lg:text-xl text-base">Outcome</h4>
             <div className=" flex gap-2">
-              <ArrowUpCircle></ArrowUpCircle>
-              <span className="font-medium">
+              <ArrowUpCircle className=" lg:w-auto w-5"></ArrowUpCircle>
+              <span className="font-medium lg:text-base text-[15px]">
                 {formatRupiah(String(outcome))}
               </span>
             </div>
