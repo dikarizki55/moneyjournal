@@ -34,15 +34,17 @@ export function NavUser() {
   const session = useSession();
 
   const [imageProfile, setImageProfile] = useState("");
+  const [name, setName] = useState("");
 
   useEffect(() => {
     const fetchImage = async () => {
-      const res = await fetch("/api/getAccountImage", {
+      const res = await fetch("/api/account/getAccountInfo", {
         method: "GET",
         credentials: "include",
       }).then((res) => res.json());
 
-      setImageProfile(res.data);
+      setImageProfile(res.data.image);
+      setName(res.data.name);
     };
     fetchImage();
   }, []);
@@ -61,15 +63,23 @@ export function NavUser() {
               <Avatar className="h-8 w-8 rounded-lg">
                 <AvatarImage
                   src={imageProfile}
-                  alt={session.data?.user?.name ?? ""}
+                  alt={name}
                   className="w-full h-full object-cover"
                 />
-                <AvatarFallback className="rounded-lg">CN</AvatarFallback>
+                {imageProfile !== "" && (
+                  <AvatarFallback className="rounded-lg">
+                    {String(name)
+                      .split(" ")
+                      .filter(Boolean)
+                      .slice(0, 2)
+                      .map((n) => n[0])
+                      .join("")
+                      .toUpperCase()}
+                  </AvatarFallback>
+                )}
               </Avatar>
               <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-medium">
-                  {session.data?.user?.name ?? ""}
-                </span>
+                <span className="truncate font-medium">{name}</span>
                 <span className="truncate text-xs">
                   {session.data?.user?.email ?? ""}
                 </span>
@@ -88,15 +98,23 @@ export function NavUser() {
                 <Avatar className="h-8 w-8 rounded-lg">
                   <AvatarImage
                     src={imageProfile}
-                    alt={session.data?.user?.name ?? ""}
+                    alt={name}
                     className="w-full h-full object-cover"
                   />
-                  <AvatarFallback className="rounded-lg">CN</AvatarFallback>
+                  {imageProfile !== "" && (
+                    <AvatarFallback className="rounded-lg">
+                      {String(name)
+                        .split(" ")
+                        .filter(Boolean)
+                        .slice(0, 2)
+                        .map((n) => n[0])
+                        .join("")
+                        .toUpperCase()}
+                    </AvatarFallback>
+                  )}
                 </Avatar>
                 <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-medium">
-                    {session.data?.user?.name ?? ""}
-                  </span>
+                  <span className="truncate font-medium">{name}</span>
                   <span className="truncate text-xs">
                     {session.data?.user?.email ?? ""}
                   </span>

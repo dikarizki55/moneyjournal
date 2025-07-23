@@ -8,14 +8,14 @@ export async function GET(req: NextRequest) {
 
     const data = await prisma.user.findUnique({
       where: { id: user.id },
-      select: { image: true },
+      select: { name: true, image: true },
     });
 
     return NextResponse.json(
       {
         success: true,
         message: "success",
-        data: data?.image,
+        data: data,
       },
       { status: 200 }
     );
