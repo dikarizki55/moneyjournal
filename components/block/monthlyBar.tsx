@@ -51,8 +51,6 @@ export default function MonthlyBar() {
 
   return <ChartBarMultiple chartData={data}></ChartBarMultiple>;
 }
-
-import { TrendingUp } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, LabelList, XAxis } from "recharts";
 import { formatRupiah } from "@/app/dashboard/RupiahInput";
 
@@ -64,16 +62,16 @@ export function ChartBarMultiple({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Bar Chart - Multiple</CardTitle>
-        <CardDescription>January - June 2024</CardDescription>
+        <CardTitle>Bar Chart</CardTitle>
+        <CardDescription>2025</CardDescription>
       </CardHeader>
       <CardContent>
         <div className=" w-full overflow-scroll">
           <ChartContainer
             config={chartConfig}
-            style={{ width: chartData.length * 250, height: 300 }}
+            style={{ width: chartData.length * 250, height: 265 }}
           >
-            <BarChart accessibilityLayer data={chartData} margin={{ top: 30 }}>
+            <BarChart accessibilityLayer data={chartData} margin={{ top: 0 }}>
               <CartesianGrid vertical={false} />
               <XAxis
                 dataKey="month"
@@ -133,14 +131,7 @@ export function ChartBarMultiple({
         </div>
       </CardContent>
 
-      <CardFooter className="flex-col items-start gap-2 text-sm">
-        <div className="flex gap-2 leading-none font-medium">
-          Trending up by 5.2% this month <TrendingUp className="h-4 w-4" />
-        </div>
-        <div className="text-muted-foreground leading-none">
-          Showing total visitors for the last 6 months
-        </div>
-      </CardFooter>
+      <CardFooter className="flex-col items-start gap-2 text-sm"></CardFooter>
     </Card>
   );
 }

@@ -62,7 +62,7 @@ export default function Wallet() {
   }, [balance]);
 
   return (
-    <div className=" w-full h-80 bg-chart-2 rounded-2xl border flex flex-col lg:flex-row text-white">
+    <div className=" w-full h-72 bg-chart-2 rounded-2xl border flex flex-col lg:flex-row text-white">
       <div className=" lg:w-[70%] flex flex-col gap-2 lg:ps-10 lg:p-0 p-6 justify-center">
         <span className=" lg:-mt-5 text-2xl">Your balance</span>
         <div className=" flex flex-col overflow-hidden relative">
