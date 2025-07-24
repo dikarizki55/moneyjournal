@@ -1,6 +1,5 @@
 "use client";
 
-import { TrendingUp } from "lucide-react";
 import { LabelList, Pie, PieChart } from "recharts";
 
 import {
@@ -15,18 +14,12 @@ import {
   ChartConfig,
   ChartContainer,
   ChartTooltip,
-  ChartTooltipContent,
 } from "@/components/ui/chart";
 import { useEffect, useState } from "react";
 
 import { formatRupiah } from "./RupiahInput";
 
 export const description = "A pie chart with a label";
-
-const chartData = [
-  { name: "income", value: 100000, fill: "var(--color-income)" },
-  { name: "outcome", value: 200000, fill: "var(--color-outcome)" },
-];
 
 const chartConfig = {
   income: {
@@ -82,11 +75,13 @@ export default function PieChartBlock() {
       });
       const data = await res.json();
 
-      const result = data.data.map((item: any) => ({
-        name: item.type,
-        value: Number(item._sum.amount),
-        fill: `var(--color-${item.type})`,
-      }));
+      const result = data.data.map(
+        (item: { type: string; _sum: { amount: string } }) => ({
+          name: item.type,
+          value: Number(item._sum.amount),
+          fill: `var(--color-${item.type})`,
+        })
+      );
 
       setPieData(result);
     };

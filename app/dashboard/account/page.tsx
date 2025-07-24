@@ -9,15 +9,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PencilLine, Trash } from "lucide-react";
-import { getSession, useSession } from "next-auth/react";
+import { useSession } from "next-auth/react";
 import { useEffect, useRef, useState } from "react";
 
-const page = () => {
+const Page = () => {
   const session = useSession();
 
   const user = session.data?.user;
@@ -62,7 +61,7 @@ const page = () => {
     if (user?.id) formData.append("id", user.id);
     if (photo) formData.append("photo", photo);
 
-    const res = await fetch(`/api/account/edit`, {
+    await fetch(`/api/account/edit`, {
       method: "POST",
       body: formData,
       credentials: "include",
@@ -176,4 +175,4 @@ const page = () => {
   );
 };
 
-export default page;
+export default Page;

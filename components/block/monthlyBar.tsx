@@ -92,7 +92,7 @@ export function ChartBarMultiple({
                 />
                 <LabelList
                   position="center"
-                  content={({ x, y, width, height, value }) => (
+                  content={({ x, y, width, height }) => (
                     <text
                       x={Number(x) + Number(width) / 2}
                       y={Number(y) + Number(height) / 2}
@@ -115,7 +115,7 @@ export function ChartBarMultiple({
                 />
                 <LabelList
                   position="center"
-                  content={({ x, y, width, height, value }) => (
+                  content={({ x, y, width, height }) => (
                     <text
                       x={Number(x) + Number(width) / 2}
                       y={Number(y) + Number(height) / 2}

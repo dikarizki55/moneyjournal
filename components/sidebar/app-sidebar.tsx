@@ -17,7 +17,6 @@ import {
 import { NavUser } from "./navuser";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { useState } from "react";
 import ThemeToggle from "../block/themeToggle";
 
 // Menu items.

@@ -13,9 +13,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { useEffect, useState } from "react";
-
-const categoryList = ["Makanan", "Transportasi", "Hiburan", "Gaji", "Lainnya"];
+import { useState } from "react";
 
 export default function ComboboxInput({
   id,

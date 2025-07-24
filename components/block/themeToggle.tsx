@@ -1,6 +1,5 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Button } from "../ui/button";
 import { Switch } from "../ui/switch";
 import { Moon, Sun } from "lucide-react";
 
@@ -31,7 +30,11 @@ export default function ThemeToggle({ hidden = false }: { hidden?: boolean }) {
   }, [dark]);
 
   const handleTheme = () => {
-    !dark ? setCookie("dark", "true") : setCookie("dark", "false");
+    if (!dark) {
+      setCookie("dark", "true");
+    } else {
+      setCookie("dark", "false");
+    }
     setDark(!dark);
   };
 

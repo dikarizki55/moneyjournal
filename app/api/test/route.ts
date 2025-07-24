@@ -7,6 +7,6 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ message: "halooo", data: user });
   } catch (error) {
-    return NextResponse.json({ message: "error" }, { status: 401 });
+    return NextResponse.json({ message: "error", error }, { status: 401 });
   }
 }

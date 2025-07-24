@@ -49,6 +49,8 @@ export async function DELETE(
 ) {
   try {
     const user = await verifyUser(req);
+    if (user.id) throw new Error();
+
     const { id } = await params;
     await prisma.transaction.delete({ where: { id } });
 

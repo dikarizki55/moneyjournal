@@ -21,10 +21,12 @@ export default function Wallet() {
         const data = await res.json();
 
         const result: Record<string, number> = {};
-        data.data.forEach((item: any) => {
-          if (!result[item.type]) result[item.type] = 0;
-          result[item.type] += Number(item._sum.amount);
-        });
+        data.data.forEach(
+          (item: { type: string; _sum: { amount: string } }) => {
+            if (!result[item.type]) result[item.type] = 0;
+            result[item.type] += Number(item._sum.amount);
+          }
+        );
         setBalance(formatRupiah((result.income - result.outcome).toString()));
 
         const dataThisMonth = await fetch(
@@ -35,10 +37,12 @@ export default function Wallet() {
         ).then((res) => res.json());
 
         const resultThisMonth: Record<string, number> = {};
-        dataThisMonth.data.forEach((item: any) => {
-          if (!resultThisMonth[item.type]) resultThisMonth[item.type] = 0;
-          resultThisMonth[item.type] += Number(item._sum.amount);
-        });
+        dataThisMonth.data.forEach(
+          (item: { type: string; _sum: { amount: string } }) => {
+            if (!resultThisMonth[item.type]) resultThisMonth[item.type] = 0;
+            resultThisMonth[item.type] += Number(item._sum.amount);
+          }
+        );
 
         setIncome(resultThisMonth.income);
         setOutcome(resultThisMonth.outcome);
@@ -49,8 +53,9 @@ export default function Wallet() {
       }
     };
 
+    if (error) console.log(error);
     fetchData();
-  }, []);
+  }, [error]);
 
   useEffect(() => {
     console.log(balance);

@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
       order by month ${Prisma.sql(["asc"])}
       `;
 
-    const convertMonth = result.map((item, i) => ({
+    const convertMonth = result.map((item) => ({
       ...item,
       month: namaBulan[Number(item.month)],
     }));

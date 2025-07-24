@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/pagination";
 import { useSearchParams } from "next/navigation";
 
-const page = () => {
+const Page = () => {
   const searchParams = useSearchParams();
   const page = Number(searchParams?.get("page") ?? 1);
 
@@ -63,14 +63,7 @@ const page = () => {
           title="Create Transaction"
           description="Make new transaction data"
           updateData={() => setUpdateData(!updateData)}
-          onSubmit={async (data) => {
-            await fetch("/api/transaction", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(data),
-              credentials: "include",
-            });
-          }}
+          apiLink={"/api/transaction"}
         />
         <DataTable columns={columns} data={data} />
         <PaginationComponent total={total} page={page}></PaginationComponent>
@@ -79,7 +72,7 @@ const page = () => {
   );
 };
 
-export default page;
+export default Page;
 
 function PaginationComponent({ total, page }: { total: number; page: number }) {
   const searchParams = useSearchParams();

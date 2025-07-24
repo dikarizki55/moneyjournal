@@ -35,7 +35,7 @@ type DrawerDialogProps = {
   title: string;
   description: string;
   initialData?: FormInput;
-  onSubmit: (values: any) => Promise<void>;
+  apiLink: string;
   updateData?: () => void;
 };
 
@@ -52,7 +52,7 @@ export function DrawerDialog({
   title,
   description,
   initialData,
-  onSubmit,
+  apiLink,
   updateData,
 }: DrawerDialogProps) {
   const [open, setOpen] = React.useState(false);
@@ -74,7 +74,7 @@ export function DrawerDialog({
             setOpen={setOpen}
             className="px-4"
             initialData={initialData}
-            onSubmit={onSubmit}
+            apiLink={apiLink}
             updateData={updateData}
           />
         </DialogContent>
@@ -97,7 +97,7 @@ export function DrawerDialog({
           setOpen={setOpen}
           className="px-4"
           initialData={initialData}
-          onSubmit={onSubmit}
+          apiLink={apiLink}
           updateData={updateData}
         />
         <DrawerFooter className="pt-2">
@@ -112,12 +112,12 @@ export function DrawerDialog({
 
 function ProfileForm({
   className,
-  onSubmit,
+  apiLink,
   setOpen,
   updateData,
   initialData,
 }: React.ComponentProps<"form"> & {
-  onSubmit: (values: any) => Promise<void>;
+  apiLink: string;
   setOpen: Dispatch<SetStateAction<boolean>>;
   updateData?: () => void;
   initialData: FormInput | undefined;
@@ -138,7 +138,13 @@ function ProfileForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await onSubmit(form);
+    // await onSubmit(form);
+    await fetch(apiLink, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(form),
+      credentials: "include",
+    });
     setOpen(false);
     if (updateData) updateData();
     window.location.reload();

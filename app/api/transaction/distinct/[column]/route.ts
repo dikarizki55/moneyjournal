@@ -1,5 +1,6 @@
 import { verifyUser } from "@/lib/verifyuser";
 import prisma from "@/prisma";
+import { Prisma } from "@prisma/client";
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime/library";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -13,7 +14,7 @@ export async function GET(
 
     const categories = await prisma.transaction.findMany({
       where: { user_id: user.id },
-      distinct: ["category"],
+      distinct: [column as Prisma.TransactionScalarFieldEnum],
       select: { category: true },
     });
 
