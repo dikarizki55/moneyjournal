@@ -89,10 +89,10 @@ function PaginationComponent({ total, page }: { total: number; page: number }) {
       ? totalPage - maxVisiblePage + 1
       : page - Math.floor(maxVisiblePage / 2);
 
-  const pageArray = Array.from(
-    { length: maxVisiblePage },
-    (_, i) => startPage + i
-  );
+  const pageArray =
+    totalPage > 7
+      ? Array.from({ length: maxVisiblePage }, (_, i) => startPage + i)
+      : Array.from({ length: totalPage }, (_, i) => startPage + i);
 
   function pageSet(page: number) {
     params.set("page", String(page));
