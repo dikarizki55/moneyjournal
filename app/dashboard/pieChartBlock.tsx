@@ -110,7 +110,7 @@ export default function PieChartBlock() {
             >
               <LabelList
                 dataKey="name"
-                className="fill-primary font-medium"
+                className="fill-white font-medium"
                 stroke="none"
                 fontSize={12}
                 formatter={(value: keyof typeof chartConfig) =>

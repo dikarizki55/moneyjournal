@@ -6,6 +6,7 @@ import Credential from "next-auth/providers/credentials";
 import { verifyPassword } from "./lib/scrypt";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  trustHost: true, // penting
   providers: [
     Google,
     Credential({
@@ -26,6 +27,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           credentials.password as string,
           user.password as string
         );
+
+        if (!isValid) {
+          throw new Error("Error Auth");
+        }
 
         return {
           id: user.id,
