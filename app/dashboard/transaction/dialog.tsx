@@ -36,7 +36,6 @@ type DrawerDialogProps = {
   description: string;
   initialData?: FormInput;
   apiLink: string;
-  updateData?: () => void;
 };
 
 type FormInput = {
@@ -53,7 +52,6 @@ export function DrawerDialog({
   description,
   initialData,
   apiLink,
-  updateData,
 }: DrawerDialogProps) {
   const [open, setOpen] = React.useState(false);
   const isDesktop = useMediaQuery("(min-width: 768px)");
@@ -75,7 +73,6 @@ export function DrawerDialog({
             className="px-4"
             initialData={initialData}
             apiLink={apiLink}
-            updateData={updateData}
           />
         </DialogContent>
       </Dialog>
@@ -98,7 +95,6 @@ export function DrawerDialog({
           className="px-4"
           initialData={initialData}
           apiLink={apiLink}
-          updateData={updateData}
         />
         <DrawerFooter className="pt-2">
           <DrawerClose asChild>
@@ -114,12 +110,10 @@ function ProfileForm({
   className,
   apiLink,
   setOpen,
-  updateData,
   initialData,
 }: React.ComponentProps<"form"> & {
   apiLink: string;
   setOpen: Dispatch<SetStateAction<boolean>>;
-  updateData?: () => void;
   initialData: FormInput | undefined;
 }) {
   const [form, setForm] = React.useState<FormInput>({
@@ -146,7 +140,6 @@ function ProfileForm({
       credentials: "include",
     });
     setOpen(false);
-    if (updateData) updateData();
     window.location.reload();
   };
 

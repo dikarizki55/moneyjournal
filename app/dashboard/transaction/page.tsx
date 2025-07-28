@@ -1,54 +1,77 @@
-"use client";
-import { useEffect, useRef, useState } from "react";
 import { columns } from "./columns";
 import { DataTable } from "./data-table";
 import { DrawerDialog } from "./dialog";
 import { Button } from "@/components/ui/button";
-import {
-  Pagination,
-  PaginationContent,
-  PaginationEllipsis,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from "@/components/ui/pagination";
-import { useSearchParams } from "next/navigation";
+import PaginationComponent from "./paginationComponent";
+import { cookies, headers } from "next/headers";
 
-const Page = () => {
-  const searchParams = useSearchParams();
-  const page = Number(searchParams?.get("page") ?? 1);
+const Page = async ({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) => {
+  // const searchParams = useSearchParams();
+  // const page = Number(searchParams?.get("page") ?? 1);
+  const page = Number((await searchParams).page ?? 1);
+  const sort = (await searchParams).sort ?? "desc";
+  const sortBy = (await searchParams).sortBy ?? "date";
 
-  const [data, setData] = useState([]);
-  const sort = searchParams?.get("sort") ?? "desc";
-  const sortBy = searchParams?.get("sortBy") ?? "date";
-  const [updateData, setUpdateData] = useState(true);
-  const [total, setTotal] = useState(0);
+  // const sort = searchParams?.get("sort") ?? "desc";
+  // const sortBy = searchParams?.get("sortBy") ?? "date";
+  // const [updateData, setUpdateData] = useState(true);
+  // const [total, setTotal] = useState(0);
 
-  useEffect(() => {
-    const fetchTransactions = async () => {
-      const res = await fetch(
-        `/api/transaction?limit=25&offset=${
-          (page - 1) * 25
-        }&sort=${sort}&sortBy=${sortBy}`,
-        {
-          credentials: "include",
-        }
-      );
+  const headersList = headers();
 
-      if (!res.ok) {
-        console.error("Failed to fetch transactions");
-        return;
-      }
+  const host = (await headersList).get("host"); // misalnya: example.com
+  const protocol = (await headersList).get("x-forwarded-proto") || "http"; // misalnya: https
 
-      const data = await res.json();
+  const fullUrl = `${protocol}://${host}/`;
 
-      setData(data.data);
-      setTotal(data.pagination.total);
-    };
+  const res = await fetch(
+    `${fullUrl}api/transaction?limit=25&offset=${
+      (page - 1) * 25
+    }&sort=${sort}&sortBy=${sortBy}`,
+    {
+      headers: {
+        Cookie: (await cookies()).toString(),
+      },
+    }
+  );
 
-    fetchTransactions();
-  }, [updateData, page, sort, sortBy]);
+  if (!res.ok) {
+    console.error("Failed to fetch transactions");
+    return;
+  }
+
+  const resJson = await res.json();
+  const data = resJson.data;
+  const total = await resJson.pagination.total;
+
+  // useEffect(() => {
+  //   const fetchTransactions = async () => {
+  //     const res = await fetch(
+  //       `/api/transaction?limit=25&offset=${
+  //         (page - 1) * 25
+  //       }&sort=${sort}&sortBy=${sortBy}`,
+  //       {
+  //         credentials: "include",
+  //       }
+  //     );
+
+  //     if (!res.ok) {
+  //       console.error("Failed to fetch transactions");
+  //       return;
+  //     }
+
+  //     const data = await res.json();
+
+  //     setData(data.data);
+  //     setTotal(data.pagination.total);
+  //   };
+
+  //   fetchTransactions();
+  // }, [updateData, page, sort, sortBy]);
 
   return (
     <div className="p-6">
@@ -62,7 +85,6 @@ const Page = () => {
           }
           title="Create Transaction"
           description="Make new transaction data"
-          updateData={() => setUpdateData(!updateData)}
           apiLink={"/api/transaction"}
         />
         <DataTable columns={columns} data={data} />
@@ -73,85 +95,3 @@ const Page = () => {
 };
 
 export default Page;
-
-function PaginationComponent({ total, page }: { total: number; page: number }) {
-  const searchParams = useSearchParams();
-  const params = new URLSearchParams(searchParams ?? "");
-  const [showAll, setShowAll] = useState(false);
-
-  const totalPage = Math.ceil(total / 25);
-  const maxVisiblePage = 7;
-
-  const startPage =
-    page < maxVisiblePage / 2
-      ? 1
-      : totalPage - maxVisiblePage / 2 < page
-      ? totalPage - maxVisiblePage + 1
-      : page - Math.floor(maxVisiblePage / 2);
-
-  const pageArray =
-    totalPage > 7
-      ? Array.from({ length: maxVisiblePage }, (_, i) => startPage + i)
-      : Array.from({ length: totalPage }, (_, i) => startPage + i);
-
-  function pageSet(page: number) {
-    params.set("page", String(page));
-    return `?${params.toString()}`;
-  }
-
-  const getHeightRef = useRef<HTMLDivElement | null>(null);
-  const height = getHeightRef.current?.getBoundingClientRect().height;
-
-  return (
-    <div>
-      <Pagination className=" mt-5">
-        <PaginationContent>
-          <PaginationItem>
-            <PaginationPrevious href={pageSet(page - 1)} />
-          </PaginationItem>
-          {total &&
-            pageArray.map((item) => (
-              <PaginationItem key={item}>
-                <PaginationLink
-                  href={pageSet(item)}
-                  isActive={item === page ? true : false}
-                >
-                  {item}
-                </PaginationLink>
-              </PaginationItem>
-            ))}
-          <PaginationItem onClick={() => setShowAll(!showAll)}>
-            <PaginationEllipsis />
-          </PaginationItem>
-          <PaginationItem>
-            <PaginationNext href={pageSet(page + 1)} />
-          </PaginationItem>
-        </PaginationContent>
-      </Pagination>
-      <div
-        className="relative overflow-hidden transition-all duration-500 mt-5"
-        style={{ height: showAll ? height : 0 }}
-      >
-        <div ref={getHeightRef} className=" relative">
-          <Pagination
-            className=" w-full lg:px-30 px-5"
-            style={{ top: showAll ? 0 : height ? height - 5 : 0 }}
-          >
-            <PaginationContent className="  flex flex-wrap py-2 px-5 justify-center border rounded-2xl">
-              {Array.from({ length: totalPage }).map((_, i) => (
-                <PaginationItem key={i + 1} onClick={() => setShowAll(false)}>
-                  <PaginationLink
-                    href={pageSet(i + 1)}
-                    isActive={i + 1 === page ? true : false}
-                  >
-                    {i + 1}
-                  </PaginationLink>
-                </PaginationItem>
-              ))}
-            </PaginationContent>
-          </Pagination>
-        </div>
-      </div>
-    </div>
-  );
-}
