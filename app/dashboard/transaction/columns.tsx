@@ -91,8 +91,9 @@ export const columns: ColumnDef<transaction>[] = [
   },
   {
     id: "actions",
+    header: "Action",
     cell: ({ row }) => {
-      <ActionCell rawData={row.original}></ActionCell>;
+      return <ActionCell rawData={row.original}></ActionCell>;
     },
   },
 ];
