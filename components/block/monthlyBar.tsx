@@ -49,21 +49,35 @@ export default function MonthlyBar() {
     fetchData();
   }, []);
 
-  return <ChartBarMultiple chartData={data}></ChartBarMultiple>;
+  return (
+    <ChartBarMultiple
+      title="Monthly Income Outcome"
+      description="2025"
+      chartData={data}
+      chartDataKey={"month"}
+    ></ChartBarMultiple>
+  );
 }
 import { Bar, BarChart, CartesianGrid, LabelList, XAxis } from "recharts";
 import { formatRupiah } from "@/app/dashboard/RupiahInput";
+import { DataKey } from "recharts/types/util/types";
 
 export function ChartBarMultiple({
   chartData,
+  chartDataKey,
+  title,
+  description,
 }: {
   chartData: Record<string, string | number>[];
+  chartDataKey: DataKey<string> | undefined;
+  title: string;
+  description: string;
 }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Bar Chart</CardTitle>
-        <CardDescription>2025</CardDescription>
+        <CardTitle>{title}</CardTitle>
+        <CardDescription>{description}</CardDescription>
       </CardHeader>
       <CardContent>
         <div className=" w-full overflow-scroll">
@@ -71,14 +85,14 @@ export function ChartBarMultiple({
             config={chartConfig}
             style={{ width: chartData.length * 250, height: 265 }}
           >
-            <BarChart accessibilityLayer data={chartData} margin={{ top: 0 }}>
+            <BarChart accessibilityLayer data={chartData} margin={{ top: 10 }}>
               <CartesianGrid vertical={false} />
               <XAxis
-                dataKey="month"
+                dataKey={chartDataKey}
                 tickLine={false}
                 tickMargin={10}
                 axisLine={false}
-                tickFormatter={(value) => value.slice(0, 3)}
+                tickFormatter={(value) => value}
               />
               <Bar dataKey="income" fill="var(--chart-2)" radius={4}>
                 <LabelList

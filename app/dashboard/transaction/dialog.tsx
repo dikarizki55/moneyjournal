@@ -44,6 +44,7 @@ type FormInput = {
   category: string;
   amount: number | null;
   notes: string;
+  date: string;
 };
 
 export function DrawerDialog({
@@ -122,6 +123,8 @@ function ProfileForm({
     category: initialData?.category || "",
     notes: initialData?.notes || "",
     amount: initialData?.amount || null,
+    date:
+      initialData?.date.split("T")[0] || new Date().toISOString().split("T")[0],
   });
 
   const handleOnChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -156,9 +159,11 @@ function ProfileForm({
     getCategoryList();
   }, []);
 
+  useEffect(() => console.log(form), [form]);
+
   return (
     <form
-      className={cn("grid items-start gap-6", className)}
+      className={cn("grid items-start gap-4", className)}
       onSubmit={handleSubmit}
     >
       <div className="grid gap-3">
@@ -170,23 +175,35 @@ function ProfileForm({
           value={form?.title}
         />
       </div>
-      <div className="grid gap-3">
-        <Label htmlFor="type">Type</Label>
-        <Tabs
-          value={form?.type}
-          onValueChange={(value) =>
-            setForm({
-              ...form,
-              type: value as FormInput["type"],
-            })
-          }
-          className="w-full"
-        >
-          <TabsList>
-            <TabsTrigger value="income">Income</TabsTrigger>
-            <TabsTrigger value="outcome">Outcome</TabsTrigger>
-          </TabsList>
-        </Tabs>
+      <div className="flex gap-3">
+        <div className="grid gap-3">
+          <Label htmlFor="type">Type</Label>
+          <Tabs
+            value={form?.type}
+            onValueChange={(value) =>
+              setForm({
+                ...form,
+                type: value as FormInput["type"],
+              })
+            }
+            className="w-full"
+          >
+            <TabsList>
+              <TabsTrigger value="income">Income</TabsTrigger>
+              <TabsTrigger value="outcome">Outcome</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+
+        <div className="grid gap-3 w-full">
+          <Label htmlFor="date">Date</Label>
+          <Input
+            type="date"
+            id="date"
+            onChange={handleOnChange}
+            value={form?.date}
+          />
+        </div>
       </div>
       <div className="grid gap-3">
         <Label htmlFor="category">Category</Label>

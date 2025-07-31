@@ -1,6 +1,7 @@
 import PieChartBlock from "./pieChartBlock";
 import Wallet from "@/components/block/wallet";
 import MonthlyBar from "@/components/block/monthlyBar";
+import CategoryChart from "./CategoryChart";
 
 const page = async () => {
   return (
@@ -14,6 +15,7 @@ const page = async () => {
           <PieChartBlock></PieChartBlock>
         </div>
       </div>
+      <CategoryChart></CategoryChart>
     </div>
   );
 };

@@ -114,3 +114,8 @@ enum TransactionType {
   income
   outcome
 }
+
+model limitn8n {
+  id  String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  limit Decimal @db.Decimal
+}

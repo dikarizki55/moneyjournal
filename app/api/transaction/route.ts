@@ -38,9 +38,12 @@ export async function GET(req: NextRequest) {
       } else {
         const transaction = await prisma.transaction.findMany({
           where: { user_id: user.id },
-          orderBy: {
-            [sortField]: sortDirection,
-          },
+          orderBy: [
+            {
+              [sortField]: sortDirection,
+            },
+            { created_at: "desc" },
+          ],
           ...(typeof offset === "number" ? { skip: offset } : {}),
           ...(typeof limit === "number" ? { take: limit } : {}),
         });
@@ -104,6 +107,29 @@ export async function POST(req: NextRequest) {
       success: true,
       message: "success",
       data: transaction,
+    });
+  } catch (error) {
+    console.log(error);
+    return NextResponse.json({ message: "error" }, { status: 500 });
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const user = await verifyUser(req);
+
+    const body = await req.json();
+
+    const list: string[] = body.list;
+
+    await prisma.transaction.deleteMany({
+      where: { user_id: user.id, id: { in: list } },
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: "success delete",
+      data: list,
     });
   } catch (error) {
     console.log(error);

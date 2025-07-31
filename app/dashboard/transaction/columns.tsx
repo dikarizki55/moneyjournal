@@ -27,8 +27,31 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { Checkbox } from "@/components/ui/checkbox";
 
 export const columns: ColumnDef<transaction>[] = [
+  {
+    id: "select",
+    header: ({ table }) => (
+      <Checkbox
+        checked={
+          table.getIsAllPageRowsSelected() ||
+          (table.getIsSomePageRowsSelected() && "indeterminate")
+        }
+        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+        aria-label="Select all"
+      />
+    ),
+    cell: ({ row }) => (
+      <Checkbox
+        checked={row.getIsSelected()}
+        onCheckedChange={(value) => row.toggleSelected(!!value)}
+        aria-label="Select row"
+      />
+    ),
+    enableSorting: false,
+    enableHiding: false,
+  },
   {
     id: "number",
     header: "No.",
@@ -165,6 +188,7 @@ function ActionCell({ rawData }: { rawData: transaction }) {
             category: rawData.category || "",
             amount: Number(rawData.amount),
             notes: rawData.notes || "",
+            date: String(rawData.date) || "",
           }}
           title="Edit Transaction"
           description="Edit transaction data"

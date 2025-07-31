@@ -19,7 +19,7 @@ export async function POST(
       type,
       category,
       notes,
-      ...(date && date !== "" ? { date } : {}),
+      date: date && date.trim() !== "" ? new Date(date) : undefined,
     };
 
     await prisma.transaction.update({

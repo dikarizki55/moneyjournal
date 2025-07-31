@@ -4,6 +4,9 @@ import { DrawerDialog } from "./dialog";
 import { Button } from "@/components/ui/button";
 import PaginationComponent from "./paginationComponent";
 import { cookies, headers } from "next/headers";
+import { redirect } from "next/navigation";
+import Link from "next/link";
+import { Bot } from "lucide-react";
 
 const Page = async ({
   searchParams,
@@ -41,7 +44,7 @@ const Page = async ({
 
   if (!res.ok) {
     console.error("Failed to fetch transactions");
-    return;
+    redirect("/dashboard");
   }
 
   const resJson = await res.json();
@@ -87,6 +90,19 @@ const Page = async ({
           description="Make new transaction data"
           apiLink={"/api/transaction"}
         />
+        <Link href={"/dashboard/transaction/json"} className=" ml-2">
+          <Button className=" cursor-pointer">add with json</Button>
+        </Link>
+        <div className="fixed z-10 lg:bottom-15 lg:right-15 bottom-5 right-5">
+          <div>
+            <Link href="/dashboard/transaction/ai">
+              <div className=" bg-black text-white rounded-2xl flex flex-col justify-center items-center p-2 font-bold">
+                <Bot className=" lg:w-[50px] lg:h-[50px] w-10 h-10"></Bot>
+                AI help
+              </div>
+            </Link>
+          </div>
+        </div>
         <DataTable columns={columns} data={data} />
         <PaginationComponent total={total} page={page}></PaginationComponent>
       </div>
