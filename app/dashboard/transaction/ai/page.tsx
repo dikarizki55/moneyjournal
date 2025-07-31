@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useEffect, useState } from "react";
-import { JsonPage } from "../json/page";
+import JsonTableComponent from "../json/JsonTableComponent";
 import { limitn8n } from "@prisma/client";
 
 export default function Ai() {
@@ -98,7 +98,9 @@ export default function Ai() {
         {isLoading ? "Wait.." : "Submit"}
       </Button>
       {isLoading && <div className=" font-bold text-4xl">Loading...</div>}
-      {content && <JsonPage setJsonData={setContent} jsonData={content} />}
+      {content && (
+        <JsonTableComponent setJsonData={setContent} jsonData={content} />
+      )}
     </div>
   );
 }
