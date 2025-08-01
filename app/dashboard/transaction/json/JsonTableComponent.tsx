@@ -110,8 +110,8 @@ export default function JsonTableComponent({
   };
 
   return (
-    <div>
-      <div className=" min-w-200">
+    <div className=" pb-20 lg:pb-10 pr-10">
+      <div>
         <Card>
           <CardContent>
             <Table>
@@ -128,6 +128,7 @@ export default function JsonTableComponent({
                   <TableRow key={i}>
                     <TableCell>
                       <Input
+                        className="w-50"
                         value={cell.title}
                         onChange={(e) =>
                           handleChange(i, "title", e.target.value)
@@ -154,6 +155,7 @@ export default function JsonTableComponent({
                       }`}
                     >
                       <RupiahInput
+                        className=" w-35"
                         id={`amount${i}`}
                         defaultValue={Number(cell.amount)}
                         onChange={(e) => handleChange(i, "amount", Number(e))}
@@ -161,6 +163,7 @@ export default function JsonTableComponent({
                     </TableCell>
                     <TableCell>
                       <Input
+                        className=" w-30"
                         value={String(cell.category)}
                         onChange={(e) =>
                           handleChange(i, "category", e.target.value)
@@ -169,6 +172,7 @@ export default function JsonTableComponent({
                     </TableCell>
                     <TableCell>
                       <Input
+                        className=" w-50"
                         value={String(cell.notes)}
                         onChange={(e) =>
                           handleChange(i, "notes", e.target.value)
@@ -182,6 +186,7 @@ export default function JsonTableComponent({
                         </span>
                       )}
                       <Input
+                        className=" w-30"
                         type="date"
                         value={
                           cell.date ? cell.date.toString().slice(0, 10) : ""
@@ -201,6 +206,7 @@ export default function JsonTableComponent({
                         </span>
                       )}
                       <Input
+                        className=" w-30"
                         type="date"
                         value={
                           cell.created_at
@@ -223,7 +229,7 @@ export default function JsonTableComponent({
         </Card>
       </div>
       <Button
-        className="cursor-pointer"
+        className="cursor-pointer mt-10"
         onSelect={(e) => e.preventDefault()}
         onClick={() => setDialog(true)}
         disabled={jsonError || disabledButton}

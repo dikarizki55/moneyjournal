@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { useState } from "react";
 
 type RupiahInputProps = {
+  className?: string;
   id?: string;
   defaultValue?: number;
   onChange?: (value: number | null) => void;
@@ -23,6 +24,7 @@ export function formatRupiah(value: string) {
 }
 
 export default function RupiahInput({
+  className,
   id = "rupiah",
   defaultValue,
   onChange,
@@ -41,6 +43,7 @@ export default function RupiahInput({
   return (
     <div>
       <Input
+        className={className}
         id={id}
         name={id}
         type="text"

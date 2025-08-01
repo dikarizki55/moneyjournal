@@ -6,7 +6,7 @@ import PaginationComponent from "./paginationComponent";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { Bot } from "lucide-react";
+import ChatgptIcon from "@/components/icon/chatgptIcon";
 
 const Page = async ({
   searchParams,
@@ -79,7 +79,7 @@ const Page = async ({
   return (
     <div className="p-6">
       <header className=" text-4xl font-bold mx-6 mb-3">Transaction</header>
-      <div className="container mx-auto py-10">
+      <div className="container mx-auto pt-10 pb-15">
         <DrawerDialog
           customButton={
             <Button variant={"outline"} className=" mb-6">
@@ -96,9 +96,8 @@ const Page = async ({
         <div className="fixed z-10 lg:bottom-15 lg:right-15 bottom-5 right-5">
           <div>
             <Link href="/dashboard/transaction/ai">
-              <div className=" bg-black text-white rounded-2xl flex flex-col justify-center items-center p-2 font-bold">
-                <Bot className=" lg:w-[50px] lg:h-[50px] w-10 h-10"></Bot>
-                AI help
+              <div className=" bg-primary rounded-full text-secondary  flex flex-col justify-center items-center p-3 font-bold">
+                <ChatgptIcon className=" h-10 w-10 lg:w-10 lg:h-10 text-secondary" />
               </div>
             </Link>
           </div>

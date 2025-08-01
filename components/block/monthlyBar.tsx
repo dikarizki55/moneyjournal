@@ -85,7 +85,7 @@ export function ChartBarMultiple({
             config={chartConfig}
             style={{ width: chartData.length * 250, height: 265 }}
           >
-            <BarChart accessibilityLayer data={chartData} margin={{ top: 10 }}>
+            <BarChart accessibilityLayer data={chartData} margin={{ top: 20 }}>
               <CartesianGrid vertical={false} />
               <XAxis
                 dataKey={chartDataKey}

@@ -27,10 +27,15 @@ export async function POST(req: NextRequest) {
 
     const body: limitn8n = await req.json();
 
-    await prisma.limitn8n.update({
+    const datalimit = await prisma.limitn8n.findUniqueOrThrow({
       where: { id: body.id },
-      data: { limit: body.limit },
     });
+
+    if (process.env.TEST !== "true")
+      await prisma.limitn8n.update({
+        where: { id: body.id },
+        data: { limit: Number(datalimit.limit) - 1 },
+      });
 
     return NextResponse.json({
       success: true,

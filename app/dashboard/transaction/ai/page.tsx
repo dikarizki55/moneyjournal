@@ -54,7 +54,6 @@ export default function Ai() {
         credentials: "include",
         body: JSON.stringify({
           id: idLimit,
-          limit: limit - 1,
         }),
       });
       setLimit(limit - 1);
@@ -79,28 +78,43 @@ export default function Ai() {
   }, [limit]);
 
   return (
-    <div className=" flex flex-col items-center lg:items-start gap-4 p-5">
+    <div className=" p-5 pb-15">
       <p>
-        Add image and auto insert of your journal here <br />
-        but this one are limited access
+        Auto insert from image (<span className=" font-bold"> {limit}</span>{" "}
+        uses remaining) <br />
+        <span className=" italic">
+          Use wisely – this feature has limited access.
+        </span>
         <br />
-        <span className=" font-bold"> {limit}</span> left
+        left
       </p>
-      {preview && <img className=" max-w-100 max-h-140" src={preview} alt="" />}
+
+      {preview && (
+        <img className=" max-w-100 max-h-140 mt-5" src={preview} alt="" />
+      )}
+
       <Input
-        className=" w-100"
+        className=" max-w-100 mt-5 mb-5"
         type="file"
         name="image"
         accept="image/*"
         onChange={handleChange}
       ></Input>
-      <Button type="submit" onClick={handleSubmit} disabled={disabledButton}>
+      <Button
+        className=" mt-5 mb-5"
+        type="submit"
+        onClick={handleSubmit}
+        disabled={disabledButton}
+      >
         {isLoading ? "Wait.." : "Submit"}
       </Button>
+
       {isLoading && <div className=" font-bold text-4xl">Loading...</div>}
-      {content && (
-        <JsonTableComponent setJsonData={setContent} jsonData={content} />
-      )}
+      <div className=" flex flex-wrap mt-5">
+        {content && (
+          <JsonTableComponent setJsonData={setContent} jsonData={content} />
+        )}
+      </div>
     </div>
   );
 }

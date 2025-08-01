@@ -13,8 +13,9 @@ export async function POST(req: NextRequest) {
       formData.append("data", image);
 
       const url =
-        "https://dikarizki.app.n8n.cloud/webhook/848013ec-936d-4d28-b697-4c4e64e67695"; //production
-      // "https://dikarizki.app.n8n.cloud/webhook-test/848013ec-936d-4d28-b697-4c4e64e67695"; //test
+        process.env.TEST === "true"
+          ? "https://dikarizki.app.n8n.cloud/webhook-test/848013ec-936d-4d28-b697-4c4e64e67695" //test
+          : "https://dikarizki.app.n8n.cloud/webhook/848013ec-936d-4d28-b697-4c4e64e67695"; //production
 
       const body = await fetch(url, {
         method: "POST",
