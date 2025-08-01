@@ -13,8 +13,6 @@ export async function GET(req: NextRequest) {
       return param ?? undefined;
     }
 
-    console.log(user.id);
-
     const limit = parseParams("limit", "number");
     const offset = parseParams("offset", "number");
     const sortField = parseParams("sortBy", "string") ?? "date";
