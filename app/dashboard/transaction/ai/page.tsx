@@ -77,16 +77,24 @@ export default function Ai() {
     getLimit();
   }, [limit]);
 
+  function dayLeft() {
+    const limitday = new Date("2025-08-14");
+    const dayNow = new Date();
+    const msPerDay = 1000 * 60 * 60 * 24;
+    const diffInMs = limitday.getTime() - dayNow.getTime();
+    const remainingDays = Math.ceil(diffInMs / msPerDay);
+    return remainingDays;
+  }
+
   return (
     <div className=" p-5 pb-15">
       <p>
         Auto insert from image (<span className=" font-bold"> {limit}</span>{" "}
-        uses remaining) <br />
+        uses remaining) (<span className=" font-bold">{String(dayLeft())}</span>{" "}
+        days left) <br />
         <span className=" italic">
           Use wisely – this feature has limited access.
         </span>
-        <br />
-        left
       </p>
 
       {preview && (
