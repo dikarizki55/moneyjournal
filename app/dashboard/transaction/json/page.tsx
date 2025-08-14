@@ -39,7 +39,7 @@ export default function Page() {
 
   const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText("test");
+      await navigator.clipboard.writeText(textToCopy);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
