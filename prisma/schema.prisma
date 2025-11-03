@@ -110,12 +110,12 @@ model transaction {
   users      User?           @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 }
 
-model limitn8n {
-  limit Decimal @db.Decimal
-  id    String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-}
-
 enum TransactionType {
   income
   outcome
+}
+
+model limitn8n {
+  id  String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  limit Decimal @db.Decimal
 }
