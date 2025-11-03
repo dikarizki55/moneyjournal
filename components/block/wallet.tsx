@@ -28,6 +28,8 @@ export default function Wallet() {
           }
         );
         setBalance(formatRupiah((result.income - result.outcome).toString()));
+        setIncome(result.income);
+        setOutcome(result.outcome);
 
         const dataThisMonth = await fetch(
           "/api/transaction/summary/thismonth",
