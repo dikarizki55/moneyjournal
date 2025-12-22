@@ -62,10 +62,15 @@ export function DashboardDateFilter({
   const [searchText, setSearchText] = React.useState(
     searchParams.get("q") ?? ""
   );
-  const [debouncedSearch] = useDebounce(searchText, 500);
+  const debouncedSearch = useDebounce(searchText, 500);
 
-  // Sync internal search state with URL when URL changes externally
-  React.useEffect(() => {}, [searchParams]);
+  // Sync internal search state with URL when URL changes externally (e.g. back button)
+  React.useEffect(() => {
+    const qParam = searchParams.get("q") ?? "";
+    if (qParam !== searchText) {
+      setSearchText(qParam);
+    }
+  }, [searchParams]);
 
   // Handle search parameter updates
   React.useEffect(() => {
@@ -82,7 +87,7 @@ export function DashboardDateFilter({
     const currentParams = searchParams.toString();
     const newParams = params.toString();
     if (currentParams !== newParams) {
-      router.push(`?${newParams}`);
+      router.push(`?${newParams}`, { scroll: false });
     }
   }, [debouncedSearch, showSearch, router, searchParams, onRangeChange]);
 
@@ -107,7 +112,7 @@ export function DashboardDateFilter({
       params.delete("to");
     }
     params.set("page", "1");
-    router.push(`?${params.toString()}`);
+    router.push(`?${params.toString()}`, { scroll: false });
   };
 
   const handleSelect = (range: DateRange | undefined) => {
