@@ -7,7 +7,7 @@ import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import ChatgptIcon from "@/components/icon/chatgptIcon";
-import SearchInput from "./SearchInput";
+import { DashboardDateFilter } from "../DashboardDateFilter";
 
 const Page = async ({
   searchParams,
@@ -18,26 +18,32 @@ const Page = async ({
   // const page = Number(searchParams?.get("page") ?? 1);
   const page = Number((await searchParams).page ?? 1);
   const q = (await searchParams).q ?? "";
+  const from = (await searchParams).from ?? "";
+  const to = (await searchParams).to ?? "";
+  const categoriesParam = (await searchParams).categories ?? "";
   const sort = (await searchParams).sort ?? "desc";
   const sortBy = (await searchParams).sortBy ?? "date";
 
   const headersList = headers();
+  const host = (await headersList).get("host");
+  const protocol = (await headersList).get("x-forwarded-proto") || "http";
 
-  const host = (await headersList).get("host"); // misalnya: example.com
-  const protocol = (await headersList).get("x-forwarded-proto") || "http"; // misalnya: https
+  const url = new URL(`${protocol}://${host}/api/transaction`);
+  url.searchParams.set("limit", "25");
+  url.searchParams.set("offset", String((page - 1) * 25));
+  url.searchParams.set("sort", String(sort));
+  url.searchParams.set("sortBy", String(sortBy));
+  if (q) url.searchParams.set("q", String(q));
+  if (from) url.searchParams.set("from", String(from));
+  if (to) url.searchParams.set("to", String(to));
+  if (categoriesParam)
+    url.searchParams.set("categories", String(categoriesParam));
 
-  const fullUrl = `${protocol}://${host}/`;
-
-  const res = await fetch(
-    `${fullUrl}api/transaction?limit=25&offset=${
-      (page - 1) * 25
-    }&sort=${sort}&sortBy=${sortBy}&q=${q}`,
-    {
-      headers: {
-        Cookie: (await cookies()).toString(),
-      },
-    }
-  );
+  const res = await fetch(url.toString(), {
+    headers: {
+      Cookie: (await cookies()).toString(),
+    },
+  });
 
   if (!res.ok) {
     console.error("Failed to fetch transactions");
@@ -65,7 +71,9 @@ const Page = async ({
             </Link>
           </div>
 
-          <SearchInput />
+          <div className="flex flex-col md:flex-row items-center gap-4">
+            <DashboardDateFilter showSearch />
+          </div>
         </div>
 
         <div className="fixed z-10 lg:bottom-15 lg:right-15 bottom-5 right-5">

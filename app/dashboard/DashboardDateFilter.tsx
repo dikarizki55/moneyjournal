@@ -21,12 +21,16 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useDebounce } from "@/hooks/use-debounce";
+import { Input } from "@/components/ui/input";
 
 export function DashboardDateFilter({
   className,
   onRangeChange,
+  showSearch = false,
 }: React.HTMLAttributes<HTMLDivElement> & {
   onRangeChange?: (from?: string, to?: string) => void;
+  showSearch?: boolean;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -35,14 +39,52 @@ export function DashboardDateFilter({
   const toParam = searchParams.get("to");
 
   const [date, setDate] = React.useState<DateRange | undefined>(() => {
-    if (fromParam && toParam) {
-      return {
-        from: new Date(fromParam),
-        to: new Date(toParam),
-      };
-    }
+    const from = fromParam ? new Date(fromParam) : undefined;
+    const to = toParam ? new Date(toParam) : undefined;
+    if (from || to) return { from, to };
     return undefined;
   });
+
+  // Sync internal date state with URL when URL changes
+  React.useEffect(() => {
+    const from = searchParams.get("from");
+    const to = searchParams.get("to");
+    if (from || to) {
+      setDate({
+        from: from ? new Date(from) : undefined,
+        to: to ? new Date(to) : undefined,
+      });
+    } else {
+      setDate(undefined);
+    }
+  }, [searchParams]);
+
+  const [searchText, setSearchText] = React.useState(
+    searchParams.get("q") ?? ""
+  );
+  const [debouncedSearch] = useDebounce(searchText, 500);
+
+  // Sync internal search state with URL when URL changes externally
+  React.useEffect(() => {}, [searchParams]);
+
+  // Handle search parameter updates
+  React.useEffect(() => {
+    if (!showSearch || onRangeChange) return;
+
+    const params = new URLSearchParams(searchParams.toString());
+    if (debouncedSearch) {
+      params.set("q", debouncedSearch);
+    } else {
+      params.delete("q");
+    }
+    params.set("page", "1");
+
+    const currentParams = searchParams.toString();
+    const newParams = params.toString();
+    if (currentParams !== newParams) {
+      router.push(`?${newParams}`);
+    }
+  }, [debouncedSearch, showSearch, router, searchParams, onRangeChange]);
 
   const updateUrl = (range: DateRange | undefined) => {
     const from = range?.from ? format(range.from, "yyyy-MM-dd") : undefined;
@@ -64,12 +106,26 @@ export function DashboardDateFilter({
     } else {
       params.delete("to");
     }
+    params.set("page", "1");
     router.push(`?${params.toString()}`);
   };
 
   const handleSelect = (range: DateRange | undefined) => {
+    // If we already have a full range (from and to)
+    // and the user clicks a new date, we want that click to be the NEW start date.
+    if (date?.from && date?.to && range?.from && range?.to) {
+      // Find what was just clicked. If range.to is different, it means they clicked a new end
+      // but we want to treat it as a new START.
+      const clickedDate = range.to !== date.to ? range.to : range.from;
+      const newRange: DateRange = { from: clickedDate, to: undefined };
+      setDate(newRange);
+      updateUrl(newRange);
+      return;
+    }
+
     setDate(range);
-    if (range?.from && range?.to) {
+
+    if (range?.from || range?.to) {
       updateUrl(range);
     } else if (!range) {
       updateUrl(undefined);
@@ -103,7 +159,17 @@ export function DashboardDateFilter({
   };
 
   return (
-    <div className={cn("flex flex-col sm:flex-row gap-2", className)}>
+    <div
+      className={cn("flex flex-col xl:flex-row gap-2 items-center", className)}
+    >
+      {showSearch && (
+        <Input
+          placeholder="Search..."
+          value={searchText}
+          onChange={(e) => setSearchText(e.target.value)}
+          className="w-full md:w-[300px] h-10"
+        />
+      )}
       <div className="flex bg-muted rounded-lg p-1 gap-1">
         <Button
           variant={!fromParam ? "secondary" : "ghost"}

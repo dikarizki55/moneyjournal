@@ -13,17 +13,25 @@ export async function GET(
     const user = await verifyUser(req);
 
     const categories = await prisma.transaction.findMany({
-      where: { user_id: user.id },
+      where: {
+        user_id: user.id,
+        category: {
+          not: null,
+          notIn: [""],
+        },
+      },
       distinct: [column as Prisma.TransactionScalarFieldEnum],
       select: { category: true },
     });
 
-    const arrayCategories = categories.map((c) => c.category);
+    const arrayCategories = categories
+      .map((c) => c.category)
+      .filter((c): c is string => !!c);
 
     return NextResponse.json({
       success: true,
       message: "success get distinct category",
-      data: arrayCategories,
+      data: Array.from(new Set(arrayCategories)),
     });
   } catch (error) {
     console.log(error);

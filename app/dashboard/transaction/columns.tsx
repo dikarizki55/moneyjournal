@@ -6,15 +6,16 @@ import { ArrowUpDown, MoreHorizontal, Pencil, Trash } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-
 import type { transaction } from "@prisma/client";
 import { DrawerDialog } from "./dialog";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,9 +26,89 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Checkbox } from "@/components/ui/checkbox";
+
+function CategoryHeader() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  const [categories, setCategories] = useState<string[]>([]);
+  const currentCategories = searchParams?.get("categories")?.split(",") || [];
+
+  const sortBy = searchParams?.get("sortBy") ?? "date";
+  const sort = searchParams?.get("sort") ?? "desc";
+
+  useEffect(() => {
+    fetch("/api/transaction/distinct/category")
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.success) setCategories(json.data);
+      });
+  }, []);
+
+  const toggleCategory = (cat: string) => {
+    const params = new URLSearchParams(searchParams ?? "");
+    let newCats = [...currentCategories];
+    if (newCats.includes(cat)) {
+      newCats = newCats.filter((c) => c !== cat);
+    } else {
+      newCats.push(cat);
+    }
+
+    if (newCats.length > 0) {
+      params.set("categories", newCats.join(","));
+    } else {
+      params.delete("categories");
+    }
+    params.set("page", "1");
+    router.push(`${pathname}?${params.toString()}`);
+  };
+
+  const toggleSort = () => {
+    const params = new URLSearchParams(searchParams ?? "");
+    params.set("sortBy", "category");
+    params.set(
+      "sort",
+      sortBy !== "category" ? "asc" : sort === "asc" ? "desc" : "asc"
+    );
+    params.set("page", "1");
+    router.push(`${pathname}?${params.toString()}`);
+  };
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="ghost"
+          className="-ml-4 h-8 data-[state=open]:bg-accent"
+        >
+          <span>Category</span>
+          {sortBy === "category" && <ArrowUpDown className="ml-2 h-4 w-4" />}
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start">
+        <DropdownMenuItem onClick={toggleSort}>
+          Sort{" "}
+          {sort === "asc" && sortBy === "category" ? "Descending" : "Ascending"}
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuLabel>Filter Categories</DropdownMenuLabel>
+        {categories.map((cat) => (
+          <DropdownMenuCheckboxItem
+            key={cat}
+            checked={currentCategories.includes(cat)}
+            onCheckedChange={() => toggleCategory(cat)}
+            onSelect={(e) => e.preventDefault()}
+          >
+            {cat}
+          </DropdownMenuCheckboxItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
 
 export const columns: ColumnDef<transaction>[] = [
   {
@@ -63,7 +144,7 @@ export const columns: ColumnDef<transaction>[] = [
   },
   {
     accessorKey: "category",
-    header: () => <AscDesc params="category">{"Category"}</AscDesc>,
+    header: () => <CategoryHeader />,
   },
   {
     accessorKey: "notes",

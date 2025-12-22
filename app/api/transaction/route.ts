@@ -14,11 +14,18 @@ export async function GET(req: NextRequest) {
     }
 
     const q = parseParams("q", "string") as string | undefined;
+    const from = parseParams("from", "string") as string | undefined;
+    const to = parseParams("to", "string") as string | undefined;
+    const categoriesStr = parseParams("categories", "string") as
+      | string
+      | undefined;
     const limit = parseParams("limit", "number") as number | undefined;
     const offset = parseParams("offset", "number") as number | undefined;
     const sortField = (parseParams("sortBy", "string") as string) ?? "date";
     const sortDirection =
       (parseParams("sort", "string") as string) === "asc" ? "asc" : "desc";
+
+    const filterCategories = categoriesStr ? categoriesStr.split(",") : [];
 
     const where: Prisma.transactionWhereInput = {
       user_id: user.id,
@@ -30,26 +37,55 @@ export async function GET(req: NextRequest) {
             ],
           }
         : {}),
+      ...(from || to
+        ? {
+            date: {
+              ...(from ? { gte: new Date(from) } : {}),
+              ...(to ? { lte: new Date(to) } : {}),
+            },
+          }
+        : {}),
+      ...(filterCategories.length > 0
+        ? {
+            category: { in: filterCategories },
+          }
+        : {}),
     };
 
     const transaction = async () => {
       if (sortField === "amount") {
-        const searchClause = q
-          ? Prisma.sql`AND ("title" ILIKE ${`%${q}%`} OR "category" ILIKE ${`%${q}%`})`
-          : Prisma.empty;
+        let dynamicClauses = Prisma.empty;
+        if (q) {
+          dynamicClauses = Prisma.sql`${dynamicClauses} AND ("title" ILIKE ${`%${q}%`} OR "category" ILIKE ${`%${q}%`})`;
+        }
+        if (from) {
+          dynamicClauses = Prisma.sql`${dynamicClauses} AND "date" >= ${new Date(
+            from
+          )}`;
+        }
+        if (to) {
+          dynamicClauses = Prisma.sql`${dynamicClauses} AND "date" <= ${new Date(
+            to
+          )}`;
+        }
+        if (filterCategories.length > 0) {
+          dynamicClauses = Prisma.sql`${dynamicClauses} AND "category" IN (${Prisma.join(
+            filterCategories
+          )})`;
+        }
 
         return await prisma.$queryRaw`
           select *
           from "transaction"
           where "user_id" = ${user.id}
-          ${searchClause}
+          ${dynamicClauses}
           order by 
             case
               when "type" = 'outcome' then -"amount"
               else amount
             end ${Prisma.sql([sortDirection])}
-          offset ${offset}
-          limit ${limit}
+          offset ${offset || 0}
+          limit ${limit || 25}
         `;
       } else {
         return await prisma.transaction.findMany({
@@ -60,8 +96,8 @@ export async function GET(req: NextRequest) {
             },
             { created_at: "desc" },
           ],
-          ...(typeof offset === "number" ? { skip: offset } : {}),
-          ...(typeof limit === "number" ? { take: limit } : {}),
+          skip: offset || 0,
+          take: limit || 25,
         });
       }
     };
