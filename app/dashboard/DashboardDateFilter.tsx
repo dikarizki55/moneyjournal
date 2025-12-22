@@ -115,25 +115,31 @@ export function DashboardDateFilter({
     router.push(`?${params.toString()}`, { scroll: false });
   };
 
-  const handleSelect = (range: DateRange | undefined) => {
-    // If we already have a full range (from and to)
-    // and the user clicks a new date, we want that click to be the NEW start date.
-    if (date?.from && date?.to && range?.from && range?.to) {
-      // Find what was just clicked. If range.to is different, it means they clicked a new end
-      // but we want to treat it as a new START.
-      const clickedDate = range.to !== date.to ? range.to : range.from;
-      const newRange: DateRange = { from: clickedDate, to: undefined };
-      setDate(newRange);
-      updateUrl(newRange);
+  const handleSelect = (newRange: DateRange | undefined) => {
+    // If no interaction or clear
+    if (!newRange || !newRange.from) {
+      setDate(undefined);
+      updateUrl(undefined);
       return;
     }
 
-    setDate(range);
+    // Situation A: There was already a full range selected (Start & End).
+    // Situation B: This is the very first click on an empty calendar.
+    const isFullRangeSelected = !!(date?.from && date?.to);
+    const isFirstClickOnEmpty = !date?.from;
 
-    if (range?.from || range?.to) {
-      updateUrl(range);
-    } else if (!range) {
-      updateUrl(undefined);
+    if (isFullRangeSelected || isFirstClickOnEmpty) {
+      // In these cases, we want to start a FRESH selection (only start date).
+      // We take the 'to' as the most recent click if it exists and changed, else 'from'.
+      const clicked =
+        newRange.to && newRange.to !== date?.to ? newRange.to : newRange.from;
+      const fixedRange: DateRange = { from: clicked, to: undefined };
+      setDate(fixedRange);
+      updateUrl(fixedRange);
+    } else {
+      // We already had a 'from', and now we are picking the 'to' to complete the range.
+      setDate(newRange);
+      updateUrl(newRange);
     }
   };
 
