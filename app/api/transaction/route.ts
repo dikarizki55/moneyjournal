@@ -13,18 +13,36 @@ export async function GET(req: NextRequest) {
       return param ?? undefined;
     }
 
-    const limit = parseParams("limit", "number");
-    const offset = parseParams("offset", "number");
-    const sortField = parseParams("sortBy", "string") ?? "date";
+    const q = parseParams("q", "string") as string | undefined;
+    const limit = parseParams("limit", "number") as number | undefined;
+    const offset = parseParams("offset", "number") as number | undefined;
+    const sortField = (parseParams("sortBy", "string") as string) ?? "date";
     const sortDirection =
-      parseParams("sort", "string") === "asc" ? "asc" : "desc";
+      (parseParams("sort", "string") as string) === "asc" ? "asc" : "desc";
+
+    const where: Prisma.transactionWhereInput = {
+      user_id: user.id,
+      ...(q
+        ? {
+            OR: [
+              { title: { contains: q, mode: "insensitive" } },
+              { category: { contains: q, mode: "insensitive" } },
+            ],
+          }
+        : {}),
+    };
 
     const transaction = async () => {
       if (sortField === "amount") {
+        const searchClause = q
+          ? Prisma.sql`AND ("title" ILIKE ${`%${q}%`} OR "category" ILIKE ${`%${q}%`})`
+          : Prisma.empty;
+
         return await prisma.$queryRaw`
           select *
           from "transaction"
           where "user_id" = ${user.id}
+          ${searchClause}
           order by 
             case
               when "type" = 'outcome' then -"amount"
@@ -34,8 +52,8 @@ export async function GET(req: NextRequest) {
           limit ${limit}
         `;
       } else {
-        const transaction = await prisma.transaction.findMany({
-          where: { user_id: user.id },
+        return await prisma.transaction.findMany({
+          where,
           orderBy: [
             {
               [sortField]: sortDirection,
@@ -45,24 +63,13 @@ export async function GET(req: NextRequest) {
           ...(typeof offset === "number" ? { skip: offset } : {}),
           ...(typeof limit === "number" ? { take: limit } : {}),
         });
-
-        return transaction;
       }
     };
 
     const transactionData = await transaction();
 
-    // const transactionData = await prisma.transaction.findMany({
-    //   where: { user_id: user.id },
-    //   orderBy: {
-    //     [sortField]: sortDirection,
-    //   },
-    //   ...(typeof offset === "number" ? { skip: offset } : {}),
-    //   ...(typeof limit === "number" ? { take: limit } : {}),
-    // });
-
     const total = await prisma.transaction.count({
-      where: { user_id: user.id },
+      where,
     });
 
     return NextResponse.json({

@@ -29,6 +29,8 @@ import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
 
 const defaultData = {
   title: "title",
@@ -58,6 +60,7 @@ export default function JsonTableComponent({
     if (jsonErrorVoid) jsonErrorVoid(jsonError);
   }, [jsonError, jsonErrorVoid]);
   const [disabledButton, setDisabledButton] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [dialog, setDialog] = useState(false);
 
@@ -157,7 +160,7 @@ export default function JsonTableComponent({
                       <RupiahInput
                         className=" w-35"
                         id={`amount${i}`}
-                        defaultValue={Number(cell.amount)}
+                        value={Number(cell.amount)}
                         onChange={(e) => handleChange(i, "amount", Number(e))}
                       />
                     </TableCell>
@@ -245,20 +248,53 @@ export default function JsonTableComponent({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={isSubmitting}>
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction
-              onClick={async () => {
-                await fetch(`/api/transaction/many`, {
-                  method: "POST",
-                  body: JSON.stringify(body),
-                  headers: { "Content-Type": "application/json" },
-                  credentials: "include",
-                });
+              disabled={isSubmitting}
+              onClick={async (e) => {
+                e.preventDefault();
+                setIsSubmitting(true);
+                try {
+                  const cleanedBody = body.map((item) => ({
+                    ...item,
+                    amount: parseFloat(item.amount.toString()),
+                  }));
 
-                router.push("/dashboard/transaction");
+                  const res = await fetch(`/api/transaction/many`, {
+                    method: "POST",
+                    body: JSON.stringify(cleanedBody),
+                    headers: { "Content-Type": "application/json" },
+                    credentials: "include",
+                  });
+
+                  const result = await res.json();
+
+                  if (res.ok) {
+                    toast.success("Transactions saved successfully");
+                    router.push("/dashboard/transaction");
+                  } else {
+                    toast.error(
+                      result.message || "Failed to save transactions"
+                    );
+                  }
+                } catch {
+                  toast.error("An error occurred while saving transactions");
+                } finally {
+                  setIsSubmitting(false);
+                  setDialog(false);
+                }
               }}
             >
-              Continue
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                "Continue"
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -26,17 +26,18 @@ export default function PaginationComponent({
   const totalPage = Math.ceil(total / 25);
   const maxVisiblePage = 7;
 
-  const startPage =
-    page < maxVisiblePage / 2
-      ? 1
-      : totalPage - maxVisiblePage / 2 < page
-      ? totalPage - maxVisiblePage + 1
-      : page - Math.floor(maxVisiblePage / 2);
+  let startPage = 1;
+  if (totalPage > maxVisiblePage) {
+    startPage = Math.max(1, page - Math.floor(maxVisiblePage / 2));
+    if (startPage + maxVisiblePage > totalPage) {
+      startPage = totalPage - maxVisiblePage + 1;
+    }
+  }
 
-  const pageArray =
-    totalPage > 7
-      ? Array.from({ length: maxVisiblePage }, (_, i) => startPage + i)
-      : Array.from({ length: totalPage }, (_, i) => startPage + i);
+  const pageArray = Array.from(
+    { length: Math.min(totalPage, maxVisiblePage) },
+    (_, i) => startPage + i
+  );
 
   function pageSet(page: number) {
     params.set("page", String(page));
@@ -51,24 +52,33 @@ export default function PaginationComponent({
       <Pagination className=" mt-5">
         <PaginationContent>
           <PaginationItem>
-            <PaginationPrevious href={pageSet(page - 1)} />
+            <PaginationPrevious
+              href={page <= 1 ? "#" : pageSet(page - 1)}
+              className={page <= 1 ? "pointer-events-none opacity-50" : ""}
+              aria-disabled={page <= 1}
+            />
           </PaginationItem>
-          {total &&
+          {total > 0 &&
             pageArray.map((item) => (
               <PaginationItem key={item}>
-                <PaginationLink
-                  href={pageSet(item)}
-                  isActive={item === page ? true : false}
-                >
+                <PaginationLink href={pageSet(item)} isActive={item === page}>
                   {item}
                 </PaginationLink>
               </PaginationItem>
             ))}
-          <PaginationItem onClick={() => setShowAll(!showAll)}>
-            <PaginationEllipsis />
-          </PaginationItem>
+          {totalPage > maxVisiblePage && (
+            <PaginationItem onClick={() => setShowAll(!showAll)}>
+              <PaginationEllipsis />
+            </PaginationItem>
+          )}
           <PaginationItem>
-            <PaginationNext href={pageSet(page + 1)} />
+            <PaginationNext
+              href={page >= totalPage ? "#" : pageSet(page + 1)}
+              className={
+                page >= totalPage ? "pointer-events-none opacity-50" : ""
+              }
+              aria-disabled={page >= totalPage}
+            />
           </PaginationItem>
         </PaginationContent>
       </Pagination>

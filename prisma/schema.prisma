@@ -64,17 +64,30 @@ model Session {
 }
 
 model User {
-  id            String        @id @default(cuid())
-  email         String?       @unique
-  emailVerified DateTime?     @map("email_verified")
+  id            String            @id @default(cuid())
+  email         String?           @unique
+  emailVerified DateTime?         @map("email_verified")
   name          String?
   image         String?
   password      String?
   accounts      Account[]
   sessions      Session[]
   transaction   transaction[]
+  monthlyOutcome monthlyOutcome[]
 
   @@map("users")
+}
+
+model monthlyOutcome {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id    String
+  title      String
+  amount     Decimal  @db.Decimal
+  category   String
+  created_at DateTime @default(dbgenerated("timezone('utc'::text, now())")) @db.Timestamp(6)
+  users      User     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@map("monthly_outcome")
 }
 
 model VerificationToken {
@@ -110,12 +123,12 @@ model transaction {
   users      User?           @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 }
 
+model limitn8n {
+  limit Decimal @db.Decimal
+  id    String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+}
+
 enum TransactionType {
   income
   outcome
-}
-
-model limitn8n {
-  id  String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  limit Decimal @db.Decimal
 }

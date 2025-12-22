@@ -146,20 +146,57 @@ function ProfileForm({
     window.location.reload();
   };
 
-  const [categoryList, setCategoryList] = React.useState([]);
+  const [categoryList, setCategoryList] = React.useState<string[]>([]);
+  const [monthlyOutcomeCats, setMonthlyOutcomeCats] = React.useState<string[]>(
+    []
+  );
 
   useEffect(() => {
     const getCategoryList = async () => {
-      const data = await fetch("/api/transaction/distinct/category", {
-        credentials: "include",
-      }).then((res) => res.json());
-      setCategoryList(data.data);
+      try {
+        const [transactionRes, outcomeRes] = await Promise.all([
+          fetch("/api/transaction/distinct/category", {
+            credentials: "include",
+          }),
+          fetch("/api/monthly-outcome", { credentials: "include" }),
+        ]);
+
+        const transactionData = await transactionRes.json();
+        const outcomeData = await outcomeRes.json();
+
+        // Combine categories from both sources
+        const transactionCats: string[] = transactionData.data || [];
+        const outcomeCats: string[] = Array.isArray(outcomeData)
+          ? outcomeData.map((o: { category: string }) => o.category)
+          : [];
+
+        // Unique and filtered list
+        const combined = Array.from(
+          new Set([...transactionCats, ...outcomeCats])
+        )
+          .filter(Boolean)
+          .sort() as string[];
+
+        setMonthlyOutcomeCats(outcomeCats);
+        setCategoryList(combined);
+      } catch {
+        // Silently fail to not disrupt user experience
+      }
     };
 
     getCategoryList();
   }, []);
 
-  useEffect(() => console.log(form), [form]);
+  const isMonthlyOutcomeCategory = monthlyOutcomeCats.some(
+    (cat) =>
+      cat && form.category && cat.toLowerCase() === form.category.toLowerCase()
+  );
+
+  useEffect(() => {
+    if (isMonthlyOutcomeCategory && form.type !== "outcome") {
+      setForm((prev) => ({ ...prev, type: "outcome" }));
+    }
+  }, [isMonthlyOutcomeCategory, form.type]);
 
   return (
     <form
@@ -189,7 +226,9 @@ function ProfileForm({
             className="w-full"
           >
             <TabsList>
-              <TabsTrigger value="income">Income</TabsTrigger>
+              <TabsTrigger value="income" disabled={isMonthlyOutcomeCategory}>
+                Income
+              </TabsTrigger>
               <TabsTrigger value="outcome">Outcome</TabsTrigger>
             </TabsList>
           </Tabs>

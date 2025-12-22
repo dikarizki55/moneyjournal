@@ -7,6 +7,7 @@ import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import ChatgptIcon from "@/components/icon/chatgptIcon";
+import SearchInput from "./SearchInput";
 
 const Page = async ({
   searchParams,
@@ -16,13 +17,9 @@ const Page = async ({
   // const searchParams = useSearchParams();
   // const page = Number(searchParams?.get("page") ?? 1);
   const page = Number((await searchParams).page ?? 1);
+  const q = (await searchParams).q ?? "";
   const sort = (await searchParams).sort ?? "desc";
   const sortBy = (await searchParams).sortBy ?? "date";
-
-  // const sort = searchParams?.get("sort") ?? "desc";
-  // const sortBy = searchParams?.get("sortBy") ?? "date";
-  // const [updateData, setUpdateData] = useState(true);
-  // const [total, setTotal] = useState(0);
 
   const headersList = headers();
 
@@ -34,7 +31,7 @@ const Page = async ({
   const res = await fetch(
     `${fullUrl}api/transaction?limit=25&offset=${
       (page - 1) * 25
-    }&sort=${sort}&sortBy=${sortBy}`,
+    }&sort=${sort}&sortBy=${sortBy}&q=${q}`,
     {
       headers: {
         Cookie: (await cookies()).toString(),
@@ -51,48 +48,26 @@ const Page = async ({
   const data = resJson.data;
   const total = await resJson.pagination.total;
 
-  // useEffect(() => {
-  //   const fetchTransactions = async () => {
-  //     const res = await fetch(
-  //       `/api/transaction?limit=25&offset=${
-  //         (page - 1) * 25
-  //       }&sort=${sort}&sortBy=${sortBy}`,
-  //       {
-  //         credentials: "include",
-  //       }
-  //     );
-
-  //     if (!res.ok) {
-  //       console.error("Failed to fetch transactions");
-  //       return;
-  //     }
-
-  //     const data = await res.json();
-
-  //     setData(data.data);
-  //     setTotal(data.pagination.total);
-  //   };
-
-  //   fetchTransactions();
-  // }, [updateData, page, sort, sortBy]);
-
   return (
     <div className="p-6">
       <header className=" text-4xl font-bold mx-6 mb-3">Transaction</header>
       <div className="container mx-auto pt-10 pb-15">
-        <DrawerDialog
-          customButton={
-            <Button variant={"outline"} className=" mb-6">
-              Create
-            </Button>
-          }
-          title="Create Transaction"
-          description="Make new transaction data"
-          apiLink={"/api/transaction"}
-        />
-        <Link href={"/dashboard/transaction/json"} className=" ml-2">
-          <Button className=" cursor-pointer">add with json</Button>
-        </Link>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+          <div className="flex items-center gap-2">
+            <DrawerDialog
+              customButton={<Button variant={"outline"}>Create</Button>}
+              title="Create Transaction"
+              description="Make new transaction data"
+              apiLink={"/api/transaction"}
+            />
+            <Link href={"/dashboard/transaction/json"}>
+              <Button className=" cursor-pointer">add with json</Button>
+            </Link>
+          </div>
+
+          <SearchInput />
+        </div>
+
         <div className="fixed z-10 lg:bottom-15 lg:right-15 bottom-5 right-5">
           <div>
             <Link href="/dashboard/transaction/ai">

@@ -1,20 +1,21 @@
 "use client";
 
 import { Input } from "@/components/ui/input";
-import { useState } from "react";
+import { NumericFormat } from "react-number-format";
 
 type RupiahInputProps = {
   className?: string;
   id?: string;
   defaultValue?: number;
+  value?: number | null;
   onChange?: (value: number | null) => void;
 };
 
-export function formatRupiah(value: string) {
-  const numeric = value.replace(/[^\d]/g, "");
-  const number = Number(numeric);
+export function formatRupiah(value: string | number) {
+  const number =
+    typeof value === "string" ? Number(value.replace(/[^\d]/g, "")) : value;
 
-  if (isNaN(number)) return "";
+  if (isNaN(number) || number === null) return "";
 
   return new Intl.NumberFormat("id-ID", {
     style: "currency",
@@ -27,32 +28,26 @@ export default function RupiahInput({
   className,
   id = "rupiah",
   defaultValue,
+  value,
   onChange,
 }: RupiahInputProps) {
-  const [displayValue, setDisplayValue] = useState(() =>
-    defaultValue ? formatRupiah(defaultValue.toString()) : ""
-  );
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const raw = e.target.value.replace(/[^\d]/g, "");
-    const number = raw === "" ? null : Number(raw);
-    setDisplayValue(formatRupiah(e.target.value));
-    onChange?.(number);
-  };
-
   return (
-    <div>
-      <Input
-        className={className}
-        id={id}
-        name={id}
-        type="text"
-        inputMode="numeric"
-        autoComplete="off"
-        onChange={handleChange}
-        value={displayValue}
-        placeholder="Rp 0"
-      ></Input>
-    </div>
+    <NumericFormat
+      id={id}
+      name={id}
+      className={className}
+      customInput={Input}
+      decimalSeparator=","
+      thousandSeparator="."
+      prefix="Rp "
+      value={value ?? defaultValue}
+      onValueChange={(values) => {
+        const { floatValue } = values;
+        onChange?.(floatValue ?? null);
+      }}
+      onFocus={(e) => e.target.select()}
+      placeholder="Rp 0"
+      autoComplete="off"
+    />
   );
 }

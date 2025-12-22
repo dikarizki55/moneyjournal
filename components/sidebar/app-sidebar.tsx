@@ -1,6 +1,6 @@
 "use client";
 
-import { Home, Banknote } from "lucide-react";
+import { Home, Banknote, Repeat } from "lucide-react";
 
 import {
   Sidebar,
@@ -18,6 +18,7 @@ import { NavUser } from "./navuser";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import ThemeToggle from "../block/themeToggle";
+import ChatgptIcon from "../icon/chatgptIcon";
 
 // Menu items.
 const items = [
@@ -30,6 +31,16 @@ const items = [
     title: "Transaction",
     url: "/dashboard/transaction",
     icon: Banknote,
+  },
+  {
+    title: "Monthly Outcome",
+    url: "/dashboard/monthly-outcome",
+    icon: Repeat,
+  },
+  {
+    title: "Input Data with AI",
+    url: "/dashboard/ai-input",
+    icon: ChatgptIcon,
   },
 ];
 

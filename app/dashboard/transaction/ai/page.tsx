@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import JsonTableComponent from "../json/JsonTableComponent";
 import { limitn8n } from "@prisma/client";
 
@@ -98,7 +99,14 @@ export default function Ai() {
       </p>
 
       {preview && (
-        <img className=" max-w-100 max-h-140 mt-5" src={preview} alt="" />
+        <Image
+          className=" max-w-100 max-h-140 mt-5 object-contain"
+          src={preview}
+          alt="Preview"
+          width={400}
+          height={560}
+          unoptimized
+        />
       )}
 
       <Input

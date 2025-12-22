@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { PencilLine, Trash } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 
 const Page = () => {
   const session = useSession();
@@ -38,13 +39,13 @@ const Page = () => {
         credentials: "include",
       }).then((res) => res.json());
 
-      setPreview(res.data.image);
-      setName(res.data.name);
+      if (res.data) {
+        setPreview(res.data.image || "");
+        setName(res.data.name || "");
+      }
     };
     fetchImage();
   }, []);
-
-  console.log(preview);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -82,10 +83,13 @@ const Page = () => {
             }`}
           >
             {preview ? (
-              <img
+              <Image
                 src={preview}
                 alt={name}
-                className=" min-w-full min-h-full"
+                width={200}
+                height={200}
+                className=" min-w-full min-h-full object-cover"
+                unoptimized
               />
             ) : (
               <div className=" w-full h-full flex justify-center items-center text-8xl bg-muted">

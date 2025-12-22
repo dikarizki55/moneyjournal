@@ -1,41 +1,27 @@
 "use client";
-import { useEffect, useState } from "react";
+
+import { useTheme } from "next-themes";
 import { Switch } from "../ui/switch";
 import { Moon, Sun } from "lucide-react";
-
-const setCookie = (name: string, value: string, days = 365) => {
-  const expires = new Date(Date.now() + days * 86400000).toUTCString();
-  document.cookie = `${name}=${value}; expires=${expires}; path=/`;
-};
-
-const getCookie = (name: string) => {
-  const match = document.cookie.match(new RegExp(`(^| )${name}=([^;]+)`));
-  return match ? match[2] : null;
-};
+import { useEffect, useState } from "react";
 
 export default function ThemeToggle({ hidden = false }: { hidden?: boolean }) {
-  const [dark, setDark] = useState(false);
+  const { setTheme, resolvedTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
 
+  // useEffect only runs on the client, so now we can safely show the UI
   useEffect(() => {
-    const isDark = getCookie("dark") === "true" ? true : false;
-    setDark(isDark);
+    setMounted(true);
   }, []);
 
-  useEffect(() => {
-    if (dark) {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
-  }, [dark]);
+  if (!mounted) {
+    return null; // or a loading spinner
+  }
 
-  const handleTheme = () => {
-    if (!dark) {
-      setCookie("dark", "true");
-    } else {
-      setCookie("dark", "false");
-    }
-    setDark(!dark);
+  const isDark = resolvedTheme === "dark";
+
+  const handleTheme = (checked: boolean) => {
+    setTheme(checked ? "dark" : "light");
   };
 
   return (
@@ -47,15 +33,15 @@ export default function ThemeToggle({ hidden = false }: { hidden?: boolean }) {
       <div className=" relative flex flex-col overflow-hidden">
         <Sun
           className=" w-5 relative transition-all duration-500"
-          style={{ top: dark ? "25" : "0" }}
+          style={{ top: isDark ? "25px" : "0" }}
         ></Sun>
         <Moon
           className=" w-5 absolute  transition-all duration-500 left-0"
-          style={{ bottom: dark ? "0" : "25" }}
+          style={{ bottom: isDark ? "0" : "25px" }}
         ></Moon>
       </div>
 
-      <Switch checked={dark} onCheckedChange={handleTheme}></Switch>
+      <Switch checked={isDark} onCheckedChange={handleTheme}></Switch>
     </div>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 import { Button } from "@/components/ui/button";
 
@@ -24,22 +24,40 @@ export default function Page() {
   const [jsonError, setJsonError] = useState(false);
 
   const [copied, setCopied] = useState(false);
-  const textToCopy = `create json from this photo with json formats
+  const [monthlyOutcomeCats, setMonthlyOutcomeCats] = useState<string[]>([]);
+
+  useEffect(() => {
+    const fetchCats = async () => {
+      try {
+        const res = await fetch("/api/monthly-outcome");
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          setMonthlyOutcomeCats(
+            data.map((o: { category: string }) => o.category)
+          );
+        }
+      } catch (error) {
+        console.error("Failed to fetch monthly outcomes:", error);
+      }
+    };
+    fetchCats();
+  }, []);
+
+  const categoryInstruction =
+    monthlyOutcomeCats.length > 0
+      ? `\n          I have specific budget categories: ${monthlyOutcomeCats.join(
+          ", "
+        )}. 
+          If a transaction matches or is strongly related to any of these, you MUST use that exact category name and set the "type" to "outcome".`
+      : "";
+
+  const textToCopy = `create json from this file with json formats
           title,type:"income"|"outcome",amount:number,category,notes,date:Date,created_at:same
-          as date`;
-  // const handleCopy = async () => {
-  //   try {
-  //     await navigator.clipboard.writeText(textToCopy);
-  //     setCopied(true);
-  //     setTimeout(() => setCopied(false), 1500);
-  //   } catch (error) {
-  //     console.error(error);
-  //     console.log("failed to copy");
-  //   }
+          as date.${categoryInstruction}`;
 
   const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText(textToCopy);
+      await navigator.clipboard.writeText(textToCopy.trim());
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
