@@ -103,3 +103,35 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ message }, { status: 500 });
   }
 }
+
+export async function PUT(req: NextRequest) {
+  try {
+    const user = await verifyUser(req);
+    const { id, title, amount, category } = await req.json();
+
+    if (!id || !title || !amount || !category) {
+      return NextResponse.json(
+        { message: "Missing required fields" },
+        { status: 400 }
+      );
+    }
+
+    const updated = await prisma.monthlyOutcome.update({
+      where: {
+        id: id,
+        user_id: user.id,
+      },
+      data: {
+        title,
+        amount: Number(amount),
+        category,
+      },
+    });
+
+    return NextResponse.json(updated);
+  } catch (error: unknown) {
+    const message =
+      error instanceof Error ? error.message : "Internal Server Error";
+    return NextResponse.json({ message }, { status: 500 });
+  }
+}

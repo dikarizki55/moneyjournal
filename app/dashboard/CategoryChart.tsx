@@ -1,48 +1,87 @@
-"use server";
-
-import { auth } from "@/auth";
+"use client";
 import { ChartBarMultiple } from "@/components/block/monthlyBar";
-import prisma from "@/prisma";
+import { format } from "date-fns";
+import { DashboardDateFilter } from "./DashboardDateFilter";
+import { useEffect, useState } from "react";
 
-export default async function CategoryChart() {
-  const session = await auth();
+export default function CategoryChart() {
+  const [from, setFrom] = useState<string | undefined>();
+  const [to, setTo] = useState<string | undefined>();
+  const [data, setData] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
-  if (!session) return;
+  const fetchData = async (rFrom?: string, rTo?: string) => {
+    setIsLoading(true);
+    try {
+      let url = "/api/transaction/summary?group=category";
+      if (rFrom) url += `&from=${rFrom}`;
+      if (rTo) url += `&to=${rTo}`;
 
-  const data = await prisma.transaction.groupBy({
-    by: ["category", "type"],
-    where: { user_id: session.user?.id },
-    _sum: { amount: true },
-  });
+      const res = await fetch(url);
+      const json = await res.json();
 
-  const newData: {
-    category: string;
-    income: number;
-    outcome: number;
-  }[] = [];
+      const newData: {
+        category: string;
+        income: number;
+        outcome: number;
+      }[] = [];
 
-  for (const item of data) {
-    const existing = newData.find((value) => value.category === item.category);
+      for (const item of json.data || []) {
+        const existing = newData.find(
+          (value) => value.category === item.category
+        );
 
-    if (existing) {
-      existing[item.type] = Number(item._sum.amount);
-    } else {
-      newData.push({
-        category: String(item.category),
-        income: item.type === "income" ? Number(item._sum.amount) : 0,
-        outcome: item.type === "outcome" ? Number(item._sum.amount) : 0,
-      });
+        if (existing) {
+          existing[item.type as "income" | "outcome"] = Number(
+            item._sum.amount
+          );
+        } else {
+          newData.push({
+            category: String(item.category),
+            income: item.type === "income" ? Number(item._sum.amount) : 0,
+            outcome: item.type === "outcome" ? Number(item._sum.amount) : 0,
+          });
+        }
+      }
+      setData(newData);
+    } catch (error) {
+      console.error("Failed to fetch category data:", error);
+    } finally {
+      setIsLoading(false);
     }
-  }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const handleRangeChange = (nFrom?: string, nTo?: string) => {
+    setFrom(nFrom);
+    setTo(nTo);
+    fetchData(nFrom, nTo);
+  };
 
   return (
-    <div>
-      <ChartBarMultiple
-        title="Category Income Outcome"
-        description="2025"
-        chartData={newData}
-        chartDataKey={"category"}
-      ></ChartBarMultiple>
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 px-2">
+        <h2 className="text-xl font-semibold">Category Analysis</h2>
+        <DashboardDateFilter onRangeChange={handleRangeChange} />
+      </div>
+      <div className={isLoading ? "opacity-50 pointer-events-none" : ""}>
+        <ChartBarMultiple
+          title="Category Income Outcome"
+          description={
+            from && to
+              ? `${format(new Date(from), "LLL dd")} - ${format(
+                  new Date(to),
+                  "LLL dd, y"
+                )}`
+              : new Date().getFullYear().toString()
+          }
+          chartData={data}
+          chartDataKey={"category"}
+        ></ChartBarMultiple>
+      </div>
     </div>
   );
 }

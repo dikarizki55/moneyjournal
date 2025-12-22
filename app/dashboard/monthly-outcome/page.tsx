@@ -12,7 +12,14 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Plus, Trash2, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
+import {
+  Plus,
+  Trash2,
+  CheckCircle2,
+  AlertCircle,
+  Loader2,
+  Pencil,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Progress } from "@/components/ui/progress";
 import RupiahInput from "../RupiahInput";
@@ -34,7 +41,11 @@ export default function MonthlyOutcomePage() {
     amount: 0,
     category: "",
   });
+  const [editingOutcome, setEditingOutcome] = useState<MonthlyOutcome | null>(
+    null
+  );
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
   const fetchOutcomes = async () => {
     setIsLoading(true);
@@ -83,6 +94,39 @@ export default function MonthlyOutcomePage() {
       }
     } catch {
       toast.error("An error occurred during upload");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleEditOutcome = async () => {
+    if (
+      !editingOutcome?.title ||
+      !editingOutcome?.amount ||
+      !editingOutcome?.category
+    ) {
+      toast.error("Please fill all fields");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const res = await fetch("/api/monthly-outcome", {
+        method: "PUT",
+        body: JSON.stringify(editingOutcome),
+      });
+
+      if (res.ok) {
+        toast.success("Successfully updated monthly outcome");
+        setIsEditDialogOpen(false);
+        setEditingOutcome(null);
+        fetchOutcomes();
+      } else {
+        const error = await res.json();
+        toast.error(error.message || "Failed to update outcome");
+      }
+    } catch {
+      toast.error("An error occurred during update");
     } finally {
       setIsSubmitting(false);
     }
@@ -210,6 +254,68 @@ export default function MonthlyOutcomePage() {
             </form>
           </DialogContent>
         </Dialog>
+
+        {/* Edit Dialog */}
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Monthly Budget</DialogTitle>
+            </DialogHeader>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleEditOutcome();
+              }}
+              className="space-y-4 py-4"
+            >
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Title</label>
+                <Input
+                  placeholder="e.g. Monthly Gasoline"
+                  value={editingOutcome?.title || ""}
+                  onChange={(e) =>
+                    editingOutcome &&
+                    setEditingOutcome({
+                      ...editingOutcome,
+                      title: e.target.value,
+                    })
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Category</label>
+                <Input
+                  placeholder="e.g. Transport"
+                  value={editingOutcome?.category || ""}
+                  onChange={(e) =>
+                    editingOutcome &&
+                    setEditingOutcome({
+                      ...editingOutcome,
+                      category: e.target.value,
+                    })
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Monthly Amount</label>
+                <RupiahInput
+                  value={editingOutcome?.amount || 0}
+                  onChange={(val) =>
+                    editingOutcome &&
+                    setEditingOutcome({ ...editingOutcome, amount: val || 0 })
+                  }
+                />
+              </div>
+              <Button type="submit" className="w-full" disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <Loader2 className="animate-spin" />
+                ) : (
+                  "Update Budget"
+                )}
+              </Button>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {isLoading ? (
@@ -252,6 +358,16 @@ export default function MonthlyOutcomePage() {
                         onClick={() => handleApprove(outcome)}
                       >
                         {remaining <= 0 ? "Fully Paid" : "Pay Remaining"}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => {
+                          setEditingOutcome(outcome);
+                          setIsEditDialogOpen(true);
+                        }}
+                      >
+                        <Pencil size={18} />
                       </Button>
                       <Button
                         variant="ghost"

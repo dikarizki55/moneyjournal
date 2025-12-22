@@ -7,18 +7,33 @@ export async function GET(req: NextRequest) {
     const user = await verifyUser(req);
 
     const { searchParams } = new URL(req.url);
-    const group = searchParams.get("group");
+    const group = searchParams.get("group") || "type";
+    const from = searchParams.get("from");
+    const to = searchParams.get("to");
 
-    if (group !== "type") {
+    const validGroups = ["type", "category"];
+    if (!validGroups.includes(group)) {
       return NextResponse.json(
         { error: "Invalid group parameter", type: group },
         { status: 400 }
       );
     }
 
+    const where: any = { user_id: user.id };
+    if (from || to) {
+      where.date = {
+        ...(from ? { gte: new Date(from) } : {}),
+        ...(to ? { lte: new Date(to) } : {}),
+      };
+    }
+
+    // Adjust grouping based on parameter
+    const groupByFields: any[] =
+      group === "category" ? ["category", "type"] : ["type"];
+
     const result = await prisma.transaction.groupBy({
-      by: ["type"],
-      where: { user_id: user.id },
+      by: groupByFields,
+      where,
       _sum: {
         amount: true,
       },
@@ -28,7 +43,7 @@ export async function GET(req: NextRequest) {
       success: true,
       message: "berhasil",
       data: result,
-      type: group,
+      group: group,
     });
   } catch (error) {
     console.log(error);
