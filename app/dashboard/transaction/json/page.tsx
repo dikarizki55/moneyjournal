@@ -13,8 +13,8 @@ const defaultData = {
   amount: 0,
   category: "shop",
   notes: "notes",
-  date: "2025-07-29T00:00:00.000Z",
-  created_at: "2025-07-29T00:00:00.000Z",
+  date: "2025-07-29",
+  created_at: "2025-07-29",
 };
 
 export default function Page() {
@@ -52,8 +52,7 @@ export default function Page() {
       : "";
 
   const textToCopy = `create json from this file with json formats
-          title,type:"income"|"outcome",amount:number,category,notes,date:Date,created_at:same
-          as date.${categoryInstruction}`;
+          title (string), type ("income" or "outcome"), amount (number), category (string), notes (string), date ("YYYY-MM-DD"), created_at ("YYYY-MM-DD").${categoryInstruction}`;
 
   const handleCopy = async () => {
     try {

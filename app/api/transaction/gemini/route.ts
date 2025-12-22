@@ -52,31 +52,20 @@ export async function POST(req: NextRequest) {
           )}. If a transaction matches or is strongly related to any of these, you MUST use that exact category name and set the "type" to "outcome".`
         : "Categorize the transaction appropriately (e.g., Food, Transport, Utilities, etc.).";
 
-    const prompt = `
-      You are a financial assistant. Extract transaction details from the provided document (image or PDF).
-      Format the output as a JSON array of objects with these fields:
-      title (string), type ("income" or "outcome"), amount (number), category (string), notes (string), date (ISO date), created_at (same as date).
-      
-      If there are multiple transactions in the document, extract them all.
-
-      CRITICAL CATEGORY RULE:
-      ${categoryInstruction}
-
-      The structure must be:
-      [
-        {
-          "title": "Clear description of the transaction",
-          "amount": number (float),
-          "category": "category name",
-          "date": "ISO 8601 date string (YYYY-MM-DD)",
-          "type": "income" or "outcome",
-          "notes": "Short description or notes",
-          "created_at": "Current ISO 8601 date string (YYYY-MM-DD)"
-        }
-      ]
-      Only return the JSON array, no other text or explanation. 
-      Current date: ${new Date().toISOString().slice(0, 10)}.
-    `;
+    const prompt = `Return only a JSON array of transactions found in the provided content. 
+      Important instructions:
+      1. For each transaction, provide the following fields: 
+         - title (string)
+         - type ("income" or "outcome")
+         - amount (number)
+         - category (string)
+         - notes (string)
+         - date ("YYYY-MM-DD")
+         - created_at (same as date, "YYYY-MM-DD")
+      2. Set the type to "income" or "outcome" based on context. 
+      3. ${categoryInstruction}
+      4. Current date: ${new Date().toISOString().slice(0, 10)}.
+      `;
 
     const result = await model.generateContent([
       prompt,

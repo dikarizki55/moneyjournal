@@ -38,8 +38,8 @@ const defaultData = {
   amount: 0,
   category: "shop",
   notes: "notes",
-  date: "2025-07-29T00:00:00.000Z",
-  created_at: "2025-07-29T00:00:00.000Z",
+  date: "2025-07-29",
+  created_at: "2025-07-29",
 };
 
 export default function JsonTableComponent({
@@ -121,14 +121,18 @@ export default function JsonTableComponent({
               <TableCaption>A list of your recent invoices.</TableCaption>
               <TableHeader>
                 <TableRow>
-                  {Object.keys(defaultData).map((head, i) => (
-                    <TableHead key={i}>{head}</TableHead>
+                  <TableHead className="w-[50px]">No</TableHead>
+                  {Object.keys(defaultData).map((head) => (
+                    <TableHead key={head}>{head}</TableHead>
                   ))}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {body.map((cell, i) => (
                   <TableRow key={i}>
+                    <TableCell className="font-medium text-center">
+                      {i + 1}
+                    </TableCell>
                     <TableCell>
                       <Input
                         className="w-50"
@@ -195,9 +199,7 @@ export default function JsonTableComponent({
                           cell.date ? cell.date.toString().slice(0, 10) : ""
                         }
                         onChange={(e) => {
-                          const newDate = new Date(
-                            e.target.value
-                          ).toISOString();
+                          const newDate = e.target.value;
                           handleChange(i, "date", newDate);
                         }}
                       />
@@ -217,9 +219,7 @@ export default function JsonTableComponent({
                             : ""
                         }
                         onChange={(e) => {
-                          const newDate = new Date(
-                            e.target.value
-                          ).toISOString();
+                          const newDate = e.target.value;
                           handleChange(i, "created_at", newDate);
                         }}
                       />
