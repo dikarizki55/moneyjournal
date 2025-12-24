@@ -70,24 +70,30 @@ export function DashboardDateFilter({
     if (qParam !== searchText) {
       setSearchText(qParam);
     }
-  }, [searchParams]);
+  }, [searchParams, searchText]);
 
   // Handle search parameter updates
   React.useEffect(() => {
     if (!showSearch || onRangeChange) return;
 
-    const params = new URLSearchParams(searchParams.toString());
-    if (debouncedSearch) {
-      params.set("q", debouncedSearch);
-    } else {
-      params.delete("q");
-    }
-    params.set("page", "1");
+    // Only update if search parameter actually changed (not just page)
+    const currentSearch = searchParams.get("q") ?? "";
+    const searchChanged = currentSearch !== debouncedSearch;
 
-    const currentParams = searchParams.toString();
-    const newParams = params.toString();
-    if (currentParams !== newParams) {
-      router.push(`?${newParams}`, { scroll: false });
+    if (searchChanged) {
+      const params = new URLSearchParams(searchParams.toString());
+      if (debouncedSearch) {
+        params.set("q", debouncedSearch);
+      } else {
+        params.delete("q");
+      }
+      params.set("page", "1");
+
+      const currentParams = searchParams.toString();
+      const newParams = params.toString();
+      if (currentParams !== newParams) {
+        router.push(`?${newParams}`, { scroll: false });
+      }
     }
   }, [debouncedSearch, showSearch, router, searchParams, onRangeChange]);
 
@@ -100,6 +106,11 @@ export function DashboardDateFilter({
       return;
     }
 
+    // Check if the date range actually changed compared to current URL parameters
+    const currentFrom = searchParams.get("from");
+    const currentTo = searchParams.get("to");
+    const dateRangeChanged = currentFrom !== from || currentTo !== to;
+
     const params = new URLSearchParams(searchParams.toString());
     if (from) {
       params.set("from", from);
@@ -111,7 +122,12 @@ export function DashboardDateFilter({
     } else {
       params.delete("to");
     }
-    params.set("page", "1");
+
+    // Only reset page to 1 if the date range actually changed
+    if (dateRangeChanged) {
+      params.set("page", "1");
+    }
+
     router.push(`?${params.toString()}`, { scroll: false });
   };
 
