@@ -8,6 +8,10 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import ChatgptIcon from "@/components/icon/chatgptIcon";
 import { DashboardDateFilter } from "../DashboardDateFilter";
+import { verifyUserServer } from "@/lib/verifyuser";
+import { Prisma } from "@prisma/client";
+import prisma from "@/prisma";
+import { serializeData } from "./helper";
 
 const Page = async ({
   searchParams,
@@ -18,41 +22,123 @@ const Page = async ({
   // const page = Number(searchParams?.get("page") ?? 1);
   const page = Number((await searchParams).page ?? 1);
   const q = (await searchParams).q ?? "";
-  const from = (await searchParams).from ?? "";
-  const to = (await searchParams).to ?? "";
+  const searchQuery = typeof q === "string" ? q : undefined;
+  const from = ((await searchParams).from as string) ?? "";
+  const to = ((await searchParams).to as string) ?? "";
   const categoriesParam = (await searchParams).categories ?? "";
-  const sort = (await searchParams).sort ?? "desc";
-  const sortBy = (await searchParams).sortBy ?? "date";
+  const sort = ((await searchParams).sort as string) ?? "desc";
+  const sortBy = ((await searchParams).sortBy as string) ?? "date";
 
-  const headersList = headers();
-  const host = (await headersList).get("host");
-  const protocol = (await headersList).get("x-forwarded-proto") || "http";
+  const limit = 25;
+  const offset = (page - 1) * limit;
 
-  const url = new URL(`${protocol}://${host}/api/transaction`);
-  url.searchParams.set("limit", "25");
-  url.searchParams.set("offset", String((page - 1) * 25));
-  url.searchParams.set("sort", String(sort));
-  url.searchParams.set("sortBy", String(sortBy));
-  if (q) url.searchParams.set("q", String(q));
-  if (from) url.searchParams.set("from", String(from));
-  if (to) url.searchParams.set("to", String(to));
-  if (categoriesParam)
-    url.searchParams.set("categories", String(categoriesParam));
+  const getQuery = async () => {
+    try {
+      const user = await verifyUserServer();
 
-  const res = await fetch(url.toString(), {
-    headers: {
-      Cookie: (await cookies()).toString(),
-    },
-  });
+      const filterCategories = categoriesParam
+        ? (categoriesParam as string).split(",")
+        : [];
 
-  if (!res.ok) {
-    console.error("Failed to fetch transactions");
-    redirect("/dashboard");
-  }
+      const where: Prisma.transactionWhereInput = {
+        user_id: user.id,
+        ...(searchQuery
+          ? {
+              OR: [
+                { title: { contains: searchQuery, mode: "insensitive" } },
+                { category: { contains: searchQuery, mode: "insensitive" } },
+              ],
+            }
+          : {}),
+        ...(from || to
+          ? {
+              date: {
+                ...(from ? { gte: new Date(from) } : {}),
+                ...(to ? { lte: new Date(to) } : {}),
+              },
+            }
+          : {}),
+        ...(filterCategories.length > 0
+          ? {
+              category: { in: filterCategories },
+            }
+          : {}),
+      };
 
-  const resJson = await res.json();
-  const data = resJson.data;
-  const total = await resJson.pagination.total;
+      const transaction = async () => {
+        if (sortBy === "amount") {
+          let dynamicClauses = Prisma.empty;
+          if (searchQuery) {
+            dynamicClauses = Prisma.sql`${dynamicClauses} AND ("title" ILIKE ${`%${searchQuery}%`} OR "category" ILIKE ${`%${searchQuery}%`})`;
+          }
+          if (from) {
+            dynamicClauses = Prisma.sql`${dynamicClauses} AND "date" >= ${new Date(
+              from
+            )}`;
+          }
+          if (to) {
+            dynamicClauses = Prisma.sql`${dynamicClauses} AND "date" <= ${new Date(
+              to
+            )}`;
+          }
+          if (filterCategories.length > 0) {
+            dynamicClauses = Prisma.sql`${dynamicClauses} AND "category" IN (${Prisma.join(
+              filterCategories
+            )})`;
+          }
+
+          return await prisma.$queryRaw`
+          select *
+          from "transaction"
+          where "user_id" = ${user.id}
+          ${dynamicClauses}
+          order by 
+            case
+              when "type" = 'outcome' then -"amount"
+              else amount
+            end ${Prisma.sql([sort])}
+          offset ${offset || 0}
+          limit ${limit || 25}
+        `;
+        } else {
+          return await prisma.transaction.findMany({
+            where,
+            orderBy: [
+              {
+                [sortBy]: sort,
+              },
+              { created_at: "desc" },
+            ],
+            skip: offset || 0,
+            take: limit || 25,
+          });
+        }
+      };
+
+      const transactionData = await transaction();
+
+      const total = await prisma.transaction.count({
+        where,
+      });
+
+      return {
+        success: true,
+        message: "success",
+        data: transactionData,
+        pagination: {
+          total,
+          limit: limit ?? null,
+          offset: offset ?? null,
+        },
+      };
+    } catch (error) {
+      console.error(error);
+      redirect("/dashboard");
+    }
+  };
+  const resJson = await getQuery();
+  const data = serializeData(resJson.data);
+  const total = resJson.pagination.total;
 
   return (
     <div className="p-6">
