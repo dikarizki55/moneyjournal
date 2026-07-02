@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const where: any = { user_id: user.id };
+    const where: any = { user_id: user.id, deleted_at: null };
     if (from || to) {
       where.date = {
         ...(from ? { gte: new Date(from) } : {}),

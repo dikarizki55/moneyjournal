@@ -42,6 +42,7 @@ const Page = async ({
 
       const where: Prisma.transactionWhereInput = {
         user_id: user.id,
+        deleted_at: null,
         ...(searchQuery
           ? {
               OR: [
@@ -73,17 +74,17 @@ const Page = async ({
           }
           if (from) {
             dynamicClauses = Prisma.sql`${dynamicClauses} AND "date" >= ${new Date(
-              from
+              from,
             )}`;
           }
           if (to) {
             dynamicClauses = Prisma.sql`${dynamicClauses} AND "date" <= ${new Date(
-              to
+              to,
             )}`;
           }
           if (filterCategories.length > 0) {
             dynamicClauses = Prisma.sql`${dynamicClauses} AND "category" IN (${Prisma.join(
-              filterCategories
+              filterCategories,
             )})`;
           }
 
@@ -91,6 +92,7 @@ const Page = async ({
           select *
           from "transaction"
           where "user_id" = ${user.id}
+          and "deleted_at" is null
           ${dynamicClauses}
           order by 
             case
@@ -162,7 +164,7 @@ const Page = async ({
           </div>
         </div>
 
-        <div className="fixed z-10 lg:bottom-15 lg:right-15 bottom-5 right-5">
+        <div className="fixed z-10 lg:bottom-15 lg:right-15 bottom-20 right-5">
           <div>
             <Link href="/dashboard/transaction/ai">
               <div className=" bg-primary rounded-full text-secondary  flex flex-col justify-center items-center p-3 font-bold">

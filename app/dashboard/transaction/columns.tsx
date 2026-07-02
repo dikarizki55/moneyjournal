@@ -288,8 +288,7 @@ function ActionCell({ rawData }: { rawData: transaction }) {
             <AlertDialogHeader>
               <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
               <AlertDialogDescription>
-                This action cannot be undone. This will permanently delete your
-                account and remove your data from our servers.
+                This will move this transaction to the recycle bin. You can restore it later.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

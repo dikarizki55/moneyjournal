@@ -1,6 +1,6 @@
 "use client";
 
-import { Home, Banknote, Repeat } from "lucide-react";
+import { Home, Banknote, Repeat, ArchiveX } from "lucide-react";
 
 import {
   Sidebar,
@@ -41,6 +41,11 @@ const items = [
     title: "Input Data with AI",
     url: "/dashboard/ai-input",
     icon: ChatgptIcon,
+  },
+  {
+    title: "Recycle Bin",
+    url: "/dashboard/recycle-bin",
+    icon: ArchiveX,
   },
 ];
 

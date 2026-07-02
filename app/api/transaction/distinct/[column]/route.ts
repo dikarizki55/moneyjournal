@@ -15,6 +15,7 @@ export async function GET(
     const categories = await prisma.transaction.findMany({
       where: {
         user_id: user.id,
+        deleted_at: null,
         category: {
           not: null,
           notIn: [""],

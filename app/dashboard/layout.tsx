@@ -1,5 +1,6 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/sidebar/app-sidebar";
+import { MobileBottomBar } from "@/components/sidebar/mobile-bottom-bar";
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { SessionProvider } from "next-auth/react";
@@ -18,10 +19,11 @@ export default async function Layout({
       <SessionProvider session={session}>
         <SidebarProvider>
           <AppSidebar />
-          <main className=" w-full lg:w-[calc(100%-256px)]">
-            <SidebarTrigger />
+          <main className=" w-full lg:w-[calc(100%-256px)] pb-16 md:pb-0">
+            <SidebarTrigger className="hidden md:inline-flex" />
             {children}
           </main>
+          <MobileBottomBar />
         </SidebarProvider>
       </SessionProvider>
     </div>

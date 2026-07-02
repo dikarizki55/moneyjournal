@@ -133,7 +133,7 @@ export default function MonthlyOutcomePage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this?")) return;
+    if (!confirm("Move this monthly outcome to the recycle bin? You can restore it later.")) return;
 
     try {
       const res = await fetch(`/api/monthly-outcome?id=${id}`, {

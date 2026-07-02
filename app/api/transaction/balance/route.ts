@@ -8,7 +8,7 @@ export async function GET(req: NextRequest) {
 
     const result = await prisma.transaction.groupBy({
       by: ["type"],
-      where: { user_id: user.id },
+      where: { user_id: user.id, deleted_at: null },
       _sum: {
         amount: true,
       },

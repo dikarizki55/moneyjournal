@@ -18,6 +18,7 @@ export async function POST(req: NextRequest) {
       where: {
         id: outcomeId,
         user_id: user.id,
+        deleted_at: null,
       },
     });
 

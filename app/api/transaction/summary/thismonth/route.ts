@@ -14,6 +14,7 @@ export async function GET(req: NextRequest) {
       by: ["type"],
       where: {
         user_id: user.id,
+        deleted_at: null,
         created_at: { gte: startOfMonth, lt: startOfNextMonth },
       },
       _sum: {

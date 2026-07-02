@@ -7,7 +7,7 @@ export async function GET(req: NextRequest) {
     const user = await verifyUser(req);
 
     const outcomes = await prisma.monthlyOutcome.findMany({
-      where: { user_id: user.id },
+      where: { user_id: user.id, deleted_at: null },
       orderBy: { created_at: "desc" },
     });
 
@@ -89,11 +89,12 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ message: "Missing ID" }, { status: 400 });
     }
 
-    await prisma.monthlyOutcome.delete({
+    await prisma.monthlyOutcome.update({
       where: {
         id: id,
         user_id: user.id,
       },
+      data: { deleted_at: new Date() },
     });
 
     return NextResponse.json({ message: "Successfully deleted" });

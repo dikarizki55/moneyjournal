@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
       await prisma.$queryRaw`
     select extract(month from date) as month, sum("amount") filter (where "type" = 'income') as income, sum("amount") filter (where "type" = 'outcome') as outcome 
       from transaction
-      where "user_id" = ${user.id} and extract(year from date) = ${Number(
+      where "user_id" = ${user.id} and "deleted_at" is null and extract(year from date) = ${Number(
         startYear
       )}
       group by month

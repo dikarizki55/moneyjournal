@@ -23,7 +23,7 @@ export async function POST(
     };
 
     await prisma.transaction.update({
-      where: { id, user_id: user.id },
+      where: { id, user_id: user.id, deleted_at: null },
       data: {
         ...data,
       },
@@ -52,7 +52,10 @@ export async function DELETE(
     if (!user.id) throw new Error();
 
     const { id } = await params;
-    await prisma.transaction.delete({ where: { id } });
+    await prisma.transaction.update({
+      where: { id },
+      data: { deleted_at: new Date() },
+    });
 
     return NextResponse.json({});
   } catch (error) {

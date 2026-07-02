@@ -29,6 +29,7 @@ export async function GET(req: NextRequest) {
 
     const where: Prisma.transactionWhereInput = {
       user_id: user.id,
+      deleted_at: null,
       ...(q
         ? {
             OR: [
@@ -78,6 +79,7 @@ export async function GET(req: NextRequest) {
           select *
           from "transaction"
           where "user_id" = ${user.id}
+          and "deleted_at" is null
           ${dynamicClauses}
           order by 
             case
@@ -163,8 +165,9 @@ export async function DELETE(req: NextRequest) {
 
     const list: string[] = body.list;
 
-    await prisma.transaction.deleteMany({
+    await prisma.transaction.updateMany({
       where: { user_id: user.id, id: { in: list } },
+      data: { deleted_at: new Date() },
     });
 
     return NextResponse.json({
