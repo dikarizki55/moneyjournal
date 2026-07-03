@@ -141,6 +141,20 @@ export const columns: ColumnDef<transaction>[] = [
   {
     accessorKey: "title",
     header: () => <AscDesc params="title">{"Title"}</AscDesc>,
+    cell: ({ row }) => {
+      const title: string = row.getValue("title");
+      const isLinked = !!row.original.transferPairId;
+      return (
+        <div className="flex items-center gap-2">
+          <span>{title}</span>
+          {isLinked && (
+            <span className="text-xs text-muted-foreground" title="Linked transfer">
+              🔗
+            </span>
+          )}
+        </div>
+      );
+    },
   },
   {
     accessorKey: "category",
@@ -270,6 +284,8 @@ function ActionCell({ rawData }: { rawData: transaction }) {
             amount: Number(rawData.amount),
             notes: rawData.notes || "",
             date: String(rawData.date) || "",
+            isSavings: rawData.isSavings || false,
+            transferPairId: rawData.transferPairId || null,
           }}
           title="Edit Transaction"
           description="Edit transaction data"
@@ -288,7 +304,9 @@ function ActionCell({ rawData }: { rawData: transaction }) {
             <AlertDialogHeader>
               <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
               <AlertDialogDescription>
-                This will move this transaction to the recycle bin. You can restore it later.
+                {rawData.transferPairId
+                  ? "This is a linked transfer. Deleting it will also delete its paired transaction."
+                  : "This will move this transaction to the recycle bin. You can restore it later."}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

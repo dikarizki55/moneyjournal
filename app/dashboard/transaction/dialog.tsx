@@ -45,6 +45,8 @@ type FormInput = {
   amount: number | null;
   notes: string;
   date: string;
+  isSavings: boolean;
+  transferPairId: string | null;
 };
 
 export function DrawerDialog({
@@ -125,6 +127,8 @@ function ProfileForm({
     amount: initialData?.amount || null,
     date:
       initialData?.date.split("T")[0] || new Date().toISOString().split("T")[0],
+    isSavings: initialData?.isSavings || false,
+    transferPairId: initialData?.transferPairId || null,
   });
 
   const handleOnChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -135,7 +139,6 @@ function ProfileForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // await onSubmit(form);
     await fetch(apiLink, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -147,9 +150,9 @@ function ProfileForm({
   };
 
   const [categoryList, setCategoryList] = React.useState<string[]>([]);
-  const [monthlyOutcomeCats, setMonthlyOutcomeCats] = React.useState<string[]>(
-    []
-  );
+  const [walletCategoryMap, setWalletCategoryMap] = React.useState<
+    Map<string, string>
+  >(new Map());
 
   useEffect(() => {
     const getCategoryList = async () => {
@@ -164,39 +167,49 @@ function ProfileForm({
         const transactionData = await transactionRes.json();
         const outcomeData = await outcomeRes.json();
 
-        // Combine categories from both sources
         const transactionCats: string[] = transactionData.data || [];
         const outcomeCats: string[] = Array.isArray(outcomeData)
           ? outcomeData.map((o: { category: string }) => o.category)
           : [];
 
-        // Unique and filtered list
         const combined = Array.from(
           new Set([...transactionCats, ...outcomeCats])
         )
           .filter(Boolean)
           .sort() as string[];
 
-        setMonthlyOutcomeCats(outcomeCats);
         setCategoryList(combined);
+
+        const walletMap = new Map<string, string>();
+        if (Array.isArray(outcomeData)) {
+          outcomeData.forEach(
+            (w: { category: string; title: string }) => {
+              if (w.category) walletMap.set(w.category.toLowerCase(), w.title);
+            }
+          );
+        }
+        setWalletCategoryMap(walletMap);
       } catch {
-        // Silently fail to not disrupt user experience
+        // Silently fail
       }
     };
 
     getCategoryList();
   }, []);
 
-  const isMonthlyOutcomeCategory = monthlyOutcomeCats.some(
-    (cat) =>
-      cat && form.category && cat.toLowerCase() === form.category.toLowerCase()
-  );
-
   useEffect(() => {
-    if (isMonthlyOutcomeCategory && form.type !== "outcome") {
-      setForm((prev) => ({ ...prev, type: "outcome" }));
-    }
-  }, [isMonthlyOutcomeCategory, form.type]);
+    const isWallet = form.category
+      ? walletCategoryMap.has(form.category.toLowerCase())
+      : false;
+    setForm((prev) => ({ ...prev, isSavings: isWallet }));
+  }, [form.category, walletCategoryMap]);
+
+  const isWalletCategory = form.category
+    ? walletCategoryMap.has(form.category.toLowerCase())
+    : false;
+  const linkedWalletName = isWalletCategory
+    ? walletCategoryMap.get(form.category.toLowerCase())
+    : null;
 
   return (
     <form
@@ -212,23 +225,27 @@ function ProfileForm({
           value={form?.title}
         />
       </div>
+      {form.transferPairId && (
+        <div className="px-3 py-2 bg-amber-50 dark:bg-amber-950 rounded-lg border border-amber-200 dark:border-amber-800 text-sm text-amber-700 dark:text-amber-300">
+          🔗 Linked transfer — edits apply to both transactions
+        </div>
+      )}
       <div className="flex gap-3">
         <div className="grid gap-3">
           <Label htmlFor="type">Type</Label>
           <Tabs
             value={form?.type}
-            onValueChange={(value) =>
+            onValueChange={(value) => {
+              if (form.transferPairId) return;
               setForm({
                 ...form,
                 type: value as FormInput["type"],
               })
-            }
+            }}
             className="w-full"
           >
             <TabsList>
-              <TabsTrigger value="income" disabled={isMonthlyOutcomeCategory}>
-                Income
-              </TabsTrigger>
+              <TabsTrigger value="income">Income</TabsTrigger>
               <TabsTrigger value="outcome">Outcome</TabsTrigger>
             </TabsList>
           </Tabs>
@@ -249,15 +266,25 @@ function ProfileForm({
         <ComboboxInput
           id="category"
           defaultValue={form.category ?? undefined}
-          onChange={(value) =>
+          onChange={(value) => {
+            if (form.transferPairId) return;
             setForm({
               ...form,
               category: value,
             })
-          }
+          }}
           list={categoryList}
         ></ComboboxInput>
       </div>
+      {isWalletCategory && linkedWalletName && !form.transferPairId && (
+        <div className="px-3 py-2 bg-blue-50 dark:bg-blue-950 rounded-lg border border-blue-200 dark:border-blue-800 text-sm text-blue-700 dark:text-blue-300">
+          <span className="font-medium">Linked to wallet:</span>{" "}
+          <strong>{linkedWalletName}</strong>
+          <span className="ml-1 text-xs">
+            ({form.type === "income" ? "Fund" : "Withdraw"})
+          </span>
+        </div>
+      )}
       <div className="grid gap-3">
         <Label htmlFor="notes">Notes</Label>
         <Input

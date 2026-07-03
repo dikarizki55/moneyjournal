@@ -7,7 +7,7 @@ import Link from "next/link";
 const items = [
   { title: "Home", url: "/dashboard", icon: Home },
   { title: "Transaction", url: "/dashboard/transaction", icon: Banknote },
-  { title: "Monthly", url: "/dashboard/monthly-outcome", icon: Repeat },
+  { title: "Wallets", url: "/dashboard/monthly-outcome", icon: Repeat },
   { title: "Recycle Bin", url: "/dashboard/recycle-bin", icon: ArchiveX },
   { title: "Account", url: "/dashboard/account", icon: User },
 ];
@@ -17,8 +17,8 @@ export function MobileBottomBar() {
 
   return (
     <nav
-      style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
-      className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-background border-t flex items-center justify-around h-16 safe-area-bottom"
+      // style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+      className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-background border-t pt-2 flex items-start justify-around h-20 safe-area-bottom"
     >
       {items.map((item) => {
         const isActive = pathname === item.url;

@@ -15,7 +15,7 @@ export default function Wallet() {
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        const res = await fetch("/api/transaction/summary?group=type", {
+        const res = await fetch("/api/transaction/summary?group=type&excludeSavings=true", {
           credentials: "include",
         });
         const data = await res.json();
@@ -30,7 +30,7 @@ export default function Wallet() {
         setBalance(formatRupiah((result.income - result.outcome).toString()));
 
         const dataThisMonth = await fetch(
-          "/api/transaction/summary/thismonth",
+          "/api/transaction/summary/thismonth?excludeSavings=true",
           {
             credentials: "include",
           }

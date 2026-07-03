@@ -26,6 +26,15 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const wallets = await prisma.monthlyOutcome.findMany({
+      where: { user_id: user.id, deleted_at: null },
+      select: { category: true },
+    });
+
+    const walletCategories = new Set(
+      wallets.map((w) => w.category?.toLowerCase()).filter(Boolean)
+    );
+
     const bodyWithUser = body.map((data) => ({
       title: data.title,
       amount: Number(data.amount),
@@ -34,6 +43,7 @@ export async function POST(req: NextRequest) {
       date: data.date ? new Date(data.date) : new Date(),
       created_at: data.created_at ? new Date(data.created_at) : new Date(),
       type: data.type,
+      isSavings: data.category ? walletCategories.has(data.category.toLowerCase()) : false,
       user_id: user.id,
     }));
 

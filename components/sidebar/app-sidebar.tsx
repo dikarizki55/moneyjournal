@@ -33,7 +33,7 @@ const items = [
     icon: Banknote,
   },
   {
-    title: "Monthly Outcome",
+    title: "Wallets",
     url: "/dashboard/monthly-outcome",
     icon: Repeat,
   },

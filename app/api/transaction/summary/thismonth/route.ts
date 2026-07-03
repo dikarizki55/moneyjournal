@@ -6,17 +6,25 @@ export async function GET(req: NextRequest) {
   try {
     const user = await verifyUser(req);
 
+    const { searchParams } = new URL(req.url);
+    const excludeSavings = searchParams.get("excludeSavings") === "true";
+
     const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1); // tanggal 1 bulan ini
-    const startOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1); // tanggal 1 bulan depan
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const startOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+
+    const where: any = {
+      user_id: user.id,
+      deleted_at: null,
+      created_at: { gte: startOfMonth, lt: startOfNextMonth },
+    };
+    if (excludeSavings) {
+      where.isSavings = false;
+    }
 
     const result = await prisma.transaction.groupBy({
       by: ["type"],
-      where: {
-        user_id: user.id,
-        deleted_at: null,
-        created_at: { gte: startOfMonth, lt: startOfNextMonth },
-      },
+      where,
       _sum: {
         amount: true,
       },

@@ -134,6 +134,21 @@ export async function POST(req: NextRequest) {
 
     const { title, amount, type, category, notes, date } = body;
 
+    let isSavings = body.isSavings ?? false;
+
+    const wallets = await prisma.monthlyOutcome.findMany({
+      where: { user_id: user.id, deleted_at: null },
+      select: { category: true },
+    });
+
+    const walletCategories = wallets
+      .map((w) => w.category?.toLowerCase())
+      .filter(Boolean);
+
+    if (category && walletCategories.includes(category.toLowerCase())) {
+      isSavings = true;
+    }
+
     const transaction = await prisma.transaction.create({
       data: {
         user_id: user.id,
@@ -143,6 +158,7 @@ export async function POST(req: NextRequest) {
         category,
         notes,
         date: date && date.trim() !== "" ? new Date(date) : undefined,
+        isSavings,
       },
     });
 
@@ -162,18 +178,40 @@ export async function DELETE(req: NextRequest) {
     const user = await verifyUser(req);
 
     const body = await req.json();
-
     const list: string[] = body.list;
 
+    const transactions = await prisma.transaction.findMany({
+      where: { user_id: user.id, id: { in: list }, deleted_at: null },
+      select: { id: true, transferPairId: true },
+    });
+
+    const idsToDelete = new Set(transactions.map((t) => t.id));
+
+    const pairIds = transactions
+      .filter((t): t is typeof t & { transferPairId: string } => !!t.transferPairId)
+      .map((t) => t.transferPairId);
+
+    if (pairIds.length > 0) {
+      const pairs = await prisma.transaction.findMany({
+        where: {
+          transferPairId: { in: pairIds },
+          id: { notIn: [...idsToDelete] },
+          deleted_at: null,
+        },
+        select: { id: true },
+      });
+      pairs.forEach((p) => idsToDelete.add(p.id));
+    }
+
     await prisma.transaction.updateMany({
-      where: { user_id: user.id, id: { in: list } },
+      where: { user_id: user.id, id: { in: [...idsToDelete] } },
       data: { deleted_at: new Date() },
     });
 
     return NextResponse.json({
       success: true,
       message: "success delete",
-      data: list,
+      data: [...idsToDelete],
     });
   } catch (error) {
     console.log(error);

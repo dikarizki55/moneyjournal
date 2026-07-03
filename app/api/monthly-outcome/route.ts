@@ -15,34 +15,59 @@ export async function GET(req: NextRequest) {
     startOfMonth.setDate(1);
     startOfMonth.setHours(0, 0, 0, 0);
 
-    const transactions = await prisma.transaction.findMany({
+    const allSavingsTx = await prisma.transaction.findMany({
       where: {
         user_id: user.id,
-        type: "outcome",
-        date: {
-          gte: startOfMonth,
-        },
+        isSavings: true,
+        deleted_at: null,
       },
-      select: {
-        amount: true,
-        category: true,
-      },
+      select: { amount: true, category: true, type: true, date: true },
     });
 
-    const outcomesWithSpent = outcomes.map((outcome) => {
-      const spent = transactions
+    const outcomesWithDetails = outcomes.map((outcome) => {
+      const categoryTx = allSavingsTx.filter(
+        (t) =>
+          t.category?.toLowerCase() === outcome.category?.toLowerCase()
+      );
+
+      const spent = categoryTx
+        .filter((t) => t.type === "outcome" && t.date && t.date >= startOfMonth)
+        .reduce((sum, t) => sum + Number(t.amount), 0);
+
+      const totalFunded = categoryTx
+        .filter((t) => t.type === "income")
+        .reduce((sum, t) => sum + Number(t.amount), 0);
+
+      const totalSpent = categoryTx
+        .filter((t) => t.type === "outcome")
+        .reduce((sum, t) => sum + Number(t.amount), 0);
+
+      const balance = totalFunded - totalSpent;
+
+      const thisMonthFunded = categoryTx
         .filter(
-          (t) => t.category?.toLowerCase() === outcome.category?.toLowerCase()
+          (t) => t.type === "income" && t.date && t.date >= startOfMonth
+        )
+        .reduce((sum, t) => sum + Number(t.amount), 0);
+
+      const thisMonthSpent = categoryTx
+        .filter(
+          (t) => t.type === "outcome" && t.date && t.date >= startOfMonth
         )
         .reduce((sum, t) => sum + Number(t.amount), 0);
 
       return {
         ...outcome,
         spent,
+        balance,
+        totalFunded,
+        totalSpent,
+        thisMonthFunded,
+        thisMonthSpent,
       };
     });
 
-    return NextResponse.json(outcomesWithSpent);
+    return NextResponse.json(outcomesWithDetails);
   } catch (error: unknown) {
     const message =
       error instanceof Error ? error.message : "Internal Server Error";

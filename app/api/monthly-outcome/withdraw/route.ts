@@ -5,26 +5,22 @@ import { NextRequest, NextResponse } from "next/server";
 export async function POST(req: NextRequest) {
   try {
     const user = await verifyUser(req);
-    const { outcomeId, amount, date } = await req.json();
+    const { outcomeId, amount, date, title } = await req.json();
 
-    if (!outcomeId || !amount) {
+    if (!outcomeId || !amount || Number(amount) <= 0) {
       return NextResponse.json(
-        { message: "Missing required fields" },
+        { message: "Invalid amount or missing outcome ID" },
         { status: 400 }
       );
     }
 
     const outcome = await prisma.monthlyOutcome.findFirst({
-      where: {
-        id: outcomeId,
-        user_id: user.id,
-        deleted_at: null,
-      },
+      where: { id: outcomeId, user_id: user.id, deleted_at: null },
     });
 
     if (!outcome) {
       return NextResponse.json(
-        { message: "Monthly outcome not found" },
+        { message: "Wallet not found" },
         { status: 404 }
       );
     }
@@ -32,23 +28,23 @@ export async function POST(req: NextRequest) {
     const transaction = await prisma.transaction.create({
       data: {
         user_id: user.id,
-        title: outcome.title,
+        title: title || outcome.title,
         amount: Number(amount),
         category: outcome.category,
-        date: date ? new Date(date) : new Date(),
         type: "outcome",
         isSavings: true,
-        notes: `Auto-generated from monthly outcome: ${outcome.title}`,
+        date: date ? new Date(date) : new Date(),
+        notes: `Withdrawn from ${outcome.title} wallet`,
       },
     });
 
     return NextResponse.json({
-      message: "Transaction created successfully",
-      transaction,
+      success: true,
+      message: `Successfully withdrawn Rp ${Number(amount).toLocaleString()} from ${outcome.title}`,
+      data: transaction,
     });
-  } catch (error: unknown) {
-    const message =
-      error instanceof Error ? error.message : "Internal Server Error";
-    return NextResponse.json({ message }, { status: 500 });
+  } catch (error) {
+    console.log(error);
+    return NextResponse.json({ message: "error" }, { status: 500 });
   }
 }
