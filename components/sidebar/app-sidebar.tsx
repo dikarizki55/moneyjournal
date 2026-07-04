@@ -34,7 +34,7 @@ const items = [
   },
   {
     title: "Wallets",
-    url: "/dashboard/monthly-outcome",
+    url: "/dashboard/wallet",
     icon: Repeat,
   },
   {

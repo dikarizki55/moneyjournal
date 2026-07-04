@@ -8,6 +8,7 @@ export default function Wallet() {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [balance, setBalance] = useState("");
+  const [rawBalance, setRawBalance] = useState(0);
   const [income, setIncome] = useState(0);
   const [outcome, setOutcome] = useState(0);
 
@@ -27,7 +28,9 @@ export default function Wallet() {
             result[item.type] += Number(item._sum.amount);
           }
         );
-        setBalance(formatRupiah((result.income - result.outcome).toString()));
+        const bal = result.income - result.outcome;
+        setRawBalance(bal);
+        setBalance(formatRupiah(bal));
 
         const dataThisMonth = await fetch(
           "/api/transaction/summary/thismonth?excludeSavings=true",
@@ -73,7 +76,7 @@ export default function Wallet() {
             Rp 0
           </h1>
           <h1
-            className="absolute font-bold md:text-5xl lg:text-[80px] text-4xl transition-all duration-500"
+            className={`absolute font-bold md:text-5xl lg:text-[80px] text-4xl transition-all duration-500 ${rawBalance < 0 ? "text-red-400" : ""}`}
             style={{ bottom: isLoading ? -110 : 0 }}
           >
             {balance}

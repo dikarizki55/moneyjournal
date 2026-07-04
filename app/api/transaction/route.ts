@@ -24,12 +24,14 @@ export async function GET(req: NextRequest) {
     const sortField = (parseParams("sortBy", "string") as string) ?? "date";
     const sortDirection =
       (parseParams("sort", "string") as string) === "asc" ? "asc" : "desc";
+    const hideTransferToSavings = parseParams("hideTransferToSavings", "string") !== "false";
 
     const filterCategories = categoriesStr ? categoriesStr.split(",") : [];
 
     const where: Prisma.transactionWhereInput = {
       user_id: user.id,
       deleted_at: null,
+      ...(hideTransferToSavings ? { transferPairId: null } : {}),
       ...(q
         ? {
             OR: [
@@ -73,6 +75,9 @@ export async function GET(req: NextRequest) {
           dynamicClauses = Prisma.sql`${dynamicClauses} AND "category" IN (${Prisma.join(
             filterCategories
           )})`;
+        }
+        if (hideTransferToSavings) {
+          dynamicClauses = Prisma.sql`${dynamicClauses} AND "transfer_pair_id" IS NULL`;
         }
 
         return await prisma.$queryRaw`

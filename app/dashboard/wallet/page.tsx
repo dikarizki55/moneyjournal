@@ -5,13 +5,7 @@ import { formatRupiah } from "../RupiahInput";
 import { Card, CardContent, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { ResponsiveDialog } from "@/components/ui/responsive-dialog";
 import {
   Plus,
   Trash2,
@@ -41,6 +35,7 @@ interface MonthlyOutcome {
 
 export default function MonthlyOutcomePage() {
   const [outcomes, setOutcomes] = useState<MonthlyOutcome[]>([]);
+  const [globalBalance, setGlobalBalance] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [newOutcome, setNewOutcome] = useState({
@@ -49,12 +44,18 @@ export default function MonthlyOutcomePage() {
     category: "",
   });
   const [editingOutcome, setEditingOutcome] = useState<MonthlyOutcome | null>(
-    null
+    null,
   );
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [fundDialog, setFundDialog] = useState<{ open: boolean; outcome: MonthlyOutcome | null }>({ open: false, outcome: null });
-  const [withdrawDialog, setWithdrawDialog] = useState<{ open: boolean; outcome: MonthlyOutcome | null }>({ open: false, outcome: null });
+  const [fundDialog, setFundDialog] = useState<{
+    open: boolean;
+    outcome: MonthlyOutcome | null;
+  }>({ open: false, outcome: null });
+  const [withdrawDialog, setWithdrawDialog] = useState<{
+    open: boolean;
+    outcome: MonthlyOutcome | null;
+  }>({ open: false, outcome: null });
   const [fundAmount, setFundAmount] = useState(0);
   const [withdrawAmount, setWithdrawAmount] = useState(0);
   const [withdrawTitle, setWithdrawTitle] = useState("");
@@ -78,8 +79,21 @@ export default function MonthlyOutcomePage() {
     }
   };
 
+  const fetchBalance = async () => {
+    try {
+      const res = await fetch("/api/monthly-outcome/balance");
+      const data = await res.json();
+      if (data.success) {
+        setGlobalBalance(data.global.balance);
+      }
+    } catch {
+      // ignore
+    }
+  };
+
   useEffect(() => {
     fetchOutcomes();
+    fetchBalance();
   }, []);
 
   const handleAddOutcome = async () => {
@@ -145,7 +159,10 @@ export default function MonthlyOutcomePage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Move this wallet to the recycle bin? You can restore it later.")) return;
+    if (
+      !confirm("Move this wallet to the recycle bin? You can restore it later.")
+    )
+      return;
 
     try {
       const res = await fetch(`/api/monthly-outcome?id=${id}`, {
@@ -181,6 +198,7 @@ export default function MonthlyOutcomePage() {
         setFundDialog({ open: false, outcome: null });
         setFundAmount(0);
         fetchOutcomes();
+        fetchBalance();
       } else {
         const error = await res.json();
         toast.error(error.message || "Failed to fund wallet");
@@ -210,7 +228,9 @@ export default function MonthlyOutcomePage() {
       });
 
       if (res.ok) {
-        toast.success(`Withdrawn from ${withdrawDialog.outcome.title} successfully`);
+        toast.success(
+          `Withdrawn from ${withdrawDialog.outcome.title} successfully`,
+        );
         setWithdrawDialog({ open: false, outcome: null });
         setWithdrawAmount(0);
         setWithdrawTitle("");
@@ -236,126 +256,124 @@ export default function MonthlyOutcomePage() {
           </p>
         </div>
 
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
+        <ResponsiveDialog
+          open={isDialogOpen}
+          onOpenChange={setIsDialogOpen}
+          title="Add New Wallet"
+          trigger={
             <Button className="gap-2">
               <Plus size={18} />
               Add Wallet
             </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Add New Wallet</DialogTitle>
-            </DialogHeader>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                handleAddOutcome();
-              }}
-              className="space-y-4 py-4"
-            >
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Title</label>
-                <Input
-                  placeholder="e.g. Emergency Fund"
-                  value={newOutcome.title}
-                  onChange={(e) =>
-                    setNewOutcome({ ...newOutcome, title: e.target.value })
-                  }
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Category</label>
-                <Input
-                  placeholder="e.g. Emergency"
-                  value={newOutcome.category}
-                  onChange={(e) =>
-                    setNewOutcome({ ...newOutcome, category: e.target.value })
-                  }
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Target Amount</label>
-                <RupiahInput
-                  value={newOutcome.amount}
-                  onChange={(val) =>
-                    setNewOutcome({ ...newOutcome, amount: val || 0 })
-                  }
-                />
-              </div>
-              <Button type="submit" className="w-full" disabled={isSubmitting}>
-                {isSubmitting ? (
-                  <Loader2 className="animate-spin" />
-                ) : (
-                  "Save Wallet"
-                )}
-              </Button>
-            </form>
-          </DialogContent>
-        </Dialog>
+          }
+        >
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleAddOutcome();
+            }}
+            className="space-y-4 py-4"
+          >
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Title</label>
+              <Input
+                placeholder="e.g. Emergency Fund"
+                value={newOutcome.title}
+                onChange={(e) =>
+                  setNewOutcome({ ...newOutcome, title: e.target.value })
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Category</label>
+              <Input
+                placeholder="e.g. Emergency"
+                value={newOutcome.category}
+                onChange={(e) =>
+                  setNewOutcome({ ...newOutcome, category: e.target.value })
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Budget</label>
+              <RupiahInput
+                value={newOutcome.amount}
+                onChange={(val) =>
+                  setNewOutcome({ ...newOutcome, amount: val || 0 })
+                }
+              />
+            </div>
+            <Button type="submit" className="w-full" disabled={isSubmitting}>
+              {isSubmitting ? (
+                <Loader2 className="animate-spin" />
+              ) : (
+                "Save Wallet"
+              )}
+            </Button>
+          </form>
+        </ResponsiveDialog>
 
-        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Edit Wallet</DialogTitle>
-            </DialogHeader>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                handleEditOutcome();
-              }}
-              className="space-y-4 py-4"
-            >
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Title</label>
-                <Input
-                  placeholder="e.g. Emergency Fund"
-                  value={editingOutcome?.title || ""}
-                  onChange={(e) =>
-                    editingOutcome &&
-                    setEditingOutcome({
-                      ...editingOutcome,
-                      title: e.target.value,
-                    })
-                  }
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Category</label>
-                <Input
-                  placeholder="e.g. Emergency"
-                  value={editingOutcome?.category || ""}
-                  onChange={(e) =>
-                    editingOutcome &&
-                    setEditingOutcome({
-                      ...editingOutcome,
-                      category: e.target.value,
-                    })
-                  }
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Target Amount</label>
-                <RupiahInput
-                  value={editingOutcome?.amount || 0}
-                  onChange={(val) =>
-                    editingOutcome &&
-                    setEditingOutcome({ ...editingOutcome, amount: val || 0 })
-                  }
-                />
-              </div>
-              <Button type="submit" className="w-full" disabled={isSubmitting}>
-                {isSubmitting ? (
-                  <Loader2 className="animate-spin" />
-                ) : (
-                  "Update Wallet"
-                )}
-              </Button>
-            </form>
-          </DialogContent>
-        </Dialog>
+        <ResponsiveDialog
+          open={isEditDialogOpen}
+          onOpenChange={setIsEditDialogOpen}
+          title="Edit Wallet"
+        >
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleEditOutcome();
+            }}
+            className="space-y-4 py-4"
+          >
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Title</label>
+              <Input
+                placeholder="e.g. Emergency Fund"
+                value={editingOutcome?.title || ""}
+                onChange={(e) =>
+                  editingOutcome &&
+                  setEditingOutcome({
+                    ...editingOutcome,
+                    title: e.target.value,
+                  })
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Category</label>
+              <Input
+                placeholder="e.g. Emergency"
+                value={editingOutcome?.category || ""}
+                onChange={(e) =>
+                  editingOutcome &&
+                  setEditingOutcome({
+                    ...editingOutcome,
+                    category: e.target.value,
+                  })
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Budget</label>
+              <RupiahInput
+                value={editingOutcome?.amount || 0}
+                onChange={(val) =>
+                  editingOutcome &&
+                  setEditingOutcome({ ...editingOutcome, amount: val || 0 })
+                }
+              />
+            </div>
+            <Button type="submit" className="w-full" disabled={isSubmitting}>
+              {isSubmitting ? (
+                <Loader2 className="animate-spin" />
+              ) : (
+                "Update Wallet"
+              )}
+            </Button>
+          </form>
+        </ResponsiveDialog>
 
-        <Dialog
+        <ResponsiveDialog
           open={fundDialog.open}
           onOpenChange={(open) => {
             if (!open) {
@@ -363,38 +381,57 @@ export default function MonthlyOutcomePage() {
               setFundAmount(0);
             }
           }}
+          title={`Fund ${fundDialog.outcome?.title || ""}`}
         >
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Fund {fundDialog.outcome?.title}</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label>Amount to add</Label>
-                <RupiahInput
-                  value={fundAmount}
-                  onChange={(val) => setFundAmount(val || 0)}
-                />
-              </div>
-              <p className="text-sm text-muted-foreground">
-                This will move money from your global balance to this wallet.
-              </p>
-              <Button
-                onClick={handleFund}
-                className="w-full"
-                disabled={isSubmitting || fundAmount <= 0}
+          <div className="space-y-4 py-4">
+            <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
+              <span className="text-sm font-medium">Global Balance</span>
+              <span
+                className={`text-sm font-bold ${globalBalance < 0 ? "text-destructive" : "text-green-600"}`}
               >
-                {isSubmitting ? (
-                  <Loader2 className="animate-spin" />
-                ) : (
-                  "Fund Wallet"
-                )}
-              </Button>
+                {formatRupiah(String(globalBalance))}
+              </span>
             </div>
-          </DialogContent>
-        </Dialog>
+            <div className="space-y-2">
+              <Label>Amount to add</Label>
+              <RupiahInput
+                value={fundAmount}
+                onChange={(val) => setFundAmount(val || 0)}
+                max={Math.max(0, globalBalance)}
+              />
+            </div>
+            <p className="text-sm text-muted-foreground">
+              This will move money from your global balance to this wallet.
+            </p>
+            {fundAmount > globalBalance && globalBalance > 0 && (
+              <p className="text-sm text-destructive font-medium">
+                Insufficient balance. You can fund up to{" "}
+                {formatRupiah(String(globalBalance))}.
+              </p>
+            )}
+            {globalBalance <= 0 && (
+              <p className="text-sm text-destructive font-medium">
+                Your global balance is empty or negative. Add income before
+                funding wallets.
+              </p>
+            )}
+            <Button
+              onClick={handleFund}
+              className="w-full"
+              disabled={
+                isSubmitting || fundAmount <= 0 || fundAmount > globalBalance
+              }
+            >
+              {isSubmitting ? (
+                <Loader2 className="animate-spin" />
+              ) : (
+                "Fund Wallet"
+              )}
+            </Button>
+          </div>
+        </ResponsiveDialog>
 
-        <Dialog
+        <ResponsiveDialog
           open={withdrawDialog.open}
           onOpenChange={(open) => {
             if (!open) {
@@ -403,41 +440,33 @@ export default function MonthlyOutcomePage() {
               setWithdrawTitle("");
             }
           }}
+          title={`Withdraw from ${withdrawDialog.outcome?.title || ""}`}
         >
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Withdraw from {withdrawDialog.outcome?.title}</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label>Title (optional)</Label>
-                <Input
-                  placeholder="e.g. Groceries"
-                  value={withdrawTitle}
-                  onChange={(e) => setWithdrawTitle(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Amount to withdraw</Label>
-                <RupiahInput
-                  value={withdrawAmount}
-                  onChange={(val) => setWithdrawAmount(val || 0)}
-                />
-              </div>
-              <Button
-                onClick={handleWithdraw}
-                className="w-full"
-                disabled={isSubmitting || withdrawAmount <= 0}
-              >
-                {isSubmitting ? (
-                  <Loader2 className="animate-spin" />
-                ) : (
-                  "Withdraw"
-                )}
-              </Button>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Title (optional)</Label>
+              <Input
+                placeholder="e.g. Groceries"
+                value={withdrawTitle}
+                onChange={(e) => setWithdrawTitle(e.target.value)}
+              />
             </div>
-          </DialogContent>
-        </Dialog>
+            <div className="space-y-2">
+              <Label>Amount to withdraw</Label>
+              <RupiahInput
+                value={withdrawAmount}
+                onChange={(val) => setWithdrawAmount(val || 0)}
+              />
+            </div>
+            <Button
+              onClick={handleWithdraw}
+              className="w-full"
+              disabled={isSubmitting || withdrawAmount <= 0}
+            >
+              {isSubmitting ? <Loader2 className="animate-spin" /> : "Withdraw"}
+            </Button>
+          </div>
+        </ResponsiveDialog>
       </div>
 
       {isLoading ? (
@@ -453,9 +482,8 @@ export default function MonthlyOutcomePage() {
       ) : (
         <div className="grid gap-4">
           {outcomes.map((outcome) => {
-            const progress = outcome.amount > 0
-              ? (outcome.balance / outcome.amount) * 100
-              : 0;
+            const progress =
+              outcome.amount > 0 ? (outcome.balance / outcome.amount) * 100 : 0;
 
             return (
               <Card key={outcome.id}>
@@ -525,7 +553,7 @@ export default function MonthlyOutcomePage() {
                         </div>
                         {outcome.amount > 0 && (
                           <div className="text-sm text-muted-foreground">
-                            Target: {formatRupiah(String(outcome.amount))}
+                            Budget: {formatRupiah(String(outcome.amount))}
                           </div>
                         )}
                       </div>
@@ -533,37 +561,46 @@ export default function MonthlyOutcomePage() {
 
                     {outcome.amount > 0 && (
                       <div>
-                        <Progress value={Math.min(100, progress)} className="h-2" />
-                        <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                          <span>{progress.toFixed(0)}% of target</span>
-                          <span>
+                        <Progress
+                          value={Math.min(100, progress)}
+                          className="h-2"
+                        />
+                        <div className="flex justify-start text-xs text-muted-foreground mt-1">
+                          <span>{progress.toFixed(0)}% budget left</span>
+                          {/* <span>
                             {outcome.balance >= outcome.amount
-                              ? "Target reached!"
-                              : `${formatRupiah(String(outcome.amount - outcome.balance))} left`}
-                          </span>
+                              ? "Still Full!"
+                              : `${formatRupiah(String(outcome.totalFunded - outcome.totalSpent))} left`}
+                          </span> */}
                         </div>
                       </div>
                     )}
 
                     <div className="flex gap-6 pt-2 text-sm">
                       <div>
-                        <span className="text-muted-foreground">Total Funded</span>
-                        <div className="font-semibold text-green-600">
-                          {formatRupiah(String(outcome.totalFunded))}
-                        </div>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Total Spent</span>
-                        <div className="font-semibold text-red-600">
-                          {formatRupiah(String(outcome.totalSpent))}
-                        </div>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">This Month</span>
+                        <span className="text-muted-foreground">
+                          This Month
+                        </span>
                         <div className="font-semibold">
-                          <span className="text-green-600">+{formatRupiah(String(outcome.thisMonthFunded))}</span>
+                          <span className="text-green-600">
+                            +{formatRupiah(String(outcome.thisMonthFunded))}
+                          </span>
                           {" / "}
-                          <span className="text-red-600">-{formatRupiah(String(outcome.thisMonthSpent))}</span>
+                          <span className="text-red-600">
+                            -{formatRupiah(String(outcome.thisMonthSpent))}
+                          </span>
+                        </div>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Total</span>
+                        <div className="font-semibold">
+                          <span className="text-green-600">
+                            +{formatRupiah(String(outcome.totalFunded))}
+                          </span>
+                          {" / "}
+                          <span className="text-red-600">
+                            -{formatRupiah(String(outcome.totalSpent))}
+                          </span>
                         </div>
                       </div>
                     </div>

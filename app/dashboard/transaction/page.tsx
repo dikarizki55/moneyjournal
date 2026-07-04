@@ -8,6 +8,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import ChatgptIcon from "@/components/icon/chatgptIcon";
 import { DashboardDateFilter } from "../DashboardDateFilter";
+import { HideTransferToggle } from "./hide-transfer-toggle";
 import { verifyUserServer } from "@/lib/verifyuser";
 import { Prisma } from "@prisma/client";
 import prisma from "@/prisma";
@@ -28,6 +29,7 @@ const Page = async ({
   const categoriesParam = (await searchParams).categories ?? "";
   const sort = ((await searchParams).sort as string) ?? "desc";
   const sortBy = ((await searchParams).sortBy as string) ?? "date";
+  const hideTransferToSavings = ((await searchParams).hideTransferToSavings as string) !== "false";
 
   const limit = 25;
   const offset = (page - 1) * limit;
@@ -64,6 +66,7 @@ const Page = async ({
               category: { in: filterCategories },
             }
           : {}),
+        ...(hideTransferToSavings ? { transferPairId: null } : {}),
       };
 
       const transaction = async () => {
@@ -86,6 +89,9 @@ const Page = async ({
             dynamicClauses = Prisma.sql`${dynamicClauses} AND "category" IN (${Prisma.join(
               filterCategories,
             )})`;
+          }
+          if (hideTransferToSavings) {
+            dynamicClauses = Prisma.sql`${dynamicClauses} AND "transfer_pair_id" IS NULL`;
           }
 
           return await prisma.$queryRaw`
@@ -161,6 +167,7 @@ const Page = async ({
 
           <div className="flex flex-col md:flex-row items-center gap-4">
             <DashboardDateFilter showSearch />
+            <HideTransferToggle />
           </div>
         </div>
 

@@ -180,7 +180,7 @@ export default function RecycleBinPage() {
               Transactions ({transactions.length})
             </TabsTrigger>
             <TabsTrigger value="monthly-outcomes">
-              Monthly Outcomes ({monthlyOutcomes.length})
+              Wallets ({monthlyOutcomes.length})
             </TabsTrigger>
           </TabsList>
 

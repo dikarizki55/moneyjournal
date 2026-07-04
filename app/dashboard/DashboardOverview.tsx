@@ -83,8 +83,8 @@ export default function DashboardOverview() {
               <Wallet className="w-4 h-4" />
               <span>Global Balance</span>
             </div>
-            <div className="text-2xl font-bold">
-              {formatRupiah(String(data.global.balance))}
+            <div className={`text-2xl font-bold ${data.global.balance < 0 ? "text-red-300" : ""}`}>
+              {formatRupiah(data.global.balance)}
             </div>
             <div className="flex gap-4 mt-2 text-xs text-white/60">
               <span className="flex items-center gap-1">
@@ -102,10 +102,8 @@ export default function DashboardOverview() {
               <PiggyBank className="w-4 h-4" />
               <span>Total Wallet Balance</span>
             </div>
-            <div className="text-2xl font-bold">
-              {formatRupiah(
-                String(data.containers.reduce((s, c) => s + c.balance, 0)),
-              )}
+            <div className={`text-2xl font-bold ${data.containers.reduce((s, c) => s + c.balance, 0) < 0 ? "text-red-300" : ""}`}>
+              {formatRupiah(data.containers.reduce((s, c) => s + c.balance, 0))}
             </div>
             <div className="text-xs text-white/60 mt-2">
               {data.containers.length} wallet
@@ -117,8 +115,8 @@ export default function DashboardOverview() {
               <Target className="w-4 h-4" />
               <span>Total Net Worth</span>
             </div>
-            <div className="text-2xl font-bold">
-              {formatRupiah(String(data.totalNetWorth))}
+            <div className={`text-2xl font-bold ${data.totalNetWorth < 0 ? "text-red-300" : ""}`}>
+              {formatRupiah(data.totalNetWorth)}
             </div>
           </div>
         </div>
@@ -128,15 +126,15 @@ export default function DashboardOverview() {
         {data.containers.map((container) => (
           <Link
             key={container.id}
-            href="/dashboard/monthly-outcome"
+            href="/dashboard/wallet"
             className="block bg-chart-2 rounded-2xl border p-5 text-white hover:scale-[1.02] transition-transform"
           >
             <div className="flex items-center gap-2 mb-3">
               <PiggyBank className="w-5 h-5" />
               <h3 className="font-bold text-lg">{container.title}</h3>
             </div>
-            <div className="text-2xl font-bold mb-2">
-              {formatRupiah(String(container.balance))}
+            <div className={`text-2xl font-bold mb-2 ${container.balance < 0 ? "text-red-300" : ""}`}>
+              {formatRupiah(container.balance)}
             </div>
             {container.target > 0 && (
               <div className="mb-2">

@@ -27,7 +27,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dispatch, SetStateAction, useEffect } from "react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import RupiahInput from "../RupiahInput";
+import RupiahInput, { formatRupiah } from "../RupiahInput";
 import ComboboxInput from "./comboboxinput";
 
 type DrawerDialogProps = {
@@ -153,19 +153,36 @@ function ProfileForm({
   const [walletCategoryMap, setWalletCategoryMap] = React.useState<
     Map<string, string>
   >(new Map());
+  const [globalBalance, setGlobalBalance] = React.useState(0);
+  const [walletBalances, setWalletBalances] = React.useState<
+    Map<string, number>
+  >(new Map());
 
   useEffect(() => {
     const getCategoryList = async () => {
       try {
-        const [transactionRes, outcomeRes] = await Promise.all([
+        const [transactionRes, outcomeRes, balanceRes] = await Promise.all([
           fetch("/api/transaction/distinct/category", {
             credentials: "include",
           }),
           fetch("/api/monthly-outcome", { credentials: "include" }),
+          fetch("/api/monthly-outcome/balance", { credentials: "include" }),
         ]);
 
         const transactionData = await transactionRes.json();
         const outcomeData = await outcomeRes.json();
+        const balanceData = await balanceRes.json();
+
+        if (balanceData.success) {
+          const balMap = new Map<string, number>();
+          balanceData.containers?.forEach(
+            (c: { category: string; balance: number }) => {
+              if (c.category) balMap.set(c.category.toLowerCase(), c.balance);
+            }
+          );
+          setWalletBalances(balMap);
+          setGlobalBalance(balanceData.global?.balance ?? 0);
+        }
 
         const transactionCats: string[] = transactionData.data || [];
         const outcomeCats: string[] = Array.isArray(outcomeData)
@@ -211,6 +228,26 @@ function ProfileForm({
     ? walletCategoryMap.get(form.category.toLowerCase())
     : null;
 
+  const isOutcome = form.type === "outcome";
+  const walletBalance = form.category
+    ? walletBalances.get(form.category.toLowerCase()) ?? 0
+    : 0;
+  const availableBalance = isWalletCategory ? walletBalance : globalBalance;
+  const maxAmount = isOutcome && !form.transferPairId
+    ? Math.max(0, availableBalance)
+    : 999999999999999;
+  const exceedsBalance =
+    isOutcome &&
+    !form.transferPairId &&
+    (form.amount ?? 0) > 0 &&
+    (form.amount ?? 0) > availableBalance;
+
+  React.useEffect(() => {
+    if ((form.amount ?? 0) > maxAmount) {
+      setForm((prev) => ({ ...prev, amount: maxAmount }));
+    }
+  }, [maxAmount]);
+
   return (
     <form
       className={cn("grid items-start gap-4", className)}
@@ -225,89 +262,141 @@ function ProfileForm({
           value={form?.title}
         />
       </div>
-      {form.transferPairId && (
-        <div className="px-3 py-2 bg-amber-50 dark:bg-amber-950 rounded-lg border border-amber-200 dark:border-amber-800 text-sm text-amber-700 dark:text-amber-300">
-          🔗 Linked transfer — edits apply to both transactions
-        </div>
-      )}
-      <div className="flex gap-3">
-        <div className="grid gap-3">
-          <Label htmlFor="type">Type</Label>
-          <Tabs
-            value={form?.type}
-            onValueChange={(value) => {
-              if (form.transferPairId) return;
-              setForm({
-                ...form,
-                type: value as FormInput["type"],
-              })
-            }}
-            className="w-full"
-          >
-            <TabsList>
-              <TabsTrigger value="income">Income</TabsTrigger>
-              <TabsTrigger value="outcome">Outcome</TabsTrigger>
-            </TabsList>
-          </Tabs>
-        </div>
+      {form.transferPairId ? (
+        <>
+          <div className="px-3 py-2 bg-amber-50 dark:bg-amber-950 rounded-lg border border-amber-200 dark:border-amber-800 text-sm text-amber-700 dark:text-amber-300">
+            🔗 Linked transfer — edits apply to both transactions
+          </div>
+          <div className="grid gap-3">
+            <Label htmlFor="title">Title</Label>
+            <Input
+              type="text"
+              id="title"
+              onChange={handleOnChange}
+              value={form?.title}
+            />
+          </div>
+          <div className="grid gap-3 w-full">
+            <Label htmlFor="date">Date</Label>
+            <Input
+              type="date"
+              id="date"
+              onChange={handleOnChange}
+              value={form?.date}
+            />
+          </div>
+          <div className="grid gap-3">
+            <Label htmlFor="amount">Amount</Label>
+            <RupiahInput
+              id="amount"
+              defaultValue={form.amount ?? undefined}
+              onChange={(value) =>
+                setForm({
+                  ...form,
+                  amount: value,
+                })
+              }
+            ></RupiahInput>
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="flex gap-3">
+            <div className="grid gap-3">
+              <Label htmlFor="type">Type</Label>
+              <Tabs
+                value={form?.type}
+                onValueChange={(value) => {
+                  if (form.transferPairId) return;
+                  setForm((prev) => {
+                    const newType = value as FormInput["type"];
+                    if (newType === "outcome") {
+                      const newBalance = isWalletCategory
+                        ? walletBalance
+                        : globalBalance;
+                      if ((prev.amount ?? 0) > newBalance) {
+                        return { ...prev, type: newType, amount: newBalance || null };
+                      }
+                    }
+                    return { ...prev, type: newType };
+                  });
+                }}
+                className="w-full"
+              >
+                <TabsList>
+                  <TabsTrigger value="income">Income</TabsTrigger>
+                  <TabsTrigger value="outcome">Outcome</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
 
-        <div className="grid gap-3 w-full">
-          <Label htmlFor="date">Date</Label>
-          <Input
-            type="date"
-            id="date"
-            onChange={handleOnChange}
-            value={form?.date}
-          />
-        </div>
-      </div>
-      <div className="grid gap-3">
-        <Label htmlFor="category">Category</Label>
-        <ComboboxInput
-          id="category"
-          defaultValue={form.category ?? undefined}
-          onChange={(value) => {
-            if (form.transferPairId) return;
-            setForm({
-              ...form,
-              category: value,
-            })
-          }}
-          list={categoryList}
-        ></ComboboxInput>
-      </div>
-      {isWalletCategory && linkedWalletName && !form.transferPairId && (
-        <div className="px-3 py-2 bg-blue-50 dark:bg-blue-950 rounded-lg border border-blue-200 dark:border-blue-800 text-sm text-blue-700 dark:text-blue-300">
-          <span className="font-medium">Linked to wallet:</span>{" "}
-          <strong>{linkedWalletName}</strong>
-          <span className="ml-1 text-xs">
-            ({form.type === "income" ? "Fund" : "Withdraw"})
-          </span>
-        </div>
+            <div className="grid gap-3 w-full">
+              <Label htmlFor="date">Date</Label>
+              <Input
+                type="date"
+                id="date"
+                onChange={handleOnChange}
+                value={form?.date}
+              />
+            </div>
+          </div>
+          <div className="grid gap-3">
+            <Label htmlFor="category">Category</Label>
+            <ComboboxInput
+              id="category"
+              defaultValue={form.category ?? undefined}
+              onChange={(value) => {
+                if (form.transferPairId) return;
+                setForm({
+                  ...form,
+                  category: value,
+                })
+              }}
+              list={categoryList}
+            ></ComboboxInput>
+          </div>
+          {isWalletCategory && linkedWalletName && !form.transferPairId && (
+            <div className="px-3 py-2 bg-blue-50 dark:bg-blue-950 rounded-lg border border-blue-200 dark:border-blue-800 text-sm text-blue-700 dark:text-blue-300">
+              <span className="font-medium">Linked to wallet:</span>{" "}
+              <strong>{linkedWalletName}</strong>
+              <span className="ml-1 text-xs">
+                ({form.type === "income" ? "Fund" : "Withdraw"})
+              </span>
+            </div>
+          )}
+          <div className="grid gap-3">
+            <Label htmlFor="notes">Notes</Label>
+            <Input
+              type="text"
+              id="notes"
+              onChange={handleOnChange}
+              value={form?.notes}
+            />
+          </div>
+          <div className="grid gap-3">
+            <Label htmlFor="amount">Amount</Label>
+            <RupiahInput
+              id="amount"
+              defaultValue={form.amount ?? undefined}
+              onChange={(value) =>
+                setForm({
+                  ...form,
+                  amount: value,
+                })
+              }
+              max={maxAmount === 999999999999999 ? undefined : maxAmount}
+            />
+            {exceedsBalance && (
+              <p className="text-sm text-destructive font-medium">
+                {isWalletCategory
+                  ? `Insufficient wallet balance. Available: ${formatRupiah(availableBalance)}.`
+                  : `Insufficient global balance. Available: ${formatRupiah(availableBalance)}.`}
+              </p>
+            )}
+          </div>
+        </>
       )}
-      <div className="grid gap-3">
-        <Label htmlFor="notes">Notes</Label>
-        <Input
-          type="text"
-          id="notes"
-          onChange={handleOnChange}
-          value={form?.notes}
-        />
-      </div>
-      <div className="grid gap-3">
-        <Label htmlFor="amount">Amount</Label>
-        <RupiahInput
-          id="amount"
-          defaultValue={form.amount ?? undefined}
-          onChange={(value) =>
-            setForm({
-              ...form,
-              amount: value,
-            })
-          }
-        ></RupiahInput>
-      </div>
-      <Button type="submit">Save changes</Button>
+      <Button type="submit" disabled={exceedsBalance}>Save changes</Button>
     </form>
   );
 }

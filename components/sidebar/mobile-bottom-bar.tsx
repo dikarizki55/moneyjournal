@@ -7,7 +7,7 @@ import Link from "next/link";
 const items = [
   { title: "Home", url: "/dashboard", icon: Home },
   { title: "Transaction", url: "/dashboard/transaction", icon: Banknote },
-  { title: "Wallets", url: "/dashboard/monthly-outcome", icon: Repeat },
+  { title: "Wallets", url: "/dashboard/wallet", icon: Repeat },
   { title: "Recycle Bin", url: "/dashboard/recycle-bin", icon: ArchiveX },
   { title: "Account", url: "/dashboard/account", icon: User },
 ];

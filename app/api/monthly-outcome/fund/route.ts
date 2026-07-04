@@ -25,6 +25,32 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const allNonSavingsTx = await prisma.transaction.findMany({
+      where: {
+        user_id: user.id,
+        isSavings: false,
+        deleted_at: null,
+      },
+      select: { amount: true, type: true },
+    });
+
+    const globalIncome = allNonSavingsTx
+      .filter((t) => t.type === "income")
+      .reduce((sum, t) => sum + Number(t.amount), 0);
+
+    const globalOutcome = allNonSavingsTx
+      .filter((t) => t.type === "outcome")
+      .reduce((sum, t) => sum + Number(t.amount), 0);
+
+    const currentBalance = globalIncome - globalOutcome;
+
+    if (Number(amount) > currentBalance) {
+      return NextResponse.json(
+        { message: "Insufficient global balance to fund this wallet" },
+        { status: 400 }
+      );
+    }
+
     const pairId = `pair_${crypto.randomUUID()}`;
 
     const [incomeTx, outcomeTx] = await prisma.$transaction([
@@ -46,7 +72,7 @@ export async function POST(req: NextRequest) {
           user_id: user.id,
           title: `Transfer to ${outcome.title}`,
           amount: Number(amount),
-          category: "Transfer to Savings",
+          category: outcome.category,
           type: "outcome",
           isSavings: false,
           transferPairId: pairId,
