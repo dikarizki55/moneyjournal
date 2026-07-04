@@ -502,29 +502,6 @@ export default function MonthlyOutcomePage() {
                     </div>
                     <div className="flex items-center gap-2">
                       <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setFundDialog({ open: true, outcome });
-                          setFundAmount(outcome.amount);
-                        }}
-                      >
-                        <TrendingUp className="w-4 h-4 mr-1" />
-                        Fund
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setWithdrawDialog({ open: true, outcome });
-                          setWithdrawAmount(0);
-                          setWithdrawTitle("");
-                        }}
-                      >
-                        <TrendingDown className="w-4 h-4 mr-1" />
-                        Withdraw
-                      </Button>
-                      <Button
                         variant="ghost"
                         size="icon"
                         onClick={() => {
@@ -603,6 +580,31 @@ export default function MonthlyOutcomePage() {
                           </span>
                         </div>
                       </div>
+                    </div>
+                    <div className=" flex gap-5 pt-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setFundDialog({ open: true, outcome });
+                          setFundAmount(outcome.amount);
+                        }}
+                      >
+                        <TrendingUp className="w-4 h-4 mr-1" />
+                        Fund
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setWithdrawDialog({ open: true, outcome });
+                          setWithdrawAmount(0);
+                          setWithdrawTitle("");
+                        }}
+                      >
+                        <TrendingDown className="w-4 h-4 mr-1" />
+                        Withdraw
+                      </Button>
                     </div>
                   </div>
                 </CardContent>

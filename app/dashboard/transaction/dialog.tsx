@@ -232,15 +232,17 @@ function ProfileForm({
   const walletBalance = form.category
     ? walletBalances.get(form.category.toLowerCase()) ?? 0
     : 0;
+  const editBuffer = initialData?.amount ?? 0;
   const availableBalance = isWalletCategory ? walletBalance : globalBalance;
+  const effectiveBalance = availableBalance + editBuffer;
   const maxAmount = isOutcome && !form.transferPairId
-    ? Math.max(0, availableBalance)
+    ? Math.max(0, effectiveBalance)
     : 999999999999999;
   const exceedsBalance =
     isOutcome &&
     !form.transferPairId &&
     (form.amount ?? 0) > 0 &&
-    (form.amount ?? 0) > availableBalance;
+    (form.amount ?? 0) > effectiveBalance;
 
   React.useEffect(() => {
     if ((form.amount ?? 0) > maxAmount) {
@@ -314,8 +316,9 @@ function ProfileForm({
                       const newBalance = isWalletCategory
                         ? walletBalance
                         : globalBalance;
-                      if ((prev.amount ?? 0) > newBalance) {
-                        return { ...prev, type: newType, amount: newBalance || null };
+                      const newEffective = newBalance + editBuffer;
+                      if ((prev.amount ?? 0) > newEffective) {
+                        return { ...prev, type: newType, amount: newEffective || null };
                       }
                     }
                     return { ...prev, type: newType };
