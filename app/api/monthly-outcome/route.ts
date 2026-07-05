@@ -78,7 +78,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const user = await verifyUser(req);
-    const { title, amount, category } = await req.json();
+    const { title, amount, category, icon } = await req.json();
 
     if (!title || !amount || !category) {
       return NextResponse.json(
@@ -93,6 +93,7 @@ export async function POST(req: NextRequest) {
         title,
         amount: Number(amount),
         category,
+        icon: icon || null,
       },
     });
 
@@ -133,7 +134,7 @@ export async function DELETE(req: NextRequest) {
 export async function PUT(req: NextRequest) {
   try {
     const user = await verifyUser(req);
-    const { id, title, amount, category } = await req.json();
+    const { id, title, amount, category, icon } = await req.json();
 
     if (!id || !title || !amount || !category) {
       return NextResponse.json(
@@ -151,6 +152,7 @@ export async function PUT(req: NextRequest) {
         title,
         amount: Number(amount),
         category,
+        icon: icon || null,
       },
     });
 

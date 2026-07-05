@@ -36,6 +36,8 @@ type DrawerDialogProps = {
   description: string;
   initialData?: FormInput;
   apiLink: string;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 };
 
 type FormInput = {
@@ -55,8 +57,15 @@ export function DrawerDialog({
   description,
   initialData,
   apiLink,
+  open: externalOpen,
+  onOpenChange: externalOnOpenChange,
 }: DrawerDialogProps) {
-  const [open, setOpen] = React.useState(false);
+  const [internalOpen, setInternalOpen] = React.useState(false);
+  const open = externalOpen ?? internalOpen;
+  const setOpen: React.Dispatch<React.SetStateAction<boolean>> =
+    externalOnOpenChange !== undefined
+      ? (externalOnOpenChange as React.Dispatch<React.SetStateAction<boolean>>)
+      : setInternalOpen;
   const isDesktop = useMediaQuery("(min-width: 768px)");
 
   if (isDesktop) {

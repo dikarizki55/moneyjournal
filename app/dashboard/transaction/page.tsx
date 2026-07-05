@@ -3,7 +3,6 @@ import { DataTable } from "./data-table";
 import { DrawerDialog } from "./dialog";
 import { Button } from "@/components/ui/button";
 import PaginationComponent from "./paginationComponent";
-import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import ChatgptIcon from "@/components/icon/chatgptIcon";
@@ -13,6 +12,7 @@ import { verifyUserServer } from "@/lib/verifyuser";
 import { Prisma } from "@prisma/client";
 import prisma from "@/prisma";
 import { serializeData } from "./helper";
+import MobileTransactionList from "@/components/transaction/mobile-transaction-list";
 
 const Page = async ({
   searchParams,
@@ -29,7 +29,8 @@ const Page = async ({
   const categoriesParam = (await searchParams).categories ?? "";
   const sort = ((await searchParams).sort as string) ?? "desc";
   const sortBy = ((await searchParams).sortBy as string) ?? "date";
-  const hideTransferToSavings = ((await searchParams).hideTransferToSavings as string) !== "false";
+  const hideTransferToSavings =
+    ((await searchParams).hideTransferToSavings as string) !== "false";
 
   const limit = 25;
   const offset = (page - 1) * limit;
@@ -171,7 +172,7 @@ const Page = async ({
           </div>
         </div>
 
-        <div className="fixed z-10 lg:bottom-15 lg:right-15 bottom-20 right-5">
+        <div className="fixed z-100 lg:bottom-15 lg:right-15 bottom-20 right-5">
           <div>
             <Link href="/dashboard/transaction/ai">
               <div className=" bg-primary rounded-full text-secondary  flex flex-col justify-center items-center p-3 font-bold">
@@ -180,7 +181,12 @@ const Page = async ({
             </Link>
           </div>
         </div>
-        <DataTable columns={columns} data={data} />
+        <div className="lg:hidden flex flex-col gap-5">
+          <MobileTransactionList data={data} />
+        </div>
+        <div className="hidden lg:block">
+          <DataTable columns={columns} data={data} />
+        </div>
         <PaginationComponent total={total} page={page}></PaginationComponent>
       </div>
     </div>

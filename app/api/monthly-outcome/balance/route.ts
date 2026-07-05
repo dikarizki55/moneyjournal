@@ -85,6 +85,7 @@ export async function GET(req: NextRequest) {
         id: container.id,
         title: container.title,
         category: container.category,
+        icon: container.icon,
         target: Number(container.amount),
         balance,
         totalFunded,

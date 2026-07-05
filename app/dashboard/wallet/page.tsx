@@ -19,12 +19,14 @@ import { toast } from "sonner";
 import { Progress } from "@/components/ui/progress";
 import RupiahInput from "../RupiahInput";
 import { Label } from "@/components/ui/label";
+import IconPicker, { DynamicIcon } from "@/components/ui/icon-picker";
 
 interface MonthlyOutcome {
   id: string;
   title: string;
   amount: number;
   category: string;
+  icon?: string | null;
   spent: number;
   balance: number;
   totalFunded: number;
@@ -42,6 +44,7 @@ export default function MonthlyOutcomePage() {
     title: "",
     amount: 0,
     category: "",
+    icon: "",
   });
   const [editingOutcome, setEditingOutcome] = useState<MonthlyOutcome | null>(
     null,
@@ -111,7 +114,7 @@ export default function MonthlyOutcomePage() {
 
       if (res.ok) {
         toast.success("Wallet created successfully");
-        setNewOutcome({ title: "", amount: 0, category: "" });
+        setNewOutcome({ title: "", amount: 0, category: "", icon: "" });
         setIsDialogOpen(false);
         fetchOutcomes();
       } else {
@@ -247,7 +250,7 @@ export default function MonthlyOutcomePage() {
   };
 
   return (
-    <div className="p-6 space-y-6 max-w-4xl mx-auto">
+    <div className="p-6 space-y-6 w-full mx-auto">
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Wallets</h1>
@@ -291,6 +294,15 @@ export default function MonthlyOutcomePage() {
                 value={newOutcome.category}
                 onChange={(e) =>
                   setNewOutcome({ ...newOutcome, category: e.target.value })
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Icon</label>
+              <IconPicker
+                value={newOutcome.icon}
+                onChange={(iconName) =>
+                  setNewOutcome({ ...newOutcome, icon: iconName })
                 }
               />
             </div>
@@ -350,6 +362,16 @@ export default function MonthlyOutcomePage() {
                     ...editingOutcome,
                     category: e.target.value,
                   })
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Icon</label>
+              <IconPicker
+                value={editingOutcome?.icon || ""}
+                onChange={(iconName) =>
+                  editingOutcome &&
+                  setEditingOutcome({ ...editingOutcome, icon: iconName })
                 }
               />
             </div>
@@ -480,7 +502,7 @@ export default function MonthlyOutcomePage() {
           </p>
         </Card>
       ) : (
-        <div className="grid gap-4">
+        <div className="grid gap-4 lg:grid-cols-3">
           {outcomes.map((outcome) => {
             const progress =
               outcome.amount > 0 ? (outcome.balance / outcome.amount) * 100 : 0;
@@ -491,7 +513,11 @@ export default function MonthlyOutcomePage() {
                   <div className="flex justify-between items-start mb-4">
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
-                        <Wallet className="w-5 h-5 text-primary" />
+                        {outcome.icon ? (
+                          <DynamicIcon name={outcome.icon} className="w-5 h-5 text-primary" />
+                        ) : (
+                          <Wallet className="w-5 h-5 text-primary" />
+                        )}
                         <CardTitle className="text-xl">
                           {outcome.title}
                         </CardTitle>

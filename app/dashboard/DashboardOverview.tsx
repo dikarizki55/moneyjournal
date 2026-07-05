@@ -2,19 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { formatRupiah } from "./RupiahInput";
-import {
-  Wallet,
-  PiggyBank,
-  TrendingUp,
-  TrendingDown,
-  Target,
-} from "lucide-react";
+import { Wallet, TrendingUp, TrendingDown, Target } from "lucide-react";
 import Link from "next/link";
+import { DynamicIcon } from "@/components/ui/icon-picker";
 
 interface ContainerData {
   id: string;
   title: string;
   category: string;
+  icon?: string | null;
   target: number;
   balance: number;
   totalFunded: number;
@@ -83,7 +79,9 @@ export default function DashboardOverview() {
               <Wallet className="w-4 h-4" />
               <span>Global Balance</span>
             </div>
-            <div className={`text-2xl font-bold ${data.global.balance < 0 ? "text-red-300" : ""}`}>
+            <div
+              className={`text-2xl font-bold ${data.global.balance < 0 ? "text-red-300" : ""}`}
+            >
               {formatRupiah(data.global.balance)}
             </div>
             <div className="flex gap-4 mt-2 text-xs text-white/60">
@@ -99,10 +97,12 @@ export default function DashboardOverview() {
           </div>
           <div className="p-4 bg-white/10 rounded-xl">
             <div className="flex items-center gap-2 text-sm text-white/70 mb-1">
-              <PiggyBank className="w-4 h-4" />
+              <Wallet className="w-4 h-4" />
               <span>Total Wallet Balance</span>
             </div>
-            <div className={`text-2xl font-bold ${data.containers.reduce((s, c) => s + c.balance, 0) < 0 ? "text-red-300" : ""}`}>
+            <div
+              className={`text-2xl font-bold ${data.containers.reduce((s, c) => s + c.balance, 0) < 0 ? "text-red-300" : ""}`}
+            >
               {formatRupiah(data.containers.reduce((s, c) => s + c.balance, 0))}
             </div>
             <div className="text-xs text-white/60 mt-2">
@@ -115,7 +115,9 @@ export default function DashboardOverview() {
               <Target className="w-4 h-4" />
               <span>Total Net Worth</span>
             </div>
-            <div className={`text-2xl font-bold ${data.totalNetWorth < 0 ? "text-red-300" : ""}`}>
+            <div
+              className={`text-2xl font-bold ${data.totalNetWorth < 0 ? "text-red-300" : ""}`}
+            >
               {formatRupiah(data.totalNetWorth)}
             </div>
           </div>
@@ -130,10 +132,16 @@ export default function DashboardOverview() {
             className="block bg-chart-2 rounded-2xl border p-5 text-white hover:scale-[1.02] transition-transform"
           >
             <div className="flex items-center gap-2 mb-3">
-              <PiggyBank className="w-5 h-5" />
+              {container.icon ? (
+                <DynamicIcon name={container.icon} className="w-5 h-5" />
+              ) : (
+                <Wallet className="w-5 h-5" />
+              )}
               <h3 className="font-bold text-lg">{container.title}</h3>
             </div>
-            <div className={`text-2xl font-bold mb-2 ${container.balance < 0 ? "text-red-300" : ""}`}>
+            <div
+              className={`text-2xl font-bold mb-2 ${container.balance < 0 ? "text-red-300" : ""}`}
+            >
               {formatRupiah(container.balance)}
             </div>
             {container.target > 0 && (
