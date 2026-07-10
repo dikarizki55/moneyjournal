@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PencilLine, Trash } from "lucide-react";
-import { useSession } from "next-auth/react";
+import { signOut, useSession } from "next-auth/react";
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 
@@ -174,6 +174,15 @@ const Page = () => {
         </div>
 
         <Button type="submit">Save</Button>
+        <Button
+          variant={"destructive"}
+          className=" cursor-pointer"
+          onClick={() => {
+            signOut();
+          }}
+        >
+          Logout
+        </Button>
       </form>
     </div>
   );

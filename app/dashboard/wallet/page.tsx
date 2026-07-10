@@ -14,6 +14,7 @@ import {
   Pencil,
   TrendingUp,
   TrendingDown,
+  ArrowLeftRight,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Progress } from "@/components/ui/progress";
@@ -62,6 +63,12 @@ export default function MonthlyOutcomePage() {
   const [fundAmount, setFundAmount] = useState(0);
   const [withdrawAmount, setWithdrawAmount] = useState(0);
   const [withdrawTitle, setWithdrawTitle] = useState("");
+  const [transferDialog, setTransferDialog] = useState<{
+    open: boolean;
+    source: MonthlyOutcome | null;
+  }>({ open: false, source: null });
+  const [transferDestId, setTransferDestId] = useState("");
+  const [transferAmount, setTransferAmount] = useState(0);
 
   const fetchOutcomes = async () => {
     setIsLoading(true);
@@ -241,6 +248,41 @@ export default function MonthlyOutcomePage() {
       } else {
         const error = await res.json();
         toast.error(error.message || "Failed to withdraw");
+      }
+    } catch {
+      toast.error("An error occurred");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleTransfer = async () => {
+    if (!transferDialog.source || !transferDestId || transferAmount <= 0) {
+      toast.error("Please fill all fields");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const res = await fetch("/api/monthly-outcome/transfer", {
+        method: "POST",
+        body: JSON.stringify({
+          sourceWalletId: transferDialog.source.id,
+          destinationWalletId: transferDestId,
+          amount: transferAmount,
+        }),
+      });
+
+      if (res.ok) {
+        toast.success("Transfer successful");
+        setTransferDialog({ open: false, source: null });
+        setTransferDestId("");
+        setTransferAmount(0);
+        fetchOutcomes();
+        fetchBalance();
+      } else {
+        const error = await res.json();
+        toast.error(error.message || "Failed to transfer");
       }
     } catch {
       toast.error("An error occurred");
@@ -488,10 +530,78 @@ export default function MonthlyOutcomePage() {
               {isSubmitting ? <Loader2 className="animate-spin" /> : "Withdraw"}
             </Button>
           </div>
-        </ResponsiveDialog>
-      </div>
+          </ResponsiveDialog>
 
-      {isLoading ? (
+        <ResponsiveDialog
+          open={transferDialog.open}
+          onOpenChange={(open) => {
+            if (!open) {
+              setTransferDialog({ open: false, source: null });
+              setTransferDestId("");
+              setTransferAmount(0);
+            }
+          }}
+          title={`Transfer from ${transferDialog.source?.title || ""}`}
+        >
+          <div className="space-y-4 py-4">
+            <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
+              <span className="text-sm font-medium">Source Balance</span>
+              <span className="text-sm font-bold">
+                {formatRupiah(String(transferDialog.source?.balance || 0))}
+              </span>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Destination Wallet</label>
+              <select
+                className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs"
+                value={transferDestId}
+                onChange={(e) => setTransferDestId(e.target.value)}
+              >
+                <option value="">Select a wallet...</option>
+                {outcomes
+                  .filter((o) => o.id !== transferDialog.source?.id)
+                  .map((o) => (
+                    <option key={o.id} value={o.id}>
+                      {o.title} ({formatRupiah(String(o.balance))})
+                    </option>
+                  ))}
+              </select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Amount</label>
+              <RupiahInput
+                value={transferAmount}
+                onChange={(val) => setTransferAmount(val || 0)}
+                max={transferDialog.source?.balance || 0}
+              />
+            </div>
+            {transferAmount > (transferDialog.source?.balance || 0) && (
+              <p className="text-sm text-destructive font-medium">
+                Insufficient balance. Max transfer:{" "}
+                {formatRupiah(String(transferDialog.source?.balance || 0))}
+              </p>
+            )}
+            <Button
+              onClick={handleTransfer}
+              className="w-full"
+              disabled={
+                isSubmitting ||
+                transferAmount <= 0 ||
+                !transferDestId ||
+                transferAmount > (transferDialog.source?.balance || 0)
+              }
+            >
+              {isSubmitting ? (
+                <Loader2 className="animate-spin" />
+              ) : (
+                "Transfer"
+              )}
+            </Button>
+          </div>
+        </ResponsiveDialog>
+        </div>
+
+        {isLoading ? (
         <div className="flex justify-center p-12">
           <Loader2 className="animate-spin text-primary" size={32} />
         </div>
@@ -607,7 +717,7 @@ export default function MonthlyOutcomePage() {
                         </div>
                       </div>
                     </div>
-                    <div className=" flex gap-5 pt-2">
+                    <div className=" flex gap-3 pt-2 flex-wrap">
                       <Button
                         variant="outline"
                         size="sm"
@@ -630,6 +740,18 @@ export default function MonthlyOutcomePage() {
                       >
                         <TrendingDown className="w-4 h-4 mr-1" />
                         Withdraw
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setTransferDialog({ open: true, source: outcome });
+                          setTransferDestId("");
+                          setTransferAmount(0);
+                        }}
+                      >
+                        <ArrowLeftRight className="w-4 h-4 mr-1" />
+                        Transfer
                       </Button>
                     </div>
                   </div>

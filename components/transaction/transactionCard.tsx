@@ -3,7 +3,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { Checkbox } from "@/components/ui/checkbox";
 import { formatRupiah } from "@/app/dashboard/RupiahInput";
-import { DynamicIcon, iconMap } from "@/components/ui/icon-picker";
+import { DynamicIcon, isValidIcon } from "@/components/ui/icon-picker";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -40,7 +40,7 @@ export default function TransactionCard({
   onDelete?: () => void;
   swipeActions?: { label: string; onClick: () => void }[];
 }) {
-  const isLucideIcon = icon in iconMap;
+  const isLucideIcon = isValidIcon(icon);
   const [showActions, setShowActions] = useState(false);
   const [pendingAction, setPendingAction] = useState<{
     label: string;

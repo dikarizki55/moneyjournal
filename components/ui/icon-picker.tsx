@@ -1,130 +1,31 @@
 "use client";
 
-import { useState } from "react";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { useState, useMemo } from "react";
+import * as PopoverPrimitive from "@radix-ui/react-popover";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
-import type { LucideIcon } from "lucide-react";
-import {
-  Wallet,
-  Car,
-  ShoppingBag,
-  Utensils,
-  Home,
-  Plane,
-  Bus,
-  TrainFront,
-  Gamepad2,
-  Laptop,
-  BookOpen,
-  Heart,
-  Shirt,
-  Gift,
-  Smartphone,
-  Music,
-  Dumbbell,
-  PawPrint,
-  Leaf,
-  Pill,
-  Scissors,
-  Key,
-  Camera,
-  Trophy,
-  Coffee,
-  GraduationCap,
-  Briefcase,
-  Lightbulb,
-  Wrench,
-  Beer,
-  Droplets,
-  Sparkles,
-  Gem,
-  ShoppingCart,
-  Bike,
-  Stethoscope,
-  Palette,
-  Weight,
-  Sailboat,
-  Tent,
-  Mountain,
-  Zap,
-  Sun,
-  Moon,
-  Cloud,
-  TreePine,
-  Flower2,
-} from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Search, X } from "lucide-react";
+import { DynamicIcon as LucideDynamicIcon, iconNames } from "lucide-react/dynamic";
+import { iconCategories, searchIcons, findCategory, allIcons } from "@/lib/icons";
 
-const iconMap: Record<string, LucideIcon> = {
-  Wallet,
-  Car,
-  ShoppingBag,
-  Utensils,
-  Home,
-  Plane,
-  Bus,
-  TrainFront,
-  Gamepad2,
-  Laptop,
-  BookOpen,
-  Heart,
-  Shirt,
-  Gift,
-  Smartphone,
-  Music,
-  Dumbbell,
-  PawPrint,
-  Leaf,
-  Pill,
-  Scissors,
-  Key,
-  Camera,
-  Trophy,
-  Coffee,
-  GraduationCap,
-  Briefcase,
-  Lightbulb,
-  Wrench,
-  Beer,
-  Droplets,
-  Sparkles,
-  Gem,
-  ShoppingCart,
-  Bike,
-  Stethoscope,
-  Palette,
-  Weight,
-  Sailboat,
-  Tent,
-  Mountain,
-  Zap,
-  Sun,
-  Moon,
-  Cloud,
-  TreePine,
-  Flower2,
-};
+const validIconNames = new Set<string>(iconNames);
 
-const ICON_NAMES = Object.keys(iconMap);
-
-export { ICON_NAMES, iconMap };
-
-export function DynamicIcon({
-  name,
-  className,
-}: {
-  name?: string | null;
-  className?: string;
-}) {
+function WrappedDynamicIcon({ name, className }: { name?: string | null; className?: string }) {
   if (!name) return null;
-  const Icon = iconMap[name];
-  if (!Icon) return null;
-  return <Icon className={className} />;
+  if (!validIconNames.has(name.toLowerCase())) return null;
+  return <LucideDynamicIcon name={name as any} className={className} />;
 }
+
+export { WrappedDynamicIcon as DynamicIcon };
+
+export function isValidIcon(name: string | null | undefined): boolean {
+  if (!name) return false;
+  return validIconNames.has(name.toLowerCase());
+}
+
+export const ICON_NAMES = allIcons;
+export { iconCategories as ICON_CATEGORIES };
+export { searchIcons };
 
 export default function IconPicker({
   value,
@@ -134,41 +35,141 @@ export default function IconPicker({
   onChange: (iconName: string) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const [category, setCategory] = useState<string | null>(null);
+
+  const selectedSlug = value
+    ?.replace(/([a-z])([A-Z])/g, "$1-$2")
+    .replace(/([A-Z])([A-Z][a-z])/g, "$1-$2")
+    .replace(/([a-zA-Z])(\d)/g, "$1-$2")
+    .toLowerCase();
+
+  const hasValue = !!selectedSlug && !!findCategory(selectedSlug);
+
+  const visibleIcons = useMemo(() => {
+    const q = search.trim();
+    if (q) return searchIcons(q);
+    if (category) return iconCategories[category] ?? [];
+    return allIcons;
+  }, [search, category]);
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
+    <PopoverPrimitive.Root open={open} onOpenChange={setOpen}>
+      <PopoverPrimitive.Trigger asChild>
         <Button
           variant="outline"
-          className="h-10 w-14 p-0 flex items-center justify-center"
+          className="h-10 w-14 p-0 flex items-center justify-center relative"
         >
-          <DynamicIcon name={value} className="h-5 w-5" />
+          {hasValue ? (
+            <WrappedDynamicIcon name={selectedSlug} className="h-5 w-5" />
+          ) : (
+            <Search className="h-4 w-4 text-muted-foreground" />
+          )}
         </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-72 p-2" align="start">
-        <div className="grid grid-cols-5 gap-1">
-          {ICON_NAMES.map((name) => {
-            const Icon = iconMap[name];
-            return (
-              <button
-                key={name}
-                type="button"
-                className={cn(
-                  "h-10 w-10 flex items-center justify-center rounded-md hover:bg-accent transition-colors",
-                  value === name && "bg-accent ring-1 ring-primary"
-                )}
-                title={name}
-                onClick={() => {
-                  onChange(name);
-                  setOpen(false);
-                }}
-              >
-                <Icon className="h-5 w-5" />
-              </button>
-            );
-          })}
+      </PopoverPrimitive.Trigger>
+      <PopoverPrimitive.Content
+        sideOffset={4}
+        align="start"
+        className="z-50 w-[360px] rounded-md border bg-popover text-popover-foreground shadow-md outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95"
+        onPointerDown={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center gap-2 px-3 py-2 border-b">
+          <Search className="h-4 w-4 text-muted-foreground/40 shrink-0" />
+          <Input
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              if (e.target.value.trim()) setCategory(null);
+            }}
+            placeholder="Search icons..."
+            className="border-0 shadow-none focus-visible:ring-0 h-8 px-0"
+          />
+          {hasValue && (
+            <button
+              type="button"
+              onClick={() => {
+                onChange("");
+                setOpen(false);
+              }}
+              className="h-6 w-6 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors shrink-0"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          )}
         </div>
-      </PopoverContent>
-    </Popover>
+
+        {!search.trim() && (
+          <div className="flex gap-1 px-2 py-2 border-b overflow-x-auto">
+            <button
+              type="button"
+              onClick={() => setCategory(null)}
+              className={`shrink-0 text-[10px] font-medium px-2 py-1 rounded transition-colors whitespace-nowrap ${
+                category === null
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground hover:bg-secondary"
+              }`}
+            >
+              All
+            </button>
+            {Object.keys(iconCategories).map((cat) => (
+              <button
+                key={cat}
+                type="button"
+                onClick={() => setCategory(cat)}
+                className={`shrink-0 text-[10px] font-medium px-2 py-1 rounded transition-colors whitespace-nowrap ${
+                  category === cat
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground hover:bg-secondary"
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+        )}
+
+        <div className="max-h-[300px] overflow-y-auto p-2">
+          {visibleIcons.length > 0 ? (
+            <div className="grid grid-cols-8 gap-0.5">
+              {visibleIcons.map((slug) => {
+                const isSelected = selectedSlug === slug;
+                return (
+                  <button
+                    key={slug}
+                    type="button"
+                    onClick={() => {
+                      onChange(slug);
+                      setOpen(false);
+                    }}
+                    title={slug}
+                    className={`h-9 w-9 flex items-center justify-center rounded-md transition-colors ${
+                      isSelected
+                        ? "bg-primary/10 text-primary ring-1 ring-primary/25"
+                        : "hover:bg-accent text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <WrappedDynamicIcon name={slug} className="h-4 w-4" />
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-xs text-muted-foreground">
+              {search.trim()
+                ? `No icons match "${search}"`
+                : "No icons in this category"}
+            </div>
+          )}
+        </div>
+
+        <div className="px-3 py-1.5 border-t text-[10px] text-muted-foreground flex items-center justify-between">
+          <span>
+            {search.trim()
+              ? `${visibleIcons.length} matches`
+              : `${visibleIcons.length} icons`}
+          </span>
+        </div>
+      </PopoverPrimitive.Content>
+    </PopoverPrimitive.Root>
   );
 }
