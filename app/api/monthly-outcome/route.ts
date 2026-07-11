@@ -6,68 +6,91 @@ export async function GET(req: NextRequest) {
   try {
     const user = await verifyUser(req);
 
-    const outcomes = await prisma.monthlyOutcome.findMany({
-      where: { user_id: user.id, deleted_at: null },
-      orderBy: { created_at: "desc" },
-    });
+    type OutcomeRow = {
+      id: string;
+      title: string;
+      amount: number;
+      category: string;
+      icon: string | null;
+      default_payment_source_id: string | null;
+      total_funded: number;
+      total_spent: number;
+      balance: number;
+      this_month_funded: number;
+      this_month_spent: number;
+      payment_sources: {
+        id: string | null;
+        name: string;
+        icon: string | null;
+        amount: number;
+      }[];
+    };
 
-    const startOfMonth = new Date();
-    startOfMonth.setDate(1);
-    startOfMonth.setHours(0, 0, 0, 0);
+    const outcomes = await prisma.$queryRaw<OutcomeRow[]>`
+      WITH category_agg AS (
+        SELECT
+          LOWER(t.category) AS cat_lower,
+          COALESCE(SUM(t.amount) FILTER (WHERE t.type = 'income'), 0) AS total_funded,
+          COALESCE(SUM(t.amount) FILTER (WHERE t.type = 'outcome'), 0) AS total_spent,
+          COALESCE(SUM(t.amount) FILTER (WHERE t.type = 'income' AND t.date >= date_trunc('month', CURRENT_DATE)), 0) AS this_month_funded,
+          COALESCE(SUM(t.amount) FILTER (WHERE t.type = 'outcome' AND t.date >= date_trunc('month', CURRENT_DATE)), 0) AS this_month_spent
+        FROM moneyjournal.transaction t
+        WHERE t.user_id = ${user.id} AND t."isSavings" = true AND t.deleted_at IS NULL
+        GROUP BY LOWER(t.category)
+      ),
+      payment_source_agg AS (
+        SELECT
+          LOWER(t.category) AS cat_lower,
+          ps.id,
+          ps.name,
+          ps.icon,
+          COALESCE(SUM(CASE WHEN t.type = 'income' THEN t.amount ELSE -t.amount END), 0) AS amount
+        FROM moneyjournal.transaction t
+        LEFT JOIN moneyjournal.payment_source ps ON ps.id = t.payment_source_id
+        WHERE t.user_id = ${user.id} AND t."isSavings" = true AND t.deleted_at IS NULL
+        GROUP BY LOWER(t.category), ps.id, ps.name, ps.icon
+      )
+      SELECT
+        mo.id,
+        mo.title,
+        mo.amount,
+        mo.category,
+        mo.icon,
+        mo.default_payment_source_id,
+        COALESCE(ca.total_funded, 0) AS total_funded,
+        COALESCE(ca.total_spent, 0) AS total_spent,
+        COALESCE(ca.total_funded, 0) - COALESCE(ca.total_spent, 0) AS balance,
+        COALESCE(ca.this_month_funded, 0) AS this_month_funded,
+        COALESCE(ca.this_month_spent, 0) AS this_month_spent,
+        COALESCE(
+          (SELECT json_agg(json_build_object('id', psa.id, 'name', psa.name, 'icon', psa.icon, 'amount', psa.amount))
+           FROM payment_source_agg psa
+           WHERE psa.cat_lower = LOWER(mo.category)),
+          '[]'::json
+        ) AS payment_sources
+      FROM moneyjournal.monthly_outcome mo
+      LEFT JOIN category_agg ca ON ca.cat_lower = LOWER(mo.category)
+      WHERE mo.user_id = ${user.id} AND mo.deleted_at IS NULL
+      ORDER BY mo.created_at DESC
+    `;
 
-    const allSavingsTx = await prisma.transaction.findMany({
-      where: {
-        user_id: user.id,
-        isSavings: true,
-        deleted_at: null,
-      },
-      select: { amount: true, category: true, type: true, date: true },
-    });
+    const result = outcomes.map((o) => ({
+      id: o.id,
+      title: o.title,
+      amount: Number(o.amount),
+      category: o.category,
+      icon: o.icon,
+      default_payment_source_id: o.default_payment_source_id,
+      spent: Number(o.this_month_spent),
+      balance: Number(o.balance),
+      totalFunded: Number(o.total_funded),
+      totalSpent: Number(o.total_spent),
+      thisMonthFunded: Number(o.this_month_funded),
+      thisMonthSpent: Number(o.this_month_spent),
+      paymentSources: o.payment_sources,
+    }));
 
-    const outcomesWithDetails = outcomes.map((outcome) => {
-      const categoryTx = allSavingsTx.filter(
-        (t) =>
-          t.category?.toLowerCase() === outcome.category?.toLowerCase()
-      );
-
-      const spent = categoryTx
-        .filter((t) => t.type === "outcome" && t.date && t.date >= startOfMonth)
-        .reduce((sum, t) => sum + Number(t.amount), 0);
-
-      const totalFunded = categoryTx
-        .filter((t) => t.type === "income")
-        .reduce((sum, t) => sum + Number(t.amount), 0);
-
-      const totalSpent = categoryTx
-        .filter((t) => t.type === "outcome")
-        .reduce((sum, t) => sum + Number(t.amount), 0);
-
-      const balance = totalFunded - totalSpent;
-
-      const thisMonthFunded = categoryTx
-        .filter(
-          (t) => t.type === "income" && t.date && t.date >= startOfMonth
-        )
-        .reduce((sum, t) => sum + Number(t.amount), 0);
-
-      const thisMonthSpent = categoryTx
-        .filter(
-          (t) => t.type === "outcome" && t.date && t.date >= startOfMonth
-        )
-        .reduce((sum, t) => sum + Number(t.amount), 0);
-
-      return {
-        ...outcome,
-        spent,
-        balance,
-        totalFunded,
-        totalSpent,
-        thisMonthFunded,
-        thisMonthSpent,
-      };
-    });
-
-    return NextResponse.json(outcomesWithDetails);
+    return NextResponse.json(result);
   } catch (error: unknown) {
     const message =
       error instanceof Error ? error.message : "Internal Server Error";
@@ -75,17 +98,42 @@ export async function GET(req: NextRequest) {
   }
 }
 
+async function resolveDefaultPaymentSource(
+  userId: string,
+  preferredId?: string | null,
+): Promise<string | null> {
+  if (preferredId) return preferredId;
+
+  const firstSource = await prisma.paymentSource.findFirst({
+    where: { user_id: userId, deleted_at: null },
+    orderBy: { created_at: "desc" },
+    select: { id: true },
+  });
+  if (firstSource) return firstSource.id;
+
+  const cash = await prisma.paymentSource.create({
+    data: { user_id: userId, name: "Cash" },
+  });
+  return cash.id;
+}
+
 export async function POST(req: NextRequest) {
   try {
     const user = await verifyUser(req);
-    const { title, amount, category, icon } = await req.json();
+    const { title, amount, category, icon, defaultPaymentSourceId } =
+      await req.json();
 
     if (!title || !amount || !category) {
       return NextResponse.json(
         { message: "Missing required fields" },
-        { status: 400 }
+        { status: 400 },
       );
     }
+
+    const resolvedId = await resolveDefaultPaymentSource(
+      user.id,
+      defaultPaymentSourceId,
+    );
 
     const outcome = await prisma.monthlyOutcome.create({
       data: {
@@ -94,6 +142,7 @@ export async function POST(req: NextRequest) {
         amount: Number(amount),
         category,
         icon: icon || null,
+        default_payment_source_id: resolvedId,
       },
     });
 
@@ -134,14 +183,20 @@ export async function DELETE(req: NextRequest) {
 export async function PUT(req: NextRequest) {
   try {
     const user = await verifyUser(req);
-    const { id, title, amount, category, icon } = await req.json();
+    const { id, title, amount, category, icon, defaultPaymentSourceId } =
+      await req.json();
 
     if (!id || !title || !amount || !category) {
       return NextResponse.json(
         { message: "Missing required fields" },
-        { status: 400 }
+        { status: 400 },
       );
     }
+
+    const resolvedId = await resolveDefaultPaymentSource(
+      user.id,
+      defaultPaymentSourceId,
+    );
 
     const updated = await prisma.monthlyOutcome.update({
       where: {
@@ -153,6 +208,7 @@ export async function PUT(req: NextRequest) {
         amount: Number(amount),
         category,
         icon: icon || null,
+        default_payment_source_id: resolvedId,
       },
     });
 

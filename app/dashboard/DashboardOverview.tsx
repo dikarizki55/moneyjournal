@@ -2,9 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { formatRupiah } from "./RupiahInput";
-import { Wallet, TrendingUp, TrendingDown, Target } from "lucide-react";
+import { Wallet, TrendingUp, TrendingDown, Target, CreditCard } from "lucide-react";
 import Link from "next/link";
-import { DynamicIcon } from "@/components/ui/icon-picker";
+import { DynamicIcon, isValidIcon } from "@/components/ui/icon-picker";
+
+interface PaymentSourceBalance {
+  name: string;
+  balance: number;
+}
 
 interface ContainerData {
   id: string;
@@ -17,6 +22,7 @@ interface ContainerData {
   totalSpent: number;
   thisMonthFunded: number;
   thisMonthSpent: number;
+  paymentSourceBalances?: Record<string, PaymentSourceBalance>;
 }
 
 interface BalanceData {
@@ -26,23 +32,30 @@ interface BalanceData {
     totalOutcome: number;
     thisMonthIncome: number;
     thisMonthOutcome: number;
+    paymentSourceBalances?: Record<string, PaymentSourceBalance>;
   };
   containers: ContainerData[];
   totalNetWorth: number;
+  paymentSourceTotals?: Record<string, PaymentSourceBalance>;
 }
 
 export default function DashboardOverview() {
   const [data, setData] = useState<BalanceData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [paymentSources, setPaymentSources] = useState<
+    { id: string; name: string; icon?: string | null }[]
+  >([]);
 
   useEffect(() => {
     const fetchBalance = async () => {
       try {
-        const res = await fetch("/api/monthly-outcome/balance", {
-          credentials: "include",
-        });
-        const json = await res.json();
-        if (json.success) setData(json);
+        const [balanceRes, psRes] = await Promise.all([
+          fetch("/api/monthly-outcome/balance", { credentials: "include" }),
+          fetch("/api/payment-source", { credentials: "include" }),
+        ]);
+        const [balanceJson, psJson] = await Promise.all([balanceRes.json(), psRes.json()]);
+        if (balanceJson.success) setData(balanceJson);
+        if (psJson.success) setPaymentSources(psJson.data);
       } catch (err) {
         console.error(err);
       } finally {
@@ -122,6 +135,28 @@ export default function DashboardOverview() {
             </div>
           </div>
         </div>
+        {data.paymentSourceTotals && Object.keys(data.paymentSourceTotals).length > 0 && (
+          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {Object.entries(data.paymentSourceTotals).map(([id, ps]) => {
+              const src = paymentSources.find(s => s.id === id);
+              return (
+                <div key={id} className="p-3 bg-white/5 rounded-xl">
+                  <div className="text-xs text-white/70 mb-0.5 flex items-center gap-1.5">
+                    {src?.icon && isValidIcon(src.icon) ? (
+                      <DynamicIcon name={src.icon} className="h-3.5 w-3.5" />
+                    ) : (
+                      <CreditCard className="h-3.5 w-3.5" />
+                    )}
+                    {ps.name}
+                  </div>
+                  <div className={`text-lg font-bold ${ps.balance < 0 ? "text-red-300" : ""}`}>
+                    {formatRupiah(String(ps.balance))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">

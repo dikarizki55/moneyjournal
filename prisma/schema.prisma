@@ -83,23 +83,26 @@ model User {
   password      String?
   accounts      Account[]
   sessions      Session[]
-  transaction   transaction[]
+  transaction    transaction[]
   monthlyOutcome monthlyOutcome[]
+  paymentSource  paymentSource[]
 
   @@map("users")
   @@schema("moneyjournal")
 }
 
 model monthlyOutcome {
-  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  user_id    String
-  title      String
-  amount     Decimal   @db.Decimal
-  category   String
-  created_at DateTime  @default(dbgenerated("timezone('utc'::text, now())")) @db.Timestamp(6)
-  icon       String?
-  deleted_at DateTime? @db.Timestamp(6)
-  users      User      @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  id                     String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id                String
+  title                  String
+  amount                 Decimal         @db.Decimal
+  category               String
+  created_at             DateTime        @default(dbgenerated("timezone('utc'::text, now())")) @db.Timestamp(6)
+  icon                   String?
+  deleted_at             DateTime?       @db.Timestamp(6)
+  default_payment_source_id String?      @map("default_payment_source_id") @db.Uuid
+  defaultPaymentSource   paymentSource?  @relation(fields: [default_payment_source_id], references: [id])
+  users                  User            @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@map("monthly_outcome")
   @@schema("moneyjournal")
@@ -127,22 +130,41 @@ model wishes {
   @@schema("moneyjournal")
 }
 
+model paymentSource {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id    String
+  name       String
+  icon       String?
+  default    Boolean   @default(false)
+  created_at DateTime  @default(dbgenerated("timezone('utc'::text, now())")) @db.Timestamp(6)
+  deleted_at DateTime? @db.Timestamp(6)
+  users      User      @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  transaction     transaction[]
+  monthlyOutcome  monthlyOutcome[]
+
+  @@map("payment_source")
+  @@schema("moneyjournal")
+}
+
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model transaction {
-  id             String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  user_id        String?
-  title          String
-  amount         Decimal         @db.Decimal
-  category       String?
-  notes          String?
-  date           DateTime?       @default(dbgenerated("CURRENT_DATE")) @db.Date
-  created_at     DateTime?       @default(dbgenerated("timezone('utc'::text, now())")) @db.Timestamp(6)
-  deleted_at     DateTime?       @db.Timestamp(6)
-  type           TransactionType
-  isSavings       Boolean         @default(false)
-  savingsContainer String?
-  transferPairId  String?
-  users          User?           @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  id               String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id          String?
+  title            String
+  amount           Decimal         @db.Decimal
+  category         String?
+  notes            String?
+  date             DateTime?       @default(dbgenerated("CURRENT_DATE")) @db.Date
+  created_at       DateTime?       @default(dbgenerated("timezone('utc'::text, now())")) @db.Timestamp(6)
+  deleted_at       DateTime?       @db.Timestamp(6)
+  type             TransactionType
+  isSavings         Boolean         @default(false)
+  savingsContainer  String?
+  transferPairId    String?
+  payment_source_id String?         @map("payment_source_id") @db.Uuid
+  paymentSource     paymentSource?  @relation(fields: [payment_source_id], references: [id])
+  users             User?           @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@schema("moneyjournal")
 }

@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Checkbox } from "@/components/ui/checkbox";
 import { formatRupiah } from "@/app/dashboard/RupiahInput";
@@ -21,6 +21,7 @@ export default function TransactionCard({
   notes,
   category,
   amount,
+  paymentSourceId,
   selectMode,
   selected,
   onSelectChange,
@@ -33,6 +34,7 @@ export default function TransactionCard({
   notes: string;
   category: string;
   amount: number;
+  paymentSourceId?: string | null;
   selectMode?: boolean;
   selected?: boolean;
   onSelectChange?: (checked: boolean) => void;
@@ -40,6 +42,22 @@ export default function TransactionCard({
   onDelete?: () => void;
   swipeActions?: { label: string; onClick: () => void }[];
 }) {
+  const [paymentSourceName, setPaymentSourceName] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!paymentSourceId) {
+      setPaymentSourceName(null);
+      return;
+    }
+    fetch("/api/payment-source")
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.success) {
+          const ps = json.data.find((s: { id: string }) => s.id === paymentSourceId);
+          if (ps) setPaymentSourceName(ps.icon ? `${ps.icon} ${ps.name}` : ps.name);
+        }
+      });
+  }, [paymentSourceId]);
   const isLucideIcon = isValidIcon(icon);
   const [showActions, setShowActions] = useState(false);
   const [pendingAction, setPendingAction] = useState<{
@@ -137,6 +155,11 @@ export default function TransactionCard({
                       </span>
                     )}
                   </p>
+                  {paymentSourceName && (
+                    <span className="text-[10px] text-muted-foreground/50 mt-0.5">
+                      {paymentSourceName}
+                    </span>
+                  )}
                 </div>
               </div>
             </div>

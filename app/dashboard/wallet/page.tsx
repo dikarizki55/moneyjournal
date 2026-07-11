@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { formatRupiah } from "../RupiahInput";
 import { Card, CardContent, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,12 +16,39 @@ import {
   TrendingUp,
   TrendingDown,
   ArrowLeftRight,
+  CreditCard,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Progress } from "@/components/ui/progress";
 import RupiahInput from "../RupiahInput";
 import { Label } from "@/components/ui/label";
-import IconPicker, { DynamicIcon } from "@/components/ui/icon-picker";
+import IconPicker, {
+  DynamicIcon,
+  isValidIcon,
+} from "@/components/ui/icon-picker";
+import PaymentSourceCombobox from "@/components/ui/payment-source-combobox";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+
+interface PaymentSourceBalance {
+  name: string;
+  balance: number;
+}
+
+interface PaymentSourceInfo {
+  id: string | null;
+  name: string;
+  icon: string | null;
+  amount: number;
+}
 
 interface MonthlyOutcome {
   id: string;
@@ -34,18 +62,30 @@ interface MonthlyOutcome {
   totalSpent: number;
   thisMonthFunded: number;
   thisMonthSpent: number;
+  default_payment_source_id?: string | null;
+  paymentSources?: PaymentSourceInfo[];
 }
 
-export default function MonthlyOutcomePage() {
+export default function WalletPage() {
   const [outcomes, setOutcomes] = useState<MonthlyOutcome[]>([]);
   const [globalBalance, setGlobalBalance] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [paymentSources, setPaymentSources] = useState<
+    { id: string; name: string; icon?: string | null }[]
+  >([]);
+  const [paymentSourceTotals, setPaymentSourceTotals] = useState<
+    { uuid: string; paymentSource: string; amount: number; icon: string | null }[]
+  >([]);
+  const [containerSourceBalances, setContainerSourceBalances] = useState<
+    Record<string, Record<string, PaymentSourceBalance>>
+  >({});
   const [newOutcome, setNewOutcome] = useState({
     title: "",
     amount: 0,
     category: "",
     icon: "",
+    defaultPaymentSourceId: "",
   });
   const [editingOutcome, setEditingOutcome] = useState<MonthlyOutcome | null>(
     null,
@@ -61,14 +101,29 @@ export default function MonthlyOutcomePage() {
     outcome: MonthlyOutcome | null;
   }>({ open: false, outcome: null });
   const [fundAmount, setFundAmount] = useState(0);
+  const [fundPaymentSourceId, setFundPaymentSourceId] = useState("");
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
+  const [quickAddName, setQuickAddName] = useState("");
+  const [quickAddTarget, setQuickAddTarget] = useState<string | null>(null);
   const [withdrawAmount, setWithdrawAmount] = useState(0);
   const [withdrawTitle, setWithdrawTitle] = useState("");
+  const [withdrawPaymentSourceId, setWithdrawPaymentSourceId] = useState("");
   const [transferDialog, setTransferDialog] = useState<{
     open: boolean;
     source: MonthlyOutcome | null;
   }>({ open: false, source: null });
   const [transferDestId, setTransferDestId] = useState("");
   const [transferAmount, setTransferAmount] = useState(0);
+  const [transferPaymentSourceId, setTransferPaymentSourceId] = useState("");
+  const [reallocateDialog, setReallocateDialog] = useState<{
+    open: boolean;
+    outcome: MonthlyOutcome | null;
+  }>({ open: false, outcome: null });
+  const [reallocateFrom, setReallocateFrom] = useState("");
+  const [reallocateTo, setReallocateTo] = useState("");
+  const [reallocateAmount, setReallocateAmount] = useState(0);
+
+  const [newIcon, setNewIcon] = useState("");
 
   const fetchOutcomes = async () => {
     setIsLoading(true);
@@ -77,6 +132,19 @@ export default function MonthlyOutcomePage() {
       const data = await res.json();
       if (Array.isArray(data)) {
         setOutcomes(data);
+        const cBal: Record<string, Record<string, PaymentSourceBalance>> = {};
+        for (const o of data) {
+          if (o.paymentSources) {
+            const sources: Record<string, PaymentSourceBalance> = {};
+            for (const ps of o.paymentSources) {
+              if (ps.id) {
+                sources[ps.id] = { name: ps.name, balance: ps.amount };
+              }
+            }
+            cBal[o.id] = sources;
+          }
+        }
+        setContainerSourceBalances(cBal);
       } else {
         toast.error(data.message || "Failed to fetch wallets");
         setOutcomes([]);
@@ -89,12 +157,25 @@ export default function MonthlyOutcomePage() {
     }
   };
 
+  const fetchPaymentSources = async () => {
+    try {
+      const res = await fetch("/api/payment-source");
+      const json = await res.json();
+      if (json.success) setPaymentSources(json.data);
+    } catch {
+      // ignore
+    }
+  };
+
   const fetchBalance = async () => {
     try {
       const res = await fetch("/api/monthly-outcome/balance");
       const data = await res.json();
       if (data.success) {
         setGlobalBalance(data.global.balance);
+        if (data.paymentSourceTotals) {
+          setPaymentSourceTotals(data.paymentSourceTotals);
+        }
       }
     } catch {
       // ignore
@@ -104,7 +185,21 @@ export default function MonthlyOutcomePage() {
   useEffect(() => {
     fetchOutcomes();
     fetchBalance();
+    fetchPaymentSources();
   }, []);
+
+  useEffect(() => {
+    if (
+      isDialogOpen &&
+      paymentSources.length > 0 &&
+      !newOutcome.defaultPaymentSourceId
+    ) {
+      setNewOutcome((prev) => ({
+        ...prev,
+        defaultPaymentSourceId: paymentSources[0].id,
+      }));
+    }
+  }, [isDialogOpen, paymentSources]);
 
   const handleAddOutcome = async () => {
     if (!newOutcome.title || !newOutcome.amount || !newOutcome.category) {
@@ -121,7 +216,13 @@ export default function MonthlyOutcomePage() {
 
       if (res.ok) {
         toast.success("Wallet created successfully");
-        setNewOutcome({ title: "", amount: 0, category: "", icon: "" });
+        setNewOutcome({
+          title: "",
+          amount: 0,
+          category: "",
+          icon: "",
+          defaultPaymentSourceId: "",
+        });
         setIsDialogOpen(false);
         fetchOutcomes();
       } else {
@@ -147,9 +248,18 @@ export default function MonthlyOutcomePage() {
 
     setIsSubmitting(true);
     try {
+      const body = {
+        id: editingOutcome.id,
+        title: editingOutcome.title,
+        amount: editingOutcome.amount,
+        category: editingOutcome.category,
+        icon: editingOutcome.icon,
+        defaultPaymentSourceId:
+          (editingOutcome as any).default_payment_source_id || null,
+      };
       const res = await fetch("/api/monthly-outcome", {
         method: "PUT",
-        body: JSON.stringify(editingOutcome),
+        body: JSON.stringify(body),
       });
 
       if (res.ok) {
@@ -200,6 +310,7 @@ export default function MonthlyOutcomePage() {
         body: JSON.stringify({
           outcomeId: fundDialog.outcome.id,
           amount: fundAmount,
+          paymentSourceId: fundPaymentSourceId || undefined,
         }),
       });
 
@@ -207,6 +318,7 @@ export default function MonthlyOutcomePage() {
         toast.success(`Funded ${fundDialog.outcome.title} successfully`);
         setFundDialog({ open: false, outcome: null });
         setFundAmount(0);
+        setFundPaymentSourceId("");
         fetchOutcomes();
         fetchBalance();
       } else {
@@ -234,6 +346,7 @@ export default function MonthlyOutcomePage() {
           outcomeId: withdrawDialog.outcome.id,
           amount: withdrawAmount,
           title: withdrawTitle || undefined,
+          paymentSourceId: withdrawPaymentSourceId || undefined,
         }),
       });
 
@@ -244,6 +357,7 @@ export default function MonthlyOutcomePage() {
         setWithdrawDialog({ open: false, outcome: null });
         setWithdrawAmount(0);
         setWithdrawTitle("");
+        setWithdrawPaymentSourceId("");
         fetchOutcomes();
       } else {
         const error = await res.json();
@@ -270,6 +384,7 @@ export default function MonthlyOutcomePage() {
           sourceWalletId: transferDialog.source.id,
           destinationWalletId: transferDestId,
           amount: transferAmount,
+          paymentSourceId: transferPaymentSourceId || undefined,
         }),
       });
 
@@ -278,6 +393,7 @@ export default function MonthlyOutcomePage() {
         setTransferDialog({ open: false, source: null });
         setTransferDestId("");
         setTransferAmount(0);
+        setTransferPaymentSourceId("");
         fetchOutcomes();
         fetchBalance();
       } else {
@@ -291,8 +407,74 @@ export default function MonthlyOutcomePage() {
     }
   };
 
+  const handleReallocate = async () => {
+    if (
+      !reallocateDialog.outcome ||
+      !reallocateFrom ||
+      !reallocateTo ||
+      reallocateAmount <= 0
+    ) {
+      toast.error("Please fill all fields");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const res = await fetch("/api/monthly-outcome/reallocate", {
+        method: "POST",
+        body: JSON.stringify({
+          walletId: reallocateDialog.outcome.id,
+          fromPaymentSourceId: reallocateFrom,
+          toPaymentSourceId: reallocateTo,
+          amount: reallocateAmount,
+        }),
+      });
+
+      const json = await res.json();
+      if (json.success) {
+        toast.success(json.message);
+        setReallocateDialog({ open: false, outcome: null });
+        setReallocateFrom("");
+        setReallocateTo("");
+        setReallocateAmount(0);
+        fetchOutcomes();
+        fetchBalance();
+      } else {
+        toast.error(json.message || "Failed to move");
+      }
+    } catch {
+      toast.error("An error occurred");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <div className="p-6 space-y-6 w-full mx-auto">
+      {paymentSourceTotals.length > 0 && (
+        <div className="bg-chart-2 rounded-2xl border p-4 text-white">
+          <h3 className="text-sm font-semibold mb-2 opacity-80">
+            By Payment Source
+          </h3>
+          <div className="flex flex-wrap gap-4">
+            {paymentSourceTotals.map((item) => (
+              <div key={item.uuid} className="flex items-center gap-2 text-sm">
+                {item.icon && isValidIcon(item.icon) ? (
+                  <DynamicIcon
+                    name={item.icon}
+                    className="h-4 w-4 opacity-70"
+                  />
+                ) : null}
+                <span className="opacity-70">{item.paymentSource}:</span>
+                <span className="font-semibold">
+                  {formatRupiah(String(item.amount))}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Wallets</h1>
@@ -301,307 +483,528 @@ export default function MonthlyOutcomePage() {
           </p>
         </div>
 
-        <ResponsiveDialog
-          open={isDialogOpen}
-          onOpenChange={setIsDialogOpen}
-          title="Add New Wallet"
-          trigger={
-            <Button className="gap-2">
-              <Plus size={18} />
-              Add Wallet
+        <div className="flex items-center gap-2">
+          <Link href="/dashboard/payment-source">
+            <Button variant="outline" size="sm" className="gap-1">
+              <CreditCard size={14} />
+              Sources
             </Button>
-          }
-        >
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              handleAddOutcome();
-            }}
-            className="space-y-4 py-4"
-          >
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Title</label>
-              <Input
-                placeholder="e.g. Emergency Fund"
-                value={newOutcome.title}
-                onChange={(e) =>
-                  setNewOutcome({ ...newOutcome, title: e.target.value })
-                }
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Category</label>
-              <Input
-                placeholder="e.g. Emergency"
-                value={newOutcome.category}
-                onChange={(e) =>
-                  setNewOutcome({ ...newOutcome, category: e.target.value })
-                }
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Icon</label>
-              <IconPicker
-                value={newOutcome.icon}
-                onChange={(iconName) =>
-                  setNewOutcome({ ...newOutcome, icon: iconName })
-                }
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Budget</label>
-              <RupiahInput
-                value={newOutcome.amount}
-                onChange={(val) =>
-                  setNewOutcome({ ...newOutcome, amount: val || 0 })
-                }
-              />
-            </div>
-            <Button type="submit" className="w-full" disabled={isSubmitting}>
-              {isSubmitting ? (
-                <Loader2 className="animate-spin" />
-              ) : (
-                "Save Wallet"
-              )}
-            </Button>
-          </form>
-        </ResponsiveDialog>
-
-        <ResponsiveDialog
-          open={isEditDialogOpen}
-          onOpenChange={setIsEditDialogOpen}
-          title="Edit Wallet"
-        >
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              handleEditOutcome();
-            }}
-            className="space-y-4 py-4"
-          >
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Title</label>
-              <Input
-                placeholder="e.g. Emergency Fund"
-                value={editingOutcome?.title || ""}
-                onChange={(e) =>
-                  editingOutcome &&
-                  setEditingOutcome({
-                    ...editingOutcome,
-                    title: e.target.value,
-                  })
-                }
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Category</label>
-              <Input
-                placeholder="e.g. Emergency"
-                value={editingOutcome?.category || ""}
-                onChange={(e) =>
-                  editingOutcome &&
-                  setEditingOutcome({
-                    ...editingOutcome,
-                    category: e.target.value,
-                  })
-                }
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Icon</label>
-              <IconPicker
-                value={editingOutcome?.icon || ""}
-                onChange={(iconName) =>
-                  editingOutcome &&
-                  setEditingOutcome({ ...editingOutcome, icon: iconName })
-                }
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Budget</label>
-              <RupiahInput
-                value={editingOutcome?.amount || 0}
-                onChange={(val) =>
-                  editingOutcome &&
-                  setEditingOutcome({ ...editingOutcome, amount: val || 0 })
-                }
-              />
-            </div>
-            <Button type="submit" className="w-full" disabled={isSubmitting}>
-              {isSubmitting ? (
-                <Loader2 className="animate-spin" />
-              ) : (
-                "Update Wallet"
-              )}
-            </Button>
-          </form>
-        </ResponsiveDialog>
-
-        <ResponsiveDialog
-          open={fundDialog.open}
-          onOpenChange={(open) => {
-            if (!open) {
-              setFundDialog({ open: false, outcome: null });
-              setFundAmount(0);
+          </Link>
+          <ResponsiveDialog
+            open={isDialogOpen}
+            onOpenChange={setIsDialogOpen}
+            title="Add New Wallet"
+            trigger={
+              <Button className="gap-2">
+                <Plus size={18} />
+                Add Wallet
+              </Button>
             }
-          }}
-          title={`Fund ${fundDialog.outcome?.title || ""}`}
-        >
-          <div className="space-y-4 py-4">
-            <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
-              <span className="text-sm font-medium">Global Balance</span>
-              <span
-                className={`text-sm font-bold ${globalBalance < 0 ? "text-destructive" : "text-green-600"}`}
-              >
-                {formatRupiah(String(globalBalance))}
-              </span>
-            </div>
-            <div className="space-y-2">
-              <Label>Amount to add</Label>
-              <RupiahInput
-                value={fundAmount}
-                onChange={(val) => setFundAmount(val || 0)}
-                max={Math.max(0, globalBalance)}
-              />
-            </div>
-            <p className="text-sm text-muted-foreground">
-              This will move money from your global balance to this wallet.
-            </p>
-            {fundAmount > globalBalance && globalBalance > 0 && (
-              <p className="text-sm text-destructive font-medium">
-                Insufficient balance. You can fund up to{" "}
-                {formatRupiah(String(globalBalance))}.
-              </p>
-            )}
-            {globalBalance <= 0 && (
-              <p className="text-sm text-destructive font-medium">
-                Your global balance is empty or negative. Add income before
-                funding wallets.
-              </p>
-            )}
-            <Button
-              onClick={handleFund}
-              className="w-full"
-              disabled={
-                isSubmitting || fundAmount <= 0 || fundAmount > globalBalance
-              }
+          >
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleAddOutcome();
+              }}
+              className="space-y-4 py-4"
             >
-              {isSubmitting ? (
-                <Loader2 className="animate-spin" />
-              ) : (
-                "Fund Wallet"
-              )}
-            </Button>
-          </div>
-        </ResponsiveDialog>
-
-        <ResponsiveDialog
-          open={withdrawDialog.open}
-          onOpenChange={(open) => {
-            if (!open) {
-              setWithdrawDialog({ open: false, outcome: null });
-              setWithdrawAmount(0);
-              setWithdrawTitle("");
-            }
-          }}
-          title={`Withdraw from ${withdrawDialog.outcome?.title || ""}`}
-        >
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>Title (optional)</Label>
-              <Input
-                placeholder="e.g. Groceries"
-                value={withdrawTitle}
-                onChange={(e) => setWithdrawTitle(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Amount to withdraw</Label>
-              <RupiahInput
-                value={withdrawAmount}
-                onChange={(val) => setWithdrawAmount(val || 0)}
-              />
-            </div>
-            <Button
-              onClick={handleWithdraw}
-              className="w-full"
-              disabled={isSubmitting || withdrawAmount <= 0}
-            >
-              {isSubmitting ? <Loader2 className="animate-spin" /> : "Withdraw"}
-            </Button>
-          </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Title</label>
+                <Input
+                  placeholder="e.g. Emergency Fund"
+                  value={newOutcome.title}
+                  onChange={(e) =>
+                    setNewOutcome({ ...newOutcome, title: e.target.value })
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Category</label>
+                <Input
+                  placeholder="e.g. Emergency"
+                  value={newOutcome.category}
+                  onChange={(e) =>
+                    setNewOutcome({ ...newOutcome, category: e.target.value })
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Icon</label>
+                <IconPicker
+                  value={newOutcome.icon}
+                  onChange={(iconName) =>
+                    setNewOutcome({ ...newOutcome, icon: iconName })
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">
+                  Default Payment Source
+                </label>
+                <PaymentSourceCombobox
+                  value={newOutcome.defaultPaymentSourceId}
+                  onChange={(id) =>
+                    setNewOutcome({ ...newOutcome, defaultPaymentSourceId: id })
+                  }
+                  sources={paymentSources}
+                  onQuickAdd={() => {
+                    setQuickAddOpen(true);
+                    setQuickAddName("");
+                    setQuickAddTarget("walletAdd");
+                  }}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Budget</label>
+                <RupiahInput
+                  value={newOutcome.amount}
+                  onChange={(val) =>
+                    setNewOutcome({ ...newOutcome, amount: val || 0 })
+                  }
+                />
+              </div>
+              <Button type="submit" className="w-full" disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <Loader2 className="animate-spin" />
+                ) : (
+                  "Save Wallet"
+                )}
+              </Button>
+            </form>
           </ResponsiveDialog>
-
-        <ResponsiveDialog
-          open={transferDialog.open}
-          onOpenChange={(open) => {
-            if (!open) {
-              setTransferDialog({ open: false, source: null });
-              setTransferDestId("");
-              setTransferAmount(0);
-            }
-          }}
-          title={`Transfer from ${transferDialog.source?.title || ""}`}
-        >
-          <div className="space-y-4 py-4">
-            <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
-              <span className="text-sm font-medium">Source Balance</span>
-              <span className="text-sm font-bold">
-                {formatRupiah(String(transferDialog.source?.balance || 0))}
-              </span>
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Destination Wallet</label>
-              <select
-                className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs"
-                value={transferDestId}
-                onChange={(e) => setTransferDestId(e.target.value)}
-              >
-                <option value="">Select a wallet...</option>
-                {outcomes
-                  .filter((o) => o.id !== transferDialog.source?.id)
-                  .map((o) => (
-                    <option key={o.id} value={o.id}>
-                      {o.title} ({formatRupiah(String(o.balance))})
-                    </option>
-                  ))}
-              </select>
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Amount</label>
-              <RupiahInput
-                value={transferAmount}
-                onChange={(val) => setTransferAmount(val || 0)}
-                max={transferDialog.source?.balance || 0}
-              />
-            </div>
-            {transferAmount > (transferDialog.source?.balance || 0) && (
-              <p className="text-sm text-destructive font-medium">
-                Insufficient balance. Max transfer:{" "}
-                {formatRupiah(String(transferDialog.source?.balance || 0))}
-              </p>
-            )}
-            <Button
-              onClick={handleTransfer}
-              className="w-full"
-              disabled={
-                isSubmitting ||
-                transferAmount <= 0 ||
-                !transferDestId ||
-                transferAmount > (transferDialog.source?.balance || 0)
-              }
-            >
-              {isSubmitting ? (
-                <Loader2 className="animate-spin" />
-              ) : (
-                "Transfer"
-              )}
-            </Button>
-          </div>
-        </ResponsiveDialog>
         </div>
+      </div>
 
-        {isLoading ? (
+      <ResponsiveDialog
+        open={isEditDialogOpen}
+        onOpenChange={setIsEditDialogOpen}
+        title="Edit Wallet"
+      >
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleEditOutcome();
+          }}
+          className="space-y-4 py-4"
+        >
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Title</label>
+            <Input
+              placeholder="e.g. Emergency Fund"
+              value={editingOutcome?.title || ""}
+              onChange={(e) =>
+                editingOutcome &&
+                setEditingOutcome({
+                  ...editingOutcome,
+                  title: e.target.value,
+                })
+              }
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Category</label>
+            <Input
+              placeholder="e.g. Emergency"
+              value={editingOutcome?.category || ""}
+              onChange={(e) =>
+                editingOutcome &&
+                setEditingOutcome({
+                  ...editingOutcome,
+                  category: e.target.value,
+                })
+              }
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Icon</label>
+            <IconPicker
+              value={editingOutcome?.icon || ""}
+              onChange={(iconName) =>
+                editingOutcome &&
+                setEditingOutcome({ ...editingOutcome, icon: iconName })
+              }
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">
+              Default Payment Source
+            </label>
+            <PaymentSourceCombobox
+              value={(editingOutcome as any)?.default_payment_source_id || ""}
+              onChange={(id) =>
+                editingOutcome &&
+                setEditingOutcome({
+                  ...editingOutcome,
+                  default_payment_source_id: id || null,
+                } as any)
+              }
+              sources={paymentSources}
+              onQuickAdd={() => {
+                setQuickAddOpen(true);
+                setQuickAddName("");
+                setQuickAddTarget("walletEdit");
+              }}
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Budget</label>
+            <RupiahInput
+              value={editingOutcome?.amount || 0}
+              onChange={(val) =>
+                editingOutcome &&
+                setEditingOutcome({ ...editingOutcome, amount: val || 0 })
+              }
+            />
+          </div>
+          <Button type="submit" className="w-full" disabled={isSubmitting}>
+            {isSubmitting ? (
+              <Loader2 className="animate-spin" />
+            ) : (
+              "Update Wallet"
+            )}
+          </Button>
+        </form>
+      </ResponsiveDialog>
+
+      <ResponsiveDialog
+        open={fundDialog.open}
+        onOpenChange={(open) => {
+          if (!open) {
+            setFundDialog({ open: false, outcome: null });
+            setFundAmount(0);
+            setFundPaymentSourceId("");
+          }
+        }}
+        title={`Fund ${fundDialog.outcome?.title || ""}`}
+      >
+        <div className="space-y-4 py-4">
+          <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
+            <span className="text-sm font-medium">Global Balance</span>
+            <span
+              className={`text-sm font-bold ${globalBalance < 0 ? "text-destructive" : "text-green-600"}`}
+            >
+              {formatRupiah(String(globalBalance))}
+            </span>
+          </div>
+          <div className="space-y-2">
+            <Label>Payment Source</Label>
+            <PaymentSourceCombobox
+              value={fundPaymentSourceId}
+              onChange={setFundPaymentSourceId}
+              sources={paymentSources}
+              onQuickAdd={() => {
+                setQuickAddOpen(true);
+                setQuickAddName("");
+                setQuickAddTarget("fund");
+              }}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Amount to add</Label>
+            <RupiahInput
+              value={fundAmount}
+              onChange={(val) => setFundAmount(val || 0)}
+              max={Math.max(0, globalBalance)}
+            />
+          </div>
+          <p className="text-sm text-muted-foreground">
+            This will move money from your global balance to this wallet.
+          </p>
+          {fundAmount > globalBalance && globalBalance > 0 && (
+            <p className="text-sm text-destructive font-medium">
+              Insufficient balance. You can fund up to{" "}
+              {formatRupiah(String(globalBalance))}.
+            </p>
+          )}
+          {globalBalance <= 0 && (
+            <p className="text-sm text-destructive font-medium">
+              Your global balance is empty or negative. Add income before
+              funding wallets.
+            </p>
+          )}
+          <Button
+            onClick={handleFund}
+            className="w-full"
+            disabled={
+              isSubmitting || fundAmount <= 0 || fundAmount > globalBalance
+            }
+          >
+            {isSubmitting ? (
+              <Loader2 className="animate-spin" />
+            ) : (
+              "Fund Wallet"
+            )}
+          </Button>
+        </div>
+      </ResponsiveDialog>
+
+      <ResponsiveDialog
+        open={withdrawDialog.open}
+        onOpenChange={(open) => {
+          if (!open) {
+            setWithdrawDialog({ open: false, outcome: null });
+            setWithdrawAmount(0);
+            setWithdrawTitle("");
+            setWithdrawPaymentSourceId("");
+          }
+        }}
+        title={`Withdraw from ${withdrawDialog.outcome?.title || ""}`}
+      >
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label>Title (optional)</Label>
+            <Input
+              placeholder="e.g. Groceries"
+              value={withdrawTitle}
+              onChange={(e) => setWithdrawTitle(e.target.value)}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Payment Source</Label>
+            <PaymentSourceCombobox
+              value={withdrawPaymentSourceId}
+              onChange={setWithdrawPaymentSourceId}
+              sources={paymentSources}
+              onQuickAdd={() => {
+                setQuickAddOpen(true);
+                setQuickAddName("");
+                setQuickAddTarget("withdraw");
+              }}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Amount to withdraw</Label>
+            <RupiahInput
+              value={withdrawAmount}
+              onChange={(val) => setWithdrawAmount(val || 0)}
+            />
+          </div>
+          <Button
+            onClick={handleWithdraw}
+            className="w-full"
+            disabled={isSubmitting || withdrawAmount <= 0}
+          >
+            {isSubmitting ? <Loader2 className="animate-spin" /> : "Withdraw"}
+          </Button>
+        </div>
+      </ResponsiveDialog>
+
+      <ResponsiveDialog
+        open={transferDialog.open}
+        onOpenChange={(open) => {
+          if (!open) {
+            setTransferDialog({ open: false, source: null });
+            setTransferDestId("");
+            setTransferAmount(0);
+            setTransferPaymentSourceId("");
+          }
+        }}
+        title={`Transfer from ${transferDialog.source?.title || ""}`}
+      >
+        <div className="space-y-4 py-4">
+          <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
+            <span className="text-sm font-medium">Source Balance</span>
+            <span className="text-sm font-bold">
+              {formatRupiah(String(transferDialog.source?.balance || 0))}
+            </span>
+          </div>
+          <div className="space-y-2">
+            <Label>Payment Source</Label>
+            <PaymentSourceCombobox
+              value={transferPaymentSourceId}
+              onChange={setTransferPaymentSourceId}
+              sources={paymentSources}
+              onQuickAdd={() => {
+                setQuickAddOpen(true);
+                setQuickAddName("");
+                setQuickAddTarget("transfer");
+              }}
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Destination Wallet</label>
+            <select
+              className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs"
+              value={transferDestId}
+              onChange={(e) => setTransferDestId(e.target.value)}
+            >
+              <option value="">Select a wallet...</option>
+              {outcomes
+                .filter((o) => o.id !== transferDialog.source?.id)
+                .map((o) => (
+                  <option key={o.id} value={o.id}>
+                    {o.title} ({formatRupiah(String(o.balance))})
+                  </option>
+                ))}
+            </select>
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Amount</label>
+            <RupiahInput
+              value={transferAmount}
+              onChange={(val) => setTransferAmount(val || 0)}
+              max={transferDialog.source?.balance || 0}
+            />
+          </div>
+          {transferAmount > (transferDialog.source?.balance || 0) && (
+            <p className="text-sm text-destructive font-medium">
+              Insufficient balance. Max transfer:{" "}
+              {formatRupiah(String(transferDialog.source?.balance || 0))}
+            </p>
+          )}
+          <Button
+            onClick={handleTransfer}
+            className="w-full"
+            disabled={
+              isSubmitting ||
+              transferAmount <= 0 ||
+              !transferDestId ||
+              transferAmount > (transferDialog.source?.balance || 0)
+            }
+          >
+            {isSubmitting ? <Loader2 className="animate-spin" /> : "Transfer"}
+          </Button>
+        </div>
+      </ResponsiveDialog>
+
+      <ResponsiveDialog
+        open={reallocateDialog.open}
+        onOpenChange={(open) => {
+          if (!open) {
+            setReallocateDialog({ open: false, outcome: null });
+            setReallocateFrom("");
+            setReallocateTo("");
+            setReallocateAmount(0);
+          }
+        }}
+        title={`Move Money in ${reallocateDialog.outcome?.title || ""}`}
+      >
+        <div className="space-y-4 py-4">
+          {(() => {
+            const walletSources =
+              containerSourceBalances[reallocateDialog.outcome?.id || ""] || {};
+            return (
+              <div className="flex flex-wrap gap-3 p-3 bg-muted rounded-lg text-sm">
+                {paymentSources.map((ps) => {
+                  const bal = walletSources[ps.id]?.balance;
+                  return (
+                    <span
+                      key={ps.id}
+                      className="text-xs flex items-center gap-1"
+                    >
+                      {ps.icon && isValidIcon(ps.icon) ? (
+                        <DynamicIcon
+                          name={ps.icon}
+                          className="h-3 w-3 text-muted-foreground"
+                        />
+                      ) : null}
+                      <span className="text-muted-foreground">{ps.name}:</span>{" "}
+                      <span
+                        className={
+                          bal !== undefined && bal < 0
+                            ? "text-destructive"
+                            : "text-green-600"
+                        }
+                      >
+                        {formatRupiah(String(bal ?? 0))}
+                      </span>
+                    </span>
+                  );
+                })}
+              </div>
+            );
+          })()}
+          <div className="space-y-2">
+            <Label>From</Label>
+            <PaymentSourceCombobox
+              value={reallocateFrom}
+              onChange={setReallocateFrom}
+              sources={(() => {
+                const walletSources =
+                  containerSourceBalances[reallocateDialog.outcome?.id || ""] ||
+                  {};
+                return paymentSources.map((ps) => ({
+                  ...ps,
+                  balance: walletSources[ps.id]?.balance,
+                }));
+              })()}
+              placeholder="Select source..."
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>To</Label>
+            <PaymentSourceCombobox
+              value={reallocateTo}
+              onChange={setReallocateTo}
+              sources={(() => {
+                const walletSources =
+                  containerSourceBalances[reallocateDialog.outcome?.id || ""] ||
+                  {};
+                return paymentSources
+                  .filter((ps) => ps.id !== reallocateFrom)
+                  .map((ps) => ({
+                    ...ps,
+                    balance: walletSources[ps.id]?.balance,
+                  }));
+              })()}
+              placeholder="Select destination..."
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Amount</Label>
+            <RupiahInput
+              value={reallocateAmount}
+              onChange={(val) => setReallocateAmount(val || 0)}
+              max={
+                reallocateFrom
+                  ? (containerSourceBalances[
+                      reallocateDialog.outcome?.id || ""
+                    ]?.[reallocateFrom]?.balance ??
+                    reallocateDialog.outcome?.balance ??
+                    0)
+                  : undefined
+              }
+            />
+          </div>
+          {reallocateAmount > 0 &&
+            reallocateFrom &&
+            (() => {
+              const dest = paymentSources.find((ps) => ps.id === reallocateTo);
+              return (
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  Moving {formatRupiah(String(reallocateAmount))} to
+                  {dest?.icon && isValidIcon(dest.icon) ? (
+                    <DynamicIcon name={dest.icon} className="h-3 w-3" />
+                  ) : null}
+                  <span>{dest?.name || "..."}</span>
+                </p>
+              );
+            })()}
+          <Button
+            onClick={handleReallocate}
+            className="w-full"
+            disabled={
+              isSubmitting ||
+              !reallocateFrom ||
+              !reallocateTo ||
+              reallocateAmount <= 0 ||
+              !!(
+                reallocateFrom &&
+                reallocateAmount >
+                  ((containerSourceBalances[
+                    reallocateDialog.outcome?.id || ""
+                  ]?.[reallocateFrom]?.balance ??
+                    reallocateDialog.outcome?.balance) ||
+                    0)
+              )
+            }
+          >
+            {isSubmitting ? <Loader2 className="animate-spin" /> : "Move Money"}
+          </Button>
+        </div>
+      </ResponsiveDialog>
+
+      {isLoading ? (
         <div className="flex justify-center p-12">
           <Loader2 className="animate-spin text-primary" size={32} />
         </div>
@@ -624,7 +1027,10 @@ export default function MonthlyOutcomePage() {
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
                         {outcome.icon ? (
-                          <DynamicIcon name={outcome.icon} className="w-5 h-5 text-primary" />
+                          <DynamicIcon
+                            name={outcome.icon}
+                            className="w-5 h-5 text-primary"
+                          />
                         ) : (
                           <Wallet className="w-5 h-5 text-primary" />
                         )}
@@ -635,6 +1041,23 @@ export default function MonthlyOutcomePage() {
                       <p className="text-sm text-muted-foreground uppercase font-semibold">
                         {outcome.category}
                       </p>
+                      {outcome.default_payment_source_id &&
+                        (() => {
+                          const ps = paymentSources.find(
+                            (s) => s.id === outcome.default_payment_source_id,
+                          );
+                          return ps ? (
+                            <span className="text-[11px] text-muted-foreground/50 flex items-center gap-1">
+                              {isValidIcon(ps.icon) ? (
+                                <DynamicIcon
+                                  name={ps.icon!}
+                                  className="h-3 w-3"
+                                />
+                              ) : null}
+                              Default: {ps.name}
+                            </span>
+                          ) : null;
+                        })()}
                     </div>
                     <div className="flex items-center gap-2">
                       <Button
@@ -717,6 +1140,48 @@ export default function MonthlyOutcomePage() {
                         </div>
                       </div>
                     </div>
+                    {paymentSources.length > 0 &&
+                      (() => {
+                        const walletSources =
+                          containerSourceBalances[outcome.id] || {};
+                        return (
+                          <div className="pt-2 border-t">
+                            <span className="text-xs text-muted-foreground">
+                              Per Source
+                            </span>
+                            <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1">
+                              {paymentSources.map((ps) => {
+                                const bal = walletSources[ps.id]?.balance;
+                                return (
+                                  <span
+                                    key={ps.id}
+                                    className="text-xs flex items-center gap-1"
+                                  >
+                                    {ps.icon && isValidIcon(ps.icon) ? (
+                                      <DynamicIcon
+                                        name={ps.icon}
+                                        className="h-3 w-3 text-muted-foreground/60"
+                                      />
+                                    ) : null}
+                                    <span className="text-muted-foreground/60">
+                                      {ps.name}:
+                                    </span>{" "}
+                                    <span
+                                      className={
+                                        bal !== undefined && bal < 0
+                                          ? "text-destructive"
+                                          : "text-green-600"
+                                      }
+                                    >
+                                      {formatRupiah(String(bal ?? 0))}
+                                    </span>
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })()}
                     <div className=" flex gap-3 pt-2 flex-wrap">
                       <Button
                         variant="outline"
@@ -724,6 +1189,9 @@ export default function MonthlyOutcomePage() {
                         onClick={() => {
                           setFundDialog({ open: true, outcome });
                           setFundAmount(outcome.amount);
+                          setFundPaymentSourceId(
+                            outcome.default_payment_source_id || "",
+                          );
                         }}
                       >
                         <TrendingUp className="w-4 h-4 mr-1" />
@@ -736,6 +1204,9 @@ export default function MonthlyOutcomePage() {
                           setWithdrawDialog({ open: true, outcome });
                           setWithdrawAmount(0);
                           setWithdrawTitle("");
+                          setWithdrawPaymentSourceId(
+                            outcome.default_payment_source_id || "",
+                          );
                         }}
                       >
                         <TrendingDown className="w-4 h-4 mr-1" />
@@ -748,10 +1219,36 @@ export default function MonthlyOutcomePage() {
                           setTransferDialog({ open: true, source: outcome });
                           setTransferDestId("");
                           setTransferAmount(0);
+                          setTransferPaymentSourceId(
+                            outcome.default_payment_source_id || "",
+                          );
                         }}
                       >
                         <ArrowLeftRight className="w-4 h-4 mr-1" />
                         Transfer
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const balances =
+                            containerSourceBalances[outcome.id] || {};
+                          const firstWithBalance = Object.entries(
+                            balances,
+                          ).find(([, b]) => b.balance > 0);
+                          setReallocateDialog({ open: true, outcome });
+                          setReallocateFrom(
+                            firstWithBalance?.[0] ||
+                              outcome.default_payment_source_id ||
+                              paymentSources[0]?.id ||
+                              "",
+                          );
+                          setReallocateTo("");
+                          setReallocateAmount(0);
+                        }}
+                      >
+                        <ArrowLeftRight className="w-4 h-4 mr-1" />
+                        Move
                       </Button>
                     </div>
                   </div>
@@ -761,6 +1258,78 @@ export default function MonthlyOutcomePage() {
           })}
         </div>
       )}
+
+      <AlertDialog open={quickAddOpen} onOpenChange={setQuickAddOpen}>
+        <AlertDialogContent>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!quickAddName.trim()) return;
+              fetch("/api/payment-source", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  name: quickAddName.trim(),
+                  icon: newIcon,
+                }),
+              })
+                .then((res) => res.json())
+                .then((json) => {
+                  if (json.success) {
+                    setPaymentSources((prev) => [...prev, json.data]);
+                    const newId = json.data.id;
+                    if (quickAddTarget === "fund")
+                      setFundPaymentSourceId(newId);
+                    else if (quickAddTarget === "withdraw")
+                      setWithdrawPaymentSourceId(newId);
+                    else if (quickAddTarget === "transfer")
+                      setTransferPaymentSourceId(newId);
+                    else if (quickAddTarget === "walletAdd")
+                      setNewOutcome((prev) => ({
+                        ...prev,
+                        defaultPaymentSourceId: newId,
+                      }));
+                    else if (quickAddTarget === "walletEdit")
+                      setEditingOutcome((prev) =>
+                        prev
+                          ? ({
+                              ...prev,
+                              default_payment_source_id: newId,
+                            } as any)
+                          : null,
+                      );
+                    setQuickAddOpen(false);
+                    setQuickAddName("");
+                    setQuickAddTarget(null);
+                  }
+                });
+            }}
+          >
+            <AlertDialogHeader>
+              <AlertDialogTitle>Add Payment Source</AlertDialogTitle>
+              <AlertDialogDescription>
+                Create a new payment source (e.g. BCA, Cash, GoPay).
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <div className="py-4">
+              <Input
+                placeholder="Source name"
+                value={quickAddName}
+                onChange={(e) => setQuickAddName(e.target.value)}
+                autoFocus
+              />
+            </div>
+            <div className="space-y-4 py-4">
+              <Label>Icon</Label>
+              <IconPicker value={newIcon} onChange={setNewIcon} />
+            </div>
+            <AlertDialogFooter>
+              <AlertDialogCancel type="button">Cancel</AlertDialogCancel>
+              <AlertDialogAction type="submit">Create</AlertDialogAction>
+            </AlertDialogFooter>
+          </form>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

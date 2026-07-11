@@ -28,7 +28,18 @@ import { Label } from "@/components/ui/label";
 import { Dispatch, SetStateAction, useEffect } from "react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import RupiahInput, { formatRupiah } from "../RupiahInput";
-import ComboboxInput from "./comboboxinput";
+import CategoryCombobox from "@/components/ui/category-combobox";
+import PaymentSourceCombobox from "@/components/ui/payment-source-combobox";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 type DrawerDialogProps = {
   customButton: React.ReactNode;
@@ -49,6 +60,7 @@ type FormInput = {
   date: string;
   isSavings: boolean;
   transferPairId: string | null;
+  paymentSourceId: string | null;
 };
 
 export function DrawerDialog({
@@ -138,6 +150,7 @@ function ProfileForm({
       initialData?.date.split("T")[0] || new Date().toISOString().split("T")[0],
     isSavings: initialData?.isSavings || false,
     transferPairId: initialData?.transferPairId || null,
+    paymentSourceId: initialData?.paymentSourceId || null,
   });
 
   const handleOnChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -162,20 +175,32 @@ function ProfileForm({
   const [walletCategoryMap, setWalletCategoryMap] = React.useState<
     Map<string, string>
   >(new Map());
+  const [walletDefaultSourceMap, setWalletDefaultSourceMap] = React.useState<
+    Map<string, string | null>
+  >(new Map());
+  const [walletIconsMap, setWalletIconsMap] = React.useState<
+    Map<string, string>
+  >(new Map());
   const [globalBalance, setGlobalBalance] = React.useState(0);
   const [walletBalances, setWalletBalances] = React.useState<
     Map<string, number>
   >(new Map());
+  const [paymentSources, setPaymentSources] = React.useState<
+    { id: string; name: string; icon?: string | null }[]
+  >([]);
+  const [quickAddOpen, setQuickAddOpen] = React.useState(false);
+  const [quickAddName, setQuickAddName] = React.useState("");
 
   useEffect(() => {
     const getCategoryList = async () => {
       try {
-        const [transactionRes, outcomeRes, balanceRes] = await Promise.all([
+        const [transactionRes, outcomeRes, balanceRes, paymentSourceRes] = await Promise.all([
           fetch("/api/transaction/distinct/category", {
             credentials: "include",
           }),
           fetch("/api/monthly-outcome", { credentials: "include" }),
           fetch("/api/monthly-outcome/balance", { credentials: "include" }),
+          fetch("/api/payment-source", { credentials: "include" }),
         ]);
 
         const transactionData = await transactionRes.json();
@@ -193,6 +218,11 @@ function ProfileForm({
           setGlobalBalance(balanceData.global?.balance ?? 0);
         }
 
+        const paymentSourceJson = await paymentSourceRes.json();
+        if (paymentSourceJson.success) {
+          setPaymentSources(paymentSourceJson.data);
+        }
+
         const transactionCats: string[] = transactionData.data || [];
         const outcomeCats: string[] = Array.isArray(outcomeData)
           ? outcomeData.map((o: { category: string }) => o.category)
@@ -207,14 +237,24 @@ function ProfileForm({
         setCategoryList(combined);
 
         const walletMap = new Map<string, string>();
+        const walletDefaultMap = new Map<string, string | null>();
+        const walletIconMap = new Map<string, string>();
         if (Array.isArray(outcomeData)) {
           outcomeData.forEach(
-            (w: { category: string; title: string }) => {
-              if (w.category) walletMap.set(w.category.toLowerCase(), w.title);
+            (w: { category: string; title: string; icon?: string | null; default_payment_source_id?: string | null }) => {
+              if (w.category) {
+                walletMap.set(w.category.toLowerCase(), w.title);
+                if (w.icon) walletIconMap.set(w.category.toLowerCase(), w.icon);
+                if (w.default_payment_source_id) {
+                  walletDefaultMap.set(w.category.toLowerCase(), w.default_payment_source_id);
+                }
+              }
             }
           );
         }
         setWalletCategoryMap(walletMap);
+        setWalletDefaultSourceMap(walletDefaultMap);
+        setWalletIconsMap(walletIconMap);
       } catch {
         // Silently fail
       }
@@ -224,11 +264,17 @@ function ProfileForm({
   }, []);
 
   useEffect(() => {
-    const isWallet = form.category
-      ? walletCategoryMap.has(form.category.toLowerCase())
-      : false;
-    setForm((prev) => ({ ...prev, isSavings: isWallet }));
-  }, [form.category, walletCategoryMap]);
+    const cat = form.category?.toLowerCase();
+    const isWallet = cat ? walletCategoryMap.has(cat) : false;
+    setForm((prev) => {
+      const update: Partial<FormInput> = { isSavings: isWallet };
+      if (isWallet && cat && !prev.paymentSourceId) {
+        const defaultSource = walletDefaultSourceMap.get(cat);
+        if (defaultSource) update.paymentSourceId = defaultSource;
+      }
+      return { ...prev, ...update };
+    });
+  }, [form.category, walletCategoryMap, walletDefaultSourceMap]);
 
   const isWalletCategory = form.category
     ? walletCategoryMap.has(form.category.toLowerCase())
@@ -260,6 +306,7 @@ function ProfileForm({
   }, [maxAmount]);
 
   return (
+    <>
     <form
       className={cn("grid items-start gap-4", className)}
       onSubmit={handleSubmit}
@@ -354,18 +401,17 @@ function ProfileForm({
           </div>
           <div className="grid gap-3">
             <Label htmlFor="category">Category</Label>
-            <ComboboxInput
-              id="category"
-              defaultValue={form.category ?? undefined}
+            <CategoryCombobox
+              value={form.category}
               onChange={(value) => {
-                if (form.transferPairId) return;
-                setForm({
-                  ...form,
-                  category: value,
-                })
+                setForm((prev) => {
+                  if (prev.transferPairId) return prev;
+                  return { ...prev, category: value };
+                });
               }}
-              list={categoryList}
-            ></ComboboxInput>
+              categories={categoryList}
+              walletIcons={walletIconsMap}
+            />
           </div>
           {isWalletCategory && linkedWalletName && !form.transferPairId && (
             <div className="px-3 py-2 bg-blue-50 dark:bg-blue-950 rounded-lg border border-blue-200 dark:border-blue-800 text-sm text-blue-700 dark:text-blue-300">
@@ -383,6 +429,23 @@ function ProfileForm({
               id="notes"
               onChange={handleOnChange}
               value={form?.notes}
+            />
+          </div>
+          <div className="grid gap-3">
+            <Label htmlFor="paymentSourceId">Payment Source</Label>
+            <PaymentSourceCombobox
+              value={form.paymentSourceId || ""}
+              onChange={(id) =>
+                setForm((prev) => ({
+                  ...prev,
+                  paymentSourceId: id || null,
+                }))
+              }
+              sources={paymentSources}
+              onQuickAdd={() => {
+                setQuickAddOpen(true);
+                setQuickAddName("");
+              }}
             />
           </div>
           <div className="grid gap-3">
@@ -410,5 +473,46 @@ function ProfileForm({
       )}
       <Button type="submit" disabled={exceedsBalance}>Save changes</Button>
     </form>
+
+    <AlertDialog open={quickAddOpen} onOpenChange={setQuickAddOpen}>
+      <AlertDialogContent>
+        <form onSubmit={(e) => {
+          e.preventDefault();
+          if (!quickAddName.trim()) return;
+          fetch("/api/payment-source", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name: quickAddName.trim() }),
+          })
+            .then((res) => res.json())
+            .then((json) => {
+              if (json.success) {
+                setPaymentSources((prev) => [...prev, json.data]);
+                setForm((prev) => ({ ...prev, paymentSourceId: json.data.id }));
+                setQuickAddOpen(false);
+                setQuickAddName("");
+              }
+            });
+        }}>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Add Payment Source</AlertDialogTitle>
+            <AlertDialogDescription>Create a new payment source (e.g. BCA, Cash, GoPay).</AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="py-4">
+            <Input
+              placeholder="Source name"
+              value={quickAddName}
+              onChange={(e) => setQuickAddName(e.target.value)}
+              autoFocus
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel type="button">Cancel</AlertDialogCancel>
+            <AlertDialogAction type="submit">Create</AlertDialogAction>
+          </AlertDialogFooter>
+        </form>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }

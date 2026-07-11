@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 export async function POST(req: NextRequest) {
   try {
     const user = await verifyUser(req);
-    const { outcomeId, amount, date } = await req.json();
+    const { outcomeId, amount, date, paymentSourceId } = await req.json();
 
     if (!outcomeId || !amount) {
       return NextResponse.json(
@@ -29,6 +29,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const psId = paymentSourceId || outcome.default_payment_source_id || null;
+
     const transaction = await prisma.transaction.create({
       data: {
         user_id: user.id,
@@ -39,6 +41,7 @@ export async function POST(req: NextRequest) {
         type: "outcome",
         isSavings: true,
         notes: `Auto-generated from monthly outcome: ${outcome.title}`,
+        payment_source_id: psId,
       },
     });
 

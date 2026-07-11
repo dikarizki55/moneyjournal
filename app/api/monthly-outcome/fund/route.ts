@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 export async function POST(req: NextRequest) {
   try {
     const user = await verifyUser(req);
-    const { outcomeId, amount, date } = await req.json();
+    const { outcomeId, amount, date, paymentSourceId } = await req.json();
 
     if (!outcomeId || !amount || Number(amount) <= 0) {
       return NextResponse.json(
@@ -53,6 +53,8 @@ export async function POST(req: NextRequest) {
 
     const pairId = `pair_${crypto.randomUUID()}`;
 
+    const psId = paymentSourceId || outcome.default_payment_source_id || null;
+
     const [incomeTx, outcomeTx] = await prisma.$transaction([
       prisma.transaction.create({
         data: {
@@ -65,6 +67,7 @@ export async function POST(req: NextRequest) {
           transferPairId: pairId,
           date: date ? new Date(date) : new Date(),
           notes: `Funded to ${outcome.title} wallet`,
+          payment_source_id: psId,
         },
       }),
       prisma.transaction.create({
@@ -78,6 +81,7 @@ export async function POST(req: NextRequest) {
           transferPairId: pairId,
           date: date ? new Date(date) : new Date(),
           notes: `Transferred to ${outcome.title} wallet`,
+          payment_source_id: psId,
         },
       }),
     ]);

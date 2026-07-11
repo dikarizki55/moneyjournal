@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 export async function POST(req: NextRequest) {
   try {
     const user = await verifyUser(req);
-    const { outcomeId, amount, date, title } = await req.json();
+    const { outcomeId, amount, date, title, paymentSourceId } = await req.json();
 
     if (!outcomeId || !amount || Number(amount) <= 0) {
       return NextResponse.json(
@@ -25,6 +25,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const psId = paymentSourceId || outcome.default_payment_source_id || null;
+
     const transaction = await prisma.transaction.create({
       data: {
         user_id: user.id,
@@ -35,6 +37,7 @@ export async function POST(req: NextRequest) {
         isSavings: true,
         date: date ? new Date(date) : new Date(),
         notes: `Withdrawn from ${outcome.title} wallet`,
+        payment_source_id: psId,
       },
     });
 

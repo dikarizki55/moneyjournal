@@ -137,7 +137,7 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
 
-    const { title, amount, type, category, notes, date } = body;
+    const { title, amount, type, category, notes, date, paymentSourceId } = body;
 
     let isSavings = body.isSavings ?? false;
 
@@ -164,6 +164,7 @@ export async function POST(req: NextRequest) {
         notes,
         date: date && date.trim() !== "" ? new Date(date) : undefined,
         isSavings,
+        payment_source_id: paymentSourceId || null,
       },
     });
 

@@ -30,6 +30,32 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Checkbox } from "@/components/ui/checkbox";
 
+function PaymentSourceCell({ paymentSourceId }: { paymentSourceId: string | null }) {
+  const [sources, setSources] = useState<Record<string, { name: string; icon?: string | null }>>({});
+
+  useEffect(() => {
+    fetch("/api/payment-source")
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.success) {
+          const map: Record<string, { name: string; icon?: string | null }> = {};
+          json.data.forEach((ps: { id: string; name: string; icon?: string | null }) => {
+            map[ps.id] = ps;
+          });
+          setSources(map);
+        }
+      });
+  }, []);
+
+  if (!paymentSourceId) return <span className="text-muted-foreground text-xs">—</span>;
+  const source = sources[paymentSourceId];
+  return (
+    <span className="text-xs font-medium">
+      {source ? `${source.icon || ""} ${source.name}` : "..."}
+    </span>
+  );
+}
+
 function CategoryHeader() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -208,6 +234,13 @@ export const columns: ColumnDef<transaction>[] = [
     },
   },
   {
+    id: "paymentSource",
+    header: "Source",
+    cell: ({ row }) => (
+      <PaymentSourceCell paymentSourceId={row.original.payment_source_id} />
+    ),
+  },
+  {
     id: "actions",
     header: "Action",
     cell: ({ row }) => {
@@ -286,6 +319,7 @@ function ActionCell({ rawData }: { rawData: transaction }) {
             date: String(rawData.date) || "",
             isSavings: rawData.isSavings || false,
             transferPairId: rawData.transferPairId || null,
+            paymentSourceId: (rawData as any).payment_source_id || null,
           }}
           title="Edit Transaction"
           description="Edit transaction data"

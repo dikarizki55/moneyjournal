@@ -11,7 +11,7 @@ export async function POST(
 
     const { id } = await params;
     const body = await req.json();
-    const { title, amount, type, category, notes, date } = body;
+    const { title, amount, type, category, notes, date, paymentSourceId } = body;
 
     let isSavings = body.isSavings ?? false;
 
@@ -50,6 +50,7 @@ export async function POST(
       updateData.notes = notes ?? existing.notes;
       updateData.date =
         date && date.trim() !== "" ? new Date(date) : existing.date;
+      updateData.payment_source_id = paymentSourceId ?? existing.payment_source_id;
 
       await prisma.$transaction([
         prisma.transaction.update({
@@ -76,6 +77,7 @@ export async function POST(
           notes,
           date: date && date.trim() !== "" ? new Date(date) : undefined,
           isSavings,
+          payment_source_id: paymentSourceId || null,
         },
       });
     }

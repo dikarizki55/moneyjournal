@@ -203,6 +203,10 @@ export default function MobileTransactionList({
               "transferPairId" in editItem
                 ? (editItem as any).transferPairId || null
                 : null,
+            paymentSourceId:
+              "payment_source_id" in editItem
+                ? (editItem as any).payment_source_id || null
+                : null,
           }}
           title="Edit Transaction"
           description="Edit transaction data"
@@ -222,6 +226,7 @@ export default function MobileTransactionList({
               ? -Number(item.amount)
               : Number(item.amount)
           }
+          paymentSourceId={(item as any).payment_source_id}
           selectMode={selectMode}
           selected={selectedIds.has(item.id)}
           onSelectChange={() => toggleSelect(item.id)}

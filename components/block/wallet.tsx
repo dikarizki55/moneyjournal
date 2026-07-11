@@ -3,6 +3,7 @@
 import { ArrowDownCircle, ArrowUpCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { formatRupiah } from "@/app/dashboard/RupiahInput";
+import { DynamicIcon, isValidIcon } from "@/components/ui/icon-picker";
 
 export default function Wallet() {
   const [error, setError] = useState<string | null>(null);
@@ -11,6 +12,12 @@ export default function Wallet() {
   const [rawBalance, setRawBalance] = useState(0);
   const [income, setIncome] = useState(0);
   const [outcome, setOutcome] = useState(0);
+  const [paymentSourceBalances, setPaymentSourceBalances] = useState<
+    Record<string, { name: string; balance: number }>
+  >({});
+  const [paymentSources, setPaymentSources] = useState<
+    { id: string; name: string; icon?: string | null }[]
+  >([]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -49,6 +56,21 @@ export default function Wallet() {
 
         setIncome(resultThisMonth.income);
         setOutcome(resultThisMonth.outcome);
+
+        const [balanceRes, psRes] = await Promise.all([
+          fetch("/api/monthly-outcome/balance", { credentials: "include" }),
+          fetch("/api/payment-source", { credentials: "include" }),
+        ]);
+        const balanceJson = await balanceRes.json();
+        if (balanceJson.success && balanceJson.paymentSourceTotals) {
+          const filtered: Record<string, { name: string; balance: number }> = {};
+          for (const [id, ps] of Object.entries(balanceJson.paymentSourceTotals) as [string, { name: string; balance: number }][]) {
+            if (ps.balance !== 0) filtered[id] = ps;
+          }
+          setPaymentSourceBalances(filtered);
+        }
+        const psJson = await psRes.json();
+        if (psJson.success) setPaymentSources(psJson.data);
       } catch (error) {
         setError(String(error));
       } finally {
@@ -104,6 +126,27 @@ export default function Wallet() {
               </span>
             </div>
           </div>
+          {Object.keys(paymentSourceBalances).length > 0 && (
+            <div className="border-t border-white/20 pt-2 mt-2">
+              <h4 className="font-bold lg:text-sm text-xs opacity-70">By Source</h4>
+              {Object.entries(paymentSourceBalances).map(([id, ps]) => {
+                const src = paymentSources.find(s => s.id === id);
+                return (
+                  <div key={id} className="flex justify-between text-xs mt-1 items-center">
+                    <span className="opacity-60 flex items-center gap-1">
+                      {src?.icon && isValidIcon(src.icon) ? (
+                        <DynamicIcon name={src.icon} className="h-3 w-3" />
+                      ) : null}
+                      {ps.name}
+                    </span>
+                    <span className={ps.balance < 0 ? "text-red-300" : ""}>
+                      {formatRupiah(String(ps.balance))}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
     </div>

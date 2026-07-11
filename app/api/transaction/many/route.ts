@@ -11,6 +11,7 @@ interface TransactionInput {
   date?: string;
   created_at?: string;
   type: TransactionType;
+  paymentSourceId?: string;
 }
 
 export async function POST(req: NextRequest) {
@@ -45,6 +46,7 @@ export async function POST(req: NextRequest) {
       type: data.type,
       isSavings: data.category ? walletCategories.has(data.category.toLowerCase()) : false,
       user_id: user.id,
+      payment_source_id: data.paymentSourceId || null,
     }));
 
     const result = await prisma.transaction.createMany({

@@ -2,6 +2,7 @@ import { columns } from "./columns";
 import { DataTable } from "./data-table";
 import { DrawerDialog } from "./dialog";
 import { Button } from "@/components/ui/button";
+import { CreditCard } from "lucide-react";
 import PaginationComponent from "./paginationComponent";
 import { redirect } from "next/navigation";
 import Link from "next/link";
@@ -161,6 +162,12 @@ const Page = async ({
               description="Make new transaction data"
               apiLink={"/api/transaction"}
             />
+            <Link href={"/dashboard/payment-source"}>
+              <Button variant="outline" size="sm" className="gap-1">
+                <CreditCard size={14} />
+                Sources
+              </Button>
+            </Link>
             <Link href={"/dashboard/transaction/json"}>
               <Button className=" cursor-pointer">add with json</Button>
             </Link>
