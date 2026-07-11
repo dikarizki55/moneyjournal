@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 export async function POST(req: NextRequest) {
   try {
     const user = await verifyUser(req);
-    const { outcomeId, amount, date, title, paymentSourceId } = await req.json();
+    const { outcomeId, amount, date, title, paymentSourceId, notes } = await req.json();
 
     if (!outcomeId || !amount || Number(amount) <= 0) {
       return NextResponse.json(
@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
         type: "outcome",
         isSavings: true,
         date: date ? new Date(date) : new Date(),
-        notes: `Withdrawn from ${outcome.title} wallet`,
+        notes: notes || undefined,
         payment_source_id: psId,
       },
     });

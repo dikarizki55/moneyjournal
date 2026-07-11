@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 export async function POST(req: NextRequest) {
   try {
     const user = await verifyUser(req);
-    const { sourceWalletId, destinationWalletId, amount, date, paymentSourceId } = await req.json();
+    const { sourceWalletId, destinationWalletId, amount, date, paymentSourceId, destinationPaymentSourceId } = await req.json();
 
     if (!sourceWalletId || !destinationWalletId || !amount || Number(amount) <= 0) {
       return NextResponse.json(
@@ -74,7 +74,8 @@ export async function POST(req: NextRequest) {
 
     const pairId = `pair_${crypto.randomUUID()}`;
 
-    const psId = paymentSourceId || sourceWallet.default_payment_source_id || destWallet.default_payment_source_id || null;
+    const outcomePsId = paymentSourceId || sourceWallet.default_payment_source_id || null;
+    const incomePsId = destinationPaymentSourceId || destWallet.default_payment_source_id || outcomePsId;
 
     const [outcomeTx, incomeTx] = await prisma.$transaction([
       prisma.transaction.create({
@@ -88,7 +89,7 @@ export async function POST(req: NextRequest) {
           transferPairId: pairId,
           date: date ? new Date(date) : new Date(),
           notes: `Transferred to ${destWallet.title} wallet`,
-          payment_source_id: psId,
+          payment_source_id: outcomePsId,
         },
       }),
       prisma.transaction.create({
@@ -102,7 +103,7 @@ export async function POST(req: NextRequest) {
           transferPairId: pairId,
           date: date ? new Date(date) : new Date(),
           notes: `Transferred from ${sourceWallet.title} wallet`,
-          payment_source_id: psId,
+          payment_source_id: incomePsId,
         },
       }),
     ]);

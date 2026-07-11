@@ -108,6 +108,10 @@ export default function WalletPage() {
   const [withdrawAmount, setWithdrawAmount] = useState(0);
   const [withdrawTitle, setWithdrawTitle] = useState("");
   const [withdrawPaymentSourceId, setWithdrawPaymentSourceId] = useState("");
+  const [withdrawDate, setWithdrawDate] = useState(
+    new Date().toISOString().split("T")[0],
+  );
+  const [withdrawNotes, setWithdrawNotes] = useState("");
   const [transferDialog, setTransferDialog] = useState<{
     open: boolean;
     source: MonthlyOutcome | null;
@@ -115,6 +119,7 @@ export default function WalletPage() {
   const [transferDestId, setTransferDestId] = useState("");
   const [transferAmount, setTransferAmount] = useState(0);
   const [transferPaymentSourceId, setTransferPaymentSourceId] = useState("");
+  const [transferDestPaymentSourceId, setTransferDestPaymentSourceId] = useState("");
   const [reallocateDialog, setReallocateDialog] = useState<{
     open: boolean;
     outcome: MonthlyOutcome | null;
@@ -347,6 +352,8 @@ export default function WalletPage() {
           amount: withdrawAmount,
           title: withdrawTitle || undefined,
           paymentSourceId: withdrawPaymentSourceId || undefined,
+          date: withdrawDate || undefined,
+          notes: withdrawNotes || undefined,
         }),
       });
 
@@ -385,6 +392,7 @@ export default function WalletPage() {
           destinationWalletId: transferDestId,
           amount: transferAmount,
           paymentSourceId: transferPaymentSourceId || undefined,
+          destinationPaymentSourceId: transferDestPaymentSourceId || undefined,
         }),
       });
 
@@ -394,6 +402,7 @@ export default function WalletPage() {
         setTransferDestId("");
         setTransferAmount(0);
         setTransferPaymentSourceId("");
+        setTransferDestPaymentSourceId("");
         fetchOutcomes();
         fetchBalance();
       } else {
@@ -746,11 +755,47 @@ export default function WalletPage() {
             setWithdrawAmount(0);
             setWithdrawTitle("");
             setWithdrawPaymentSourceId("");
+            setWithdrawDate(new Date().toISOString().split("T")[0]);
+            setWithdrawNotes("");
           }
         }}
         title={`Withdraw from ${withdrawDialog.outcome?.title || ""}`}
       >
         <div className="space-y-4 py-4">
+          {(() => {
+            const walletSources =
+              containerSourceBalances[withdrawDialog.outcome?.id || ""] || {};
+            return (
+              <div className="flex flex-wrap gap-3 p-3 bg-muted rounded-lg text-sm">
+                {paymentSources.map((ps) => {
+                  const bal = walletSources[ps.id]?.balance;
+                  return (
+                    <span
+                      key={ps.id}
+                      className="text-xs flex items-center gap-1"
+                    >
+                      {ps.icon && isValidIcon(ps.icon) ? (
+                        <DynamicIcon
+                          name={ps.icon}
+                          className="h-3 w-3 text-muted-foreground"
+                        />
+                      ) : null}
+                      <span className="text-muted-foreground">{ps.name}:</span>{" "}
+                      <span
+                        className={
+                          bal !== undefined && bal < 0
+                            ? "text-destructive"
+                            : "text-green-600"
+                        }
+                      >
+                        {formatRupiah(String(bal ?? 0))}
+                      </span>
+                    </span>
+                  );
+                })}
+              </div>
+            );
+          })()}
           <div className="space-y-2">
             <Label>Title (optional)</Label>
             <Input
@@ -764,7 +809,15 @@ export default function WalletPage() {
             <PaymentSourceCombobox
               value={withdrawPaymentSourceId}
               onChange={setWithdrawPaymentSourceId}
-              sources={paymentSources}
+              sources={(() => {
+                const walletSources =
+                  containerSourceBalances[withdrawDialog.outcome?.id || ""] ||
+                  {};
+                return paymentSources.map((ps) => ({
+                  ...ps,
+                  balance: walletSources[ps.id]?.balance,
+                }));
+              })()}
               onQuickAdd={() => {
                 setQuickAddOpen(true);
                 setQuickAddName("");
@@ -773,16 +826,49 @@ export default function WalletPage() {
             />
           </div>
           <div className="space-y-2">
+            <Label>Date</Label>
+            <Input
+              type="date"
+              value={withdrawDate}
+              onChange={(e) => setWithdrawDate(e.target.value)}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Notes (optional)</Label>
+            <textarea
+              placeholder="Add notes..."
+              className="flex min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              value={withdrawNotes}
+              onChange={(e) => setWithdrawNotes(e.target.value)}
+            />
+          </div>
+          <div className="space-y-2">
             <Label>Amount to withdraw</Label>
             <RupiahInput
               value={withdrawAmount}
               onChange={(val) => setWithdrawAmount(val || 0)}
+              max={
+                withdrawPaymentSourceId
+                  ? (containerSourceBalances[
+                      withdrawDialog.outcome?.id || ""
+                    ]?.[withdrawPaymentSourceId]?.balance ?? 0)
+                  : undefined
+              }
             />
           </div>
           <Button
             onClick={handleWithdraw}
             className="w-full"
-            disabled={isSubmitting || withdrawAmount <= 0}
+            disabled={
+              isSubmitting ||
+              withdrawAmount <= 0 ||
+              (withdrawPaymentSourceId
+                ? withdrawAmount >
+                  (containerSourceBalances[
+                    withdrawDialog.outcome?.id || ""
+                  ]?.[withdrawPaymentSourceId]?.balance ?? 0)
+                : false)
+            }
           >
             {isSubmitting ? <Loader2 className="animate-spin" /> : "Withdraw"}
           </Button>
@@ -797,23 +883,60 @@ export default function WalletPage() {
             setTransferDestId("");
             setTransferAmount(0);
             setTransferPaymentSourceId("");
+            setTransferDestPaymentSourceId("");
           }
         }}
         title={`Transfer from ${transferDialog.source?.title || ""}`}
       >
         <div className="space-y-4 py-4">
-          <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
-            <span className="text-sm font-medium">Source Balance</span>
-            <span className="text-sm font-bold">
-              {formatRupiah(String(transferDialog.source?.balance || 0))}
-            </span>
-          </div>
+          {(() => {
+            const walletSources =
+              containerSourceBalances[transferDialog.source?.id || ""] || {};
+            return (
+              <div className="flex flex-wrap gap-3 p-3 bg-muted rounded-lg text-sm">
+                {paymentSources.map((ps) => {
+                  const bal = walletSources[ps.id]?.balance;
+                  return (
+                    <span
+                      key={ps.id}
+                      className="text-xs flex items-center gap-1"
+                    >
+                      {ps.icon && isValidIcon(ps.icon) ? (
+                        <DynamicIcon
+                          name={ps.icon}
+                          className="h-3 w-3 text-muted-foreground"
+                        />
+                      ) : null}
+                      <span className="text-muted-foreground">{ps.name}:</span>{" "}
+                      <span
+                        className={
+                          bal !== undefined && bal < 0
+                            ? "text-destructive"
+                            : "text-green-600"
+                        }
+                      >
+                        {formatRupiah(String(bal ?? 0))}
+                      </span>
+                    </span>
+                  );
+                })}
+              </div>
+            );
+          })()}
           <div className="space-y-2">
             <Label>Payment Source</Label>
             <PaymentSourceCombobox
               value={transferPaymentSourceId}
               onChange={setTransferPaymentSourceId}
-              sources={paymentSources}
+              sources={(() => {
+                const walletSources =
+                  containerSourceBalances[transferDialog.source?.id || ""] ||
+                  {};
+                return paymentSources.map((ps) => ({
+                  ...ps,
+                  balance: walletSources[ps.id]?.balance,
+                }));
+              })()}
               onQuickAdd={() => {
                 setQuickAddOpen(true);
                 setQuickAddName("");
@@ -839,19 +962,48 @@ export default function WalletPage() {
             </select>
           </div>
           <div className="space-y-2">
+            <Label>Destination Source</Label>
+            <PaymentSourceCombobox
+              value={transferDestPaymentSourceId}
+              onChange={setTransferDestPaymentSourceId}
+              sources={paymentSources}
+              onQuickAdd={() => {
+                setQuickAddOpen(true);
+                setQuickAddName("");
+                setQuickAddTarget("transferDest");
+              }}
+            />
+          </div>
+          <div className="space-y-2">
             <label className="text-sm font-medium">Amount</label>
             <RupiahInput
               value={transferAmount}
               onChange={(val) => setTransferAmount(val || 0)}
-              max={transferDialog.source?.balance || 0}
+              max={
+                transferPaymentSourceId
+                  ? (containerSourceBalances[
+                      transferDialog.source?.id || ""
+                    ]?.[transferPaymentSourceId]?.balance ?? 0)
+                  : undefined
+              }
             />
           </div>
-          {transferAmount > (transferDialog.source?.balance || 0) && (
-            <p className="text-sm text-destructive font-medium">
-              Insufficient balance. Max transfer:{" "}
-              {formatRupiah(String(transferDialog.source?.balance || 0))}
-            </p>
-          )}
+          {transferPaymentSourceId &&
+            transferAmount >
+              (containerSourceBalances[transferDialog.source?.id || ""]?.[
+                transferPaymentSourceId
+              ]?.balance ?? 0) && (
+              <p className="text-sm text-destructive font-medium">
+                Insufficient balance in this source. Max transfer:{" "}
+                {formatRupiah(
+                  String(
+                    containerSourceBalances[
+                      transferDialog.source?.id || ""
+                    ]?.[transferPaymentSourceId]?.balance ?? 0,
+                  ),
+                )}
+              </p>
+            )}
           <Button
             onClick={handleTransfer}
             className="w-full"
@@ -859,7 +1011,12 @@ export default function WalletPage() {
               isSubmitting ||
               transferAmount <= 0 ||
               !transferDestId ||
-              transferAmount > (transferDialog.source?.balance || 0)
+              (transferPaymentSourceId
+                ? transferAmount >
+                  (containerSourceBalances[
+                    transferDialog.source?.id || ""
+                  ]?.[transferPaymentSourceId]?.balance ?? 0)
+                : false)
             }
           >
             {isSubmitting ? <Loader2 className="animate-spin" /> : "Transfer"}
@@ -959,9 +1116,7 @@ export default function WalletPage() {
                 reallocateFrom
                   ? (containerSourceBalances[
                       reallocateDialog.outcome?.id || ""
-                    ]?.[reallocateFrom]?.balance ??
-                    reallocateDialog.outcome?.balance ??
-                    0)
+                    ]?.[reallocateFrom]?.balance ?? 0)
                   : undefined
               }
             />
@@ -1284,6 +1439,8 @@ export default function WalletPage() {
                       setWithdrawPaymentSourceId(newId);
                     else if (quickAddTarget === "transfer")
                       setTransferPaymentSourceId(newId);
+                    else if (quickAddTarget === "transferDest")
+                      setTransferDestPaymentSourceId(newId);
                     else if (quickAddTarget === "walletAdd")
                       setNewOutcome((prev) => ({
                         ...prev,
