@@ -33,11 +33,16 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const existingCount = await prisma.paymentSource.count({
+      where: { user_id: user.id, deleted_at: null },
+    });
+
     const source = await prisma.paymentSource.create({
       data: {
         user_id: user.id,
         name: name.trim(),
         icon: icon || null,
+        default: existingCount === 0,
       },
     });
 

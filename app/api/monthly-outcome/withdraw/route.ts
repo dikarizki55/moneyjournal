@@ -27,6 +27,33 @@ export async function POST(req: NextRequest) {
 
     const psId = paymentSourceId || outcome.default_payment_source_id || null;
 
+    const allSavingsTx = await prisma.transaction.findMany({
+      where: {
+        user_id: user.id,
+        isSavings: true,
+        deleted_at: null,
+        category: outcome.category,
+      },
+      select: { amount: true, type: true, payment_source_id: true },
+    });
+
+    const sourceBalances: Record<string, number> = {};
+    for (const tx of allSavingsTx) {
+      const sid = tx.payment_source_id;
+      if (!sid) continue;
+      if (!sourceBalances[sid]) sourceBalances[sid] = 0;
+      sourceBalances[sid] += tx.type === "income" ? Number(tx.amount) : -Number(tx.amount);
+    }
+
+    const availableBalance = psId ? (sourceBalances[psId] ?? 0) : allSavingsTx.reduce((sum, t) => sum + (t.type === "income" ? Number(t.amount) : -Number(t.amount)), 0);
+
+    if (Number(amount) > availableBalance) {
+      return NextResponse.json(
+        { message: "Insufficient balance in this payment source for withdrawal" },
+        { status: 400 }
+      );
+    }
+
     const transaction = await prisma.transaction.create({
       data: {
         user_id: user.id,

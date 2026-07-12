@@ -50,31 +50,41 @@ export async function POST(req: NextRequest) {
         isSavings: true,
         deleted_at: null,
       },
-      select: { amount: true, category: true, type: true },
+      select: { amount: true, category: true, type: true, payment_source_id: true },
     });
 
     const sourceTx = allSavingsTx.filter(
       (t) => t.category?.toLowerCase() === sourceWallet.category?.toLowerCase()
     );
 
-    const sourceBalance =
-      sourceTx
-        .filter((t) => t.type === "income")
-        .reduce((sum, t) => sum + Number(t.amount), 0) -
+    const outcomePsId = paymentSourceId || sourceWallet.default_payment_source_id || null;
+
+    const sourceSourceBalances: Record<string, number> = {};
+    for (const tx of sourceTx) {
+      const sid = tx.payment_source_id;
+      if (!sid) continue;
+      if (!sourceSourceBalances[sid]) sourceSourceBalances[sid] = 0;
+      sourceSourceBalances[sid] += tx.type === "income" ? Number(tx.amount) : -Number(tx.amount);
+    }
+
+    const sourceBalance = sourceTx
+      .filter((t) => t.type === "income")
+      .reduce((sum, t) => sum + Number(t.amount), 0) -
       sourceTx
         .filter((t) => t.type === "outcome")
         .reduce((sum, t) => sum + Number(t.amount), 0);
 
-    if (Number(amount) > sourceBalance) {
+    const availableSourceBalance = outcomePsId ? (sourceSourceBalances[outcomePsId] ?? 0) : sourceBalance;
+
+    if (Number(amount) > availableSourceBalance) {
       return NextResponse.json(
-        { message: `Insufficient balance in ${sourceWallet.title}. Available: Rp ${sourceBalance.toLocaleString()}` },
+        { message: `Insufficient balance in ${sourceWallet.title} for this payment source. Available: Rp ${availableSourceBalance.toLocaleString()}` },
         { status: 400 }
       );
     }
 
     const pairId = `pair_${crypto.randomUUID()}`;
 
-    const outcomePsId = paymentSourceId || sourceWallet.default_payment_source_id || null;
     const incomePsId = destinationPaymentSourceId || destWallet.default_payment_source_id || outcomePsId;
 
     const [outcomeTx, incomeTx] = await prisma.$transaction([

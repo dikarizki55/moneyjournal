@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
+import { motion, useMotionValue, animate } from "framer-motion";
 import { Checkbox } from "@/components/ui/checkbox";
 import { formatRupiah } from "@/app/dashboard/RupiahInput";
 import { DynamicIcon, isValidIcon } from "@/components/ui/icon-picker";
@@ -28,6 +28,8 @@ export default function TransactionCard({
   onClick,
   onDelete,
   swipeActions,
+  toleranceOpen = 40,
+  toleranceClose = 40,
 }: {
   icon: string;
   title: string;
@@ -41,20 +43,27 @@ export default function TransactionCard({
   onClick?: () => void;
   onDelete?: () => void;
   swipeActions?: { label: string; onClick: () => void }[];
+  toleranceOpen?: number;
+  toleranceClose?: number;
 }) {
-  const [paymentSourceName, setPaymentSourceName] = useState<string | null>(null);
+  const [paymentSource, setPaymentSource] = useState<{
+    icon: string;
+    name: string;
+  } | null>(null);
 
   useEffect(() => {
     if (!paymentSourceId) {
-      setPaymentSourceName(null);
+      setPaymentSource(null);
       return;
     }
     fetch("/api/payment-source")
       .then((res) => res.json())
       .then((json) => {
         if (json.success) {
-          const ps = json.data.find((s: { id: string }) => s.id === paymentSourceId);
-          if (ps) setPaymentSourceName(ps.icon ? `${ps.icon} ${ps.name}` : ps.name);
+          const ps = json.data.find(
+            (s: { id: string }) => s.id === paymentSourceId,
+          );
+          if (ps) setPaymentSource({ icon: ps.icon, name: ps.name });
         }
       });
   }, [paymentSourceId]);
@@ -68,12 +77,26 @@ export default function TransactionCard({
   const actions =
     swipeActions ?? (onDelete ? [{ label: "Delete", onClick: onDelete }] : []);
   const swipeWidth = actions.length * 80;
+  const x = useMotionValue(0);
 
-  const handleSwipeEnd = (_: any, info: { offset: { x: number } }) => {
-    if (info.offset.x < -40) {
-      setShowActions(true);
+  const handleSwipeEnd = (
+    _: any,
+    info: { offset: { x: number }; velocity: { x: number } },
+  ) => {
+    if (showActions) {
+      if (info.offset.x > toleranceClose || info.velocity.x > 500) {
+        setShowActions(false);
+        animate(x, 0, { type: "spring", stiffness: 500, damping: 40 });
+      } else {
+        animate(x, -swipeWidth, { type: "spring", stiffness: 500, damping: 40 });
+      }
     } else {
-      setShowActions(false);
+      if (info.offset.x < -toleranceOpen || info.velocity.x < -500) {
+        setShowActions(true);
+        animate(x, -swipeWidth, { type: "spring", stiffness: 500, damping: 40 });
+      } else {
+        animate(x, 0, { type: "spring", stiffness: 500, damping: 40 });
+      }
     }
   };
 
@@ -93,10 +116,12 @@ export default function TransactionCard({
           dragConstraints={{ left: -swipeWidth, right: 0 }}
           dragElastic={0.2}
           onDragEnd={handleSwipeEnd}
-          animate={{ x: showActions ? -swipeWidth : 0 }}
-          transition={{ type: "spring", stiffness: 300, damping: 30 }}
+          style={{ x }}
           onClick={() => {
-            if (showActions) setShowActions(false);
+            if (showActions) {
+              animate(x, 0, { type: "spring", stiffness: 500, damping: 40 });
+              setShowActions(false);
+            }
           }}
         >
           <div className="w-full shrink-0">
@@ -135,8 +160,21 @@ export default function TransactionCard({
                 </div>
                 <div className="flex flex-col gap-1 w-full min-w-0">
                   <div className="flex justify-between w-full gap-2">
-                    <div className="truncate font-medium">
+                    <div className="truncate font-medium flex gap-2">
                       {category || title}
+                      {paymentSource && (
+                        <span className="text-[10px] text-muted-foreground/50 mt-0.5 flex items-center gap-1">
+                          {isValidIcon(paymentSource.icon) ? (
+                            <DynamicIcon
+                              name={paymentSource.icon}
+                              className="h-3 w-3"
+                            />
+                          ) : (
+                            <span>{paymentSource.icon}</span>
+                          )}
+                          {paymentSource.name}
+                        </span>
+                      )}
                     </div>
                     <div
                       className={`shrink-0 font-semibold ${
@@ -155,11 +193,6 @@ export default function TransactionCard({
                       </span>
                     )}
                   </p>
-                  {paymentSourceName && (
-                    <span className="text-[10px] text-muted-foreground/50 mt-0.5">
-                      {paymentSourceName}
-                    </span>
-                  )}
                 </div>
               </div>
             </div>

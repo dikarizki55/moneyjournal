@@ -13,8 +13,8 @@ export default function Wallet() {
   const [income, setIncome] = useState(0);
   const [outcome, setOutcome] = useState(0);
   const [paymentSourceBalances, setPaymentSourceBalances] = useState<
-    Record<string, { name: string; balance: number }>
-  >({});
+    { uuid: string; paymentSource: string; icon: string | null; amount: number }[]
+  >([]);
   const [paymentSources, setPaymentSources] = useState<
     { id: string; name: string; icon?: string | null }[]
   >([]);
@@ -23,9 +23,12 @@ export default function Wallet() {
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        const res = await fetch("/api/transaction/summary?group=type&excludeSavings=true", {
-          credentials: "include",
-        });
+        const res = await fetch(
+          "/api/transaction/summary?group=type&excludeSavings=true",
+          {
+            credentials: "include",
+          },
+        );
         const data = await res.json();
 
         const result: Record<string, number> = {};
@@ -33,7 +36,7 @@ export default function Wallet() {
           (item: { type: string; _sum: { amount: string } }) => {
             if (!result[item.type]) result[item.type] = 0;
             result[item.type] += Number(item._sum.amount);
-          }
+          },
         );
         const bal = result.income - result.outcome;
         setRawBalance(bal);
@@ -43,7 +46,7 @@ export default function Wallet() {
           "/api/transaction/summary/thismonth?excludeSavings=true",
           {
             credentials: "include",
-          }
+          },
         ).then((res) => res.json());
 
         const resultThisMonth: Record<string, number> = {};
@@ -51,7 +54,7 @@ export default function Wallet() {
           (item: { type: string; _sum: { amount: string } }) => {
             if (!resultThisMonth[item.type]) resultThisMonth[item.type] = 0;
             resultThisMonth[item.type] += Number(item._sum.amount);
-          }
+          },
         );
 
         setIncome(resultThisMonth.income);
@@ -63,10 +66,9 @@ export default function Wallet() {
         ]);
         const balanceJson = await balanceRes.json();
         if (balanceJson.success && balanceJson.paymentSourceTotals) {
-          const filtered: Record<string, { name: string; balance: number }> = {};
-          for (const [id, ps] of Object.entries(balanceJson.paymentSourceTotals) as [string, { name: string; balance: number }][]) {
-            if (ps.balance !== 0) filtered[id] = ps;
-          }
+          const filtered = balanceJson.paymentSourceTotals.filter(
+            (item: { uuid: string; paymentSource: string; icon: string | null; amount: number }) => item.amount !== 0
+          );
           setPaymentSourceBalances(filtered);
         }
         const psJson = await psRes.json();
@@ -126,21 +128,21 @@ export default function Wallet() {
               </span>
             </div>
           </div>
-          {Object.keys(paymentSourceBalances).length > 0 && (
+          {paymentSourceBalances.length > 0 && (
             <div className="border-t border-white/20 pt-2 mt-2">
               <h4 className="font-bold lg:text-sm text-xs opacity-70">By Source</h4>
-              {Object.entries(paymentSourceBalances).map(([id, ps]) => {
-                const src = paymentSources.find(s => s.id === id);
+              {paymentSourceBalances.map((item) => {
+                const src = paymentSources.find(s => s.id === item.uuid);
                 return (
-                  <div key={id} className="flex justify-between text-xs mt-1 items-center">
+                  <div key={item.uuid} className="flex justify-between text-xs mt-1 items-center">
                     <span className="opacity-60 flex items-center gap-1">
                       {src?.icon && isValidIcon(src.icon) ? (
                         <DynamicIcon name={src.icon} className="h-3 w-3" />
                       ) : null}
-                      {ps.name}
+                      {item.paymentSource}
                     </span>
-                    <span className={ps.balance < 0 ? "text-red-300" : ""}>
-                      {formatRupiah(String(ps.balance))}
+                    <span className={item.amount < 0 ? "text-red-300" : ""}>
+                      {formatRupiah(String(item.amount))}
                     </span>
                   </div>
                 );

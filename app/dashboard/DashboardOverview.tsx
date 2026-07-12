@@ -36,7 +36,7 @@ interface BalanceData {
   };
   containers: ContainerData[];
   totalNetWorth: number;
-  paymentSourceTotals?: Record<string, PaymentSourceBalance>;
+  paymentSourceTotals?: { uuid: string; paymentSource: string; icon: string | null; amount: number }[];
 }
 
 export default function DashboardOverview() {
@@ -135,22 +135,22 @@ export default function DashboardOverview() {
             </div>
           </div>
         </div>
-        {data.paymentSourceTotals && Object.keys(data.paymentSourceTotals).length > 0 && (
+        {data.paymentSourceTotals && data.paymentSourceTotals.length > 0 && (
           <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            {Object.entries(data.paymentSourceTotals).map(([id, ps]) => {
-              const src = paymentSources.find(s => s.id === id);
+            {data.paymentSourceTotals.map((item) => {
+              const src = paymentSources.find(s => s.id === item.uuid);
               return (
-                <div key={id} className="p-3 bg-white/5 rounded-xl">
+                <div key={item.uuid} className="p-3 bg-white/5 rounded-xl">
                   <div className="text-xs text-white/70 mb-0.5 flex items-center gap-1.5">
                     {src?.icon && isValidIcon(src.icon) ? (
                       <DynamicIcon name={src.icon} className="h-3.5 w-3.5" />
                     ) : (
                       <CreditCard className="h-3.5 w-3.5" />
                     )}
-                    {ps.name}
+                    {item.paymentSource}
                   </div>
-                  <div className={`text-lg font-bold ${ps.balance < 0 ? "text-red-300" : ""}`}>
-                    {formatRupiah(String(ps.balance))}
+                  <div className={`text-lg font-bold ${item.amount < 0 ? "text-red-300" : ""}`}>
+                    {formatRupiah(String(item.amount))}
                   </div>
                 </div>
               );

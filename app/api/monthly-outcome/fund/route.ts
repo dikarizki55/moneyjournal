@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 export async function POST(req: NextRequest) {
   try {
     const user = await verifyUser(req);
-    const { outcomeId, amount, date, paymentSourceId } = await req.json();
+    const { outcomeId, amount, date, paymentSourceId, destinationPaymentSourceId } = await req.json();
 
     if (!outcomeId || !amount || Number(amount) <= 0) {
       return NextResponse.json(
@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
         isSavings: false,
         deleted_at: null,
       },
-      select: { amount: true, type: true },
+      select: { amount: true, type: true, payment_source_id: true },
     });
 
     const globalIncome = allNonSavingsTx
@@ -42,18 +42,29 @@ export async function POST(req: NextRequest) {
       .filter((t) => t.type === "outcome")
       .reduce((sum, t) => sum + Number(t.amount), 0);
 
-    const currentBalance = globalIncome - globalOutcome;
+    const totalBalance = globalIncome - globalOutcome;
 
-    if (Number(amount) > currentBalance) {
+    const sourceBalances: Record<string, number> = {};
+    for (const tx of allNonSavingsTx) {
+      const psId = tx.payment_source_id;
+      if (!psId) continue;
+      if (!sourceBalances[psId]) sourceBalances[psId] = 0;
+      sourceBalances[psId] += tx.type === "income" ? Number(tx.amount) : -Number(tx.amount);
+    }
+
+    const sourcePsId = paymentSourceId || outcome.default_payment_source_id || null;
+    const availableBalance = sourcePsId ? (sourceBalances[sourcePsId] ?? 0) : totalBalance;
+
+    if (Number(amount) > availableBalance) {
       return NextResponse.json(
-        { message: "Insufficient global balance to fund this wallet" },
+        { message: "Insufficient balance in this payment source to fund this wallet" },
         { status: 400 }
       );
     }
 
-    const pairId = `pair_${crypto.randomUUID()}`;
+    const destPsId = destinationPaymentSourceId || outcome.default_payment_source_id || sourcePsId;
 
-    const psId = paymentSourceId || outcome.default_payment_source_id || null;
+    const pairId = `pair_${crypto.randomUUID()}`;
 
     const [incomeTx, outcomeTx] = await prisma.$transaction([
       prisma.transaction.create({
@@ -67,7 +78,7 @@ export async function POST(req: NextRequest) {
           transferPairId: pairId,
           date: date ? new Date(date) : new Date(),
           notes: `Funded to ${outcome.title} wallet`,
-          payment_source_id: psId,
+          payment_source_id: destPsId,
         },
       }),
       prisma.transaction.create({
@@ -81,7 +92,7 @@ export async function POST(req: NextRequest) {
           transferPairId: pairId,
           date: date ? new Date(date) : new Date(),
           notes: `Transferred to ${outcome.title} wallet`,
-          payment_source_id: psId,
+          payment_source_id: sourcePsId,
         },
       }),
     ]);

@@ -8,7 +8,7 @@ const page = async () => {
   return (
     <div className="p-5 w-full flex flex-col gap-4 pb-10 relative">
       <DashboardOverview />
-      <Wallet></Wallet>
+      {/* <Wallet></Wallet> */}
       <div className=" flex lg:flex-row flex-col gap-4">
         <div className=" w-full lg:w-1/2">
           <MonthlyBar />

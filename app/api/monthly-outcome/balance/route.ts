@@ -157,7 +157,7 @@ export async function GET(req: NextRequest) {
         COALESCE(CAST(SUM(CASE WHEN t.type = 'income' THEN t.amount ELSE -t.amount END) AS DOUBLE PRECISION), 0) AS amount
       FROM "moneyjournal".payment_source ps
       LEFT JOIN "moneyjournal".transaction t
-        ON t.payment_source_id = ps.id AND t.deleted_at IS NULL AND t.user_id = ${user.id} AND t."isSavings" = true
+        ON t.payment_source_id = ps.id AND t.deleted_at IS NULL AND t.user_id = ${user.id}
       WHERE ps.user_id = ${user.id} AND ps.deleted_at IS NULL
       GROUP BY ps.id, ps.name, ps.icon
       ORDER BY ps.name ASC

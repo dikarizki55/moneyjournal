@@ -69,6 +69,9 @@ interface MonthlyOutcome {
 export default function WalletPage() {
   const [outcomes, setOutcomes] = useState<MonthlyOutcome[]>([]);
   const [globalBalance, setGlobalBalance] = useState(0);
+  const [globalPaymentSourceBalances, setGlobalPaymentSourceBalances] = useState<
+    Record<string, { name: string; balance: number }>
+  >({});
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [paymentSources, setPaymentSources] = useState<
@@ -102,6 +105,7 @@ export default function WalletPage() {
   }>({ open: false, outcome: null });
   const [fundAmount, setFundAmount] = useState(0);
   const [fundPaymentSourceId, setFundPaymentSourceId] = useState("");
+  const [fundDestinationPaymentSourceId, setFundDestinationPaymentSourceId] = useState("");
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [quickAddName, setQuickAddName] = useState("");
   const [quickAddTarget, setQuickAddTarget] = useState<string | null>(null);
@@ -178,6 +182,9 @@ export default function WalletPage() {
       const data = await res.json();
       if (data.success) {
         setGlobalBalance(data.global.balance);
+        if (data.global.paymentSourceBalances) {
+          setGlobalPaymentSourceBalances(data.global.paymentSourceBalances);
+        }
         if (data.paymentSourceTotals) {
           setPaymentSourceTotals(data.paymentSourceTotals);
         }
@@ -316,6 +323,7 @@ export default function WalletPage() {
           outcomeId: fundDialog.outcome.id,
           amount: fundAmount,
           paymentSourceId: fundPaymentSourceId || undefined,
+          destinationPaymentSourceId: fundDestinationPaymentSourceId || undefined,
         }),
       });
 
@@ -324,6 +332,7 @@ export default function WalletPage() {
         setFundDialog({ open: false, outcome: null });
         setFundAmount(0);
         setFundPaymentSourceId("");
+        setFundDestinationPaymentSourceId("");
         fetchOutcomes();
         fetchBalance();
       } else {
@@ -550,13 +559,13 @@ export default function WalletPage() {
                 <label className="text-sm font-medium">
                   Default Payment Source
                 </label>
-                <PaymentSourceCombobox
-                  value={newOutcome.defaultPaymentSourceId}
-                  onChange={(id) =>
-                    setNewOutcome({ ...newOutcome, defaultPaymentSourceId: id })
-                  }
-                  sources={paymentSources}
-                  onQuickAdd={() => {
+                  <PaymentSourceCombobox
+                    value={newOutcome.defaultPaymentSourceId}
+                    onChange={(id) =>
+                      setNewOutcome({ ...newOutcome, defaultPaymentSourceId: id })
+                    }
+                    sources={paymentSources}
+                    onQuickAdd={() => {
                     setQuickAddOpen(true);
                     setQuickAddName("");
                     setQuickAddTarget("walletAdd");
@@ -682,25 +691,37 @@ export default function WalletPage() {
             setFundDialog({ open: false, outcome: null });
             setFundAmount(0);
             setFundPaymentSourceId("");
+            setFundDestinationPaymentSourceId("");
           }
         }}
         title={`Fund ${fundDialog.outcome?.title || ""}`}
       >
         <div className="space-y-4 py-4">
-          <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
-            <span className="text-sm font-medium">Global Balance</span>
-            <span
-              className={`text-sm font-bold ${globalBalance < 0 ? "text-destructive" : "text-green-600"}`}
-            >
-              {formatRupiah(String(globalBalance))}
-            </span>
+          <div className="flex flex-wrap gap-3 p-3 bg-muted rounded-lg text-sm">
+            {paymentSources.map((ps) => {
+              const bal = globalPaymentSourceBalances[ps.id]?.balance ?? 0;
+              return (
+                <span key={ps.id} className="text-xs flex items-center gap-1">
+                  {ps.icon && isValidIcon(ps.icon) ? (
+                    <DynamicIcon name={ps.icon} className="h-3 w-3 text-muted-foreground" />
+                  ) : null}
+                  <span className="text-muted-foreground">{ps.name}:</span>{" "}
+                  <span className={bal < 0 ? "text-destructive" : "text-green-600"}>
+                    {formatRupiah(String(bal))}
+                  </span>
+                </span>
+              );
+            })}
           </div>
           <div className="space-y-2">
             <Label>Payment Source</Label>
             <PaymentSourceCombobox
               value={fundPaymentSourceId}
               onChange={setFundPaymentSourceId}
-              sources={paymentSources}
+              sources={paymentSources.map((ps) => ({
+                ...ps,
+                balance: globalPaymentSourceBalances[ps.id]?.balance ?? 0,
+              }))}
               onQuickAdd={() => {
                 setQuickAddOpen(true);
                 setQuickAddName("");
@@ -709,23 +730,55 @@ export default function WalletPage() {
             />
           </div>
           <div className="space-y-2">
+            <Label>Destination Source</Label>
+            <PaymentSourceCombobox
+              value={fundDestinationPaymentSourceId}
+              onChange={setFundDestinationPaymentSourceId}
+              sources={(() => {
+                const walletSources =
+                  containerSourceBalances[fundDialog.outcome?.id || ""] || {};
+                return paymentSources.map((ps) => ({
+                  ...ps,
+                  balance: walletSources[ps.id]?.balance,
+                }));
+              })()}
+              placeholder="Select destination source..."
+              onQuickAdd={() => {
+                setQuickAddOpen(true);
+                setQuickAddName("");
+                setQuickAddTarget("fundDest");
+              }}
+            />
+          </div>
+          <div className="space-y-2">
             <Label>Amount to add</Label>
             <RupiahInput
               value={fundAmount}
               onChange={(val) => setFundAmount(val || 0)}
-              max={Math.max(0, globalBalance)}
+              max={
+                fundPaymentSourceId
+                  ? Math.max(0, globalPaymentSourceBalances[fundPaymentSourceId]?.balance ?? 0)
+                  : Math.max(0, globalBalance)
+              }
             />
           </div>
           <p className="text-sm text-muted-foreground">
             This will move money from your global balance to this wallet.
           </p>
-          {fundAmount > globalBalance && globalBalance > 0 && (
-            <p className="text-sm text-destructive font-medium">
-              Insufficient balance. You can fund up to{" "}
-              {formatRupiah(String(globalBalance))}.
-            </p>
-          )}
-          {globalBalance <= 0 && (
+          {fundPaymentSourceId
+            ? fundAmount > (globalPaymentSourceBalances[fundPaymentSourceId]?.balance ?? 0) && (
+                <p className="text-sm text-destructive font-medium">
+                  Insufficient balance in this source. Available:{" "}
+                  {formatRupiah(String(globalPaymentSourceBalances[fundPaymentSourceId]?.balance ?? 0))}.
+                </p>
+              )
+            : fundAmount > globalBalance && globalBalance > 0 && (
+                <p className="text-sm text-destructive font-medium">
+                  Insufficient balance. You can fund up to{" "}
+                  {formatRupiah(String(globalBalance))}.
+                </p>
+              )}
+          {!fundPaymentSourceId && globalBalance <= 0 && (
             <p className="text-sm text-destructive font-medium">
               Your global balance is empty or negative. Add income before
               funding wallets.
@@ -735,7 +788,11 @@ export default function WalletPage() {
             onClick={handleFund}
             className="w-full"
             disabled={
-              isSubmitting || fundAmount <= 0 || fundAmount > globalBalance
+              isSubmitting ||
+              fundAmount <= 0 ||
+              (fundPaymentSourceId
+                ? fundAmount > (globalPaymentSourceBalances[fundPaymentSourceId]?.balance ?? 0)
+                : fundAmount > globalBalance)
             }
           >
             {isSubmitting ? (
@@ -1435,6 +1492,8 @@ export default function WalletPage() {
                     const newId = json.data.id;
                     if (quickAddTarget === "fund")
                       setFundPaymentSourceId(newId);
+                    else if (quickAddTarget === "fundDest")
+                      setFundDestinationPaymentSourceId(newId);
                     else if (quickAddTarget === "withdraw")
                       setWithdrawPaymentSourceId(newId);
                     else if (quickAddTarget === "transfer")
