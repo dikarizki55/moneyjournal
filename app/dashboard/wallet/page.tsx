@@ -17,6 +17,7 @@ import {
   TrendingDown,
   ArrowLeftRight,
   CreditCard,
+  List,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Progress } from "@/components/ui/progress";
@@ -1462,6 +1463,14 @@ export default function WalletPage() {
                         <ArrowLeftRight className="w-4 h-4 mr-1" />
                         Move
                       </Button>
+                      <Link
+                        href={`/dashboard/transaction?categories=${encodeURIComponent(outcome.category)}`}
+                      >
+                        <Button variant="outline" size="sm">
+                          <List className="w-4 h-4 mr-1" />
+                          Transactions
+                        </Button>
+                      </Link>
                     </div>
                   </div>
                 </CardContent>

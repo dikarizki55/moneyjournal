@@ -9,6 +9,7 @@ import Link from "next/link";
 import ChatgptIcon from "@/components/icon/chatgptIcon";
 import { DashboardDateFilter } from "../DashboardDateFilter";
 import { HideTransferToggle } from "./hide-transfer-toggle";
+import { CategoryFilter } from "./category-filter";
 import { verifyUserServer } from "@/lib/verifyuser";
 import { Prisma } from "@prisma/client";
 import prisma from "@/prisma";
@@ -175,11 +176,12 @@ const Page = async ({
 
           <div className="flex flex-col md:flex-row items-center gap-4">
             <DashboardDateFilter showSearch />
+            <CategoryFilter />
             <HideTransferToggle />
           </div>
         </div>
 
-        <div className="fixed z-100 lg:bottom-15 lg:right-15 bottom-20 right-5">
+        {/* <div className="fixed z-100 lg:bottom-15 lg:right-15 bottom-20 right-5">
           <div>
             <Link href="/dashboard/transaction/ai">
               <div className=" bg-primary rounded-full text-secondary  flex flex-col justify-center items-center p-3 font-bold">
@@ -187,7 +189,7 @@ const Page = async ({
               </div>
             </Link>
           </div>
-        </div>
+        </div> */}
         <div className="lg:hidden flex flex-col gap-5">
           <MobileTransactionList data={data} />
         </div>

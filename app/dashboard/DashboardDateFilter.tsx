@@ -63,14 +63,18 @@ export function DashboardDateFilter({
     searchParams.get("q") ?? ""
   );
   const debouncedSearch = useDebounce(searchText, 500);
+  const searchTextRef = React.useRef(searchText);
+  searchTextRef.current = searchText;
+  const lastPushedSearch = React.useRef("");
 
-  // Sync internal search state with URL when URL changes externally (e.g. back button)
+  // Sync searchText from URL only for external navigation (browser back/forward)
   React.useEffect(() => {
     const qParam = searchParams.get("q") ?? "";
-    if (qParam !== searchText) {
+    if (lastPushedSearch.current !== qParam && qParam !== searchTextRef.current) {
       setSearchText(qParam);
+      lastPushedSearch.current = qParam;
     }
-  }, [searchParams, searchText]);
+  }, [searchParams]);
 
   // Handle search parameter updates
   React.useEffect(() => {
@@ -92,6 +96,7 @@ export function DashboardDateFilter({
       const currentParams = searchParams.toString();
       const newParams = params.toString();
       if (currentParams !== newParams) {
+        lastPushedSearch.current = debouncedSearch;
         router.push(`?${newParams}`, { scroll: false });
       }
     }
