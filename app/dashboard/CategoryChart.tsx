@@ -1,5 +1,6 @@
 "use client";
 import { ChartBarMultiple } from "@/components/block/monthlyBar";
+import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
 import { DashboardDateFilter } from "./DashboardDateFilter";
 import { useEffect, useState } from "react";
@@ -67,7 +68,19 @@ export default function CategoryChart() {
         <h2 className="text-xl font-semibold">Category Analysis</h2>
         <DashboardDateFilter onRangeChange={handleRangeChange} />
       </div>
-      <div className={isLoading ? "opacity-50 pointer-events-none" : ""}>
+      {isLoading ? (
+        <div className="space-y-3">
+          <div className="flex gap-4">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <div key={i} className="flex flex-col items-center gap-2 flex-1">
+                <Skeleton className="h-32 w-full rounded-lg" />
+                <Skeleton className="h-4 w-16" />
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+      <div>
         <ChartBarMultiple
           title="Category Income Outcome"
           description={
@@ -82,6 +95,7 @@ export default function CategoryChart() {
           chartDataKey={"category"}
         ></ChartBarMultiple>
       </div>
+      )}
     </div>
   );
 }

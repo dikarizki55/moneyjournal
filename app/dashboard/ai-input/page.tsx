@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import JsonTableComponent from "../transaction/json/JsonTableComponent";
 import { Loader2, Upload, Trash2, Info } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
@@ -164,6 +165,19 @@ export default function AiInputPage() {
           </CardContent>
         </Card>
 
+        {isLoading && (
+          <Card className="lg:col-span-2">
+            <CardHeader>
+              <Skeleton className="h-6 w-60" />
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Skeleton className="h-8 w-full" />
+              <Skeleton className="h-8 w-full" />
+              <Skeleton className="h-8 w-3/4" />
+              <Skeleton className="h-8 w-full" />
+            </CardContent>
+          </Card>
+        )}
         {extractedData && (
           <Card className="lg:col-span-2">
             <CardHeader>

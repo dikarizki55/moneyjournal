@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 import { PencilLine, Trash } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import { useEffect, useRef, useState } from "react";
@@ -31,6 +32,7 @@ const Page = () => {
   const [photo, setPhoto] = useState<File | null>(null);
 
   const [preview, setPreview] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const fetchImage = async () => {
@@ -43,6 +45,7 @@ const Page = () => {
         setPreview(res.data.image || "");
         setName(res.data.name || "");
       }
+      setIsLoading(false);
     };
     fetchImage();
   }, []);
@@ -75,6 +78,25 @@ const Page = () => {
 
   return (
     <div>
+      {isLoading ? (
+        <div className="flex flex-col gap-5 p-7 items-center">
+          <Skeleton className="w-50 h-50 rounded-[50px]" />
+          <div className="flex gap-5">
+            <Skeleton className="h-10 w-24" />
+            <Skeleton className="h-10 w-40" />
+          </div>
+          <div className="w-full space-y-2">
+            <Skeleton className="h-4 w-12" />
+            <Skeleton className="h-6 w-60" />
+          </div>
+          <div className="w-full space-y-2">
+            <Skeleton className="h-4 w-12" />
+            <Skeleton className="h-10 w-full" />
+          </div>
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+        </div>
+      ) : (
       <form onSubmit={handleSubmit} className=" flex flex-col gap-5 p-7">
         <div className=" flex flex-col items-center gap-2">
           <div
@@ -175,6 +197,7 @@ const Page = () => {
 
         <Button type="submit">Save</Button>
         <Button
+          type="button"
           variant={"destructive"}
           className=" cursor-pointer"
           onClick={() => {
@@ -184,6 +207,7 @@ const Page = () => {
           Logout
         </Button>
       </form>
+      )}
     </div>
   );
 };

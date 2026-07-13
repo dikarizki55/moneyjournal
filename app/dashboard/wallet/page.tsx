@@ -19,6 +19,7 @@ import {
   CreditCard,
   List,
 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { Progress } from "@/components/ui/progress";
 import RupiahInput from "../RupiahInput";
@@ -1218,8 +1219,40 @@ export default function WalletPage() {
       </ResponsiveDialog>
 
       {isLoading ? (
-        <div className="flex justify-center p-12">
-          <Loader2 className="animate-spin text-primary" size={32} />
+        <div className="grid gap-4 lg:grid-cols-3">
+          {[1, 2, 3].map((i) => (
+            <Card key={i}>
+              <CardContent className="p-6 space-y-4">
+                <div className="flex justify-between items-start">
+                  <div className="flex items-center gap-2">
+                    <Skeleton className="h-5 w-5 rounded" />
+                    <Skeleton className="h-6 w-32" />
+                  </div>
+                  <div className="flex gap-1">
+                    <Skeleton className="h-8 w-8" />
+                    <Skeleton className="h-8 w-8" />
+                  </div>
+                </div>
+                <Skeleton className="h-8 w-28" />
+                <Skeleton className="h-2 w-full" />
+                <div className="flex gap-6">
+                  <div className="space-y-1">
+                    <Skeleton className="h-3 w-16" />
+                    <Skeleton className="h-4 w-20" />
+                  </div>
+                  <div className="space-y-1">
+                    <Skeleton className="h-3 w-12" />
+                    <Skeleton className="h-4 w-20" />
+                  </div>
+                </div>
+                <div className="flex gap-3">
+                  <Skeleton className="h-9 w-20" />
+                  <Skeleton className="h-9 w-24" />
+                  <Skeleton className="h-9 w-24" />
+                </div>
+              </CardContent>
+            </Card>
+          ))}
         </div>
       ) : outcomes.length === 0 ? (
         <Card className="p-12 text-center border-dashed">

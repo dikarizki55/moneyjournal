@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/chart";
 import { useEffect, useState } from "react";
 
+import { Skeleton } from "@/components/ui/skeleton";
 import { formatRupiah } from "./RupiahInput";
 
 export const description = "A pie chart with a label";
@@ -67,23 +68,30 @@ export function CustomTooltip({
 
 export default function PieChartBlock() {
   const [pieData, setPieData] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
-      const res = await fetch("/api/transaction/summary?group=type", {
-        credentials: "include",
-      });
-      const data = await res.json();
+      try {
+        const res = await fetch("/api/transaction/summary?group=type", {
+          credentials: "include",
+        });
+        const data = await res.json();
 
-      const result = data.data.map(
-        (item: { type: string; _sum: { amount: string } }) => ({
-          name: item.type,
-          value: Number(item._sum.amount),
-          fill: `var(--color-${item.type})`,
-        })
-      );
+        const result = data.data.map(
+          (item: { type: string; _sum: { amount: string } }) => ({
+            name: item.type,
+            value: Number(item._sum.amount),
+            fill: `var(--color-${item.type})`,
+          })
+        );
 
-      setPieData(result);
+        setPieData(result);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setIsLoading(false);
+      }
     };
 
     fetchData();
@@ -96,6 +104,11 @@ export default function PieChartBlock() {
         <CardDescription>Income and Outcome</CardDescription>
       </CardHeader>
       <CardContent className="flex-1 pb-0">
+        {isLoading ? (
+          <div className="flex justify-center items-center aspect-square lg:min-w-100 max-h-[250px]">
+            <Skeleton className="rounded-full w-48 h-48" />
+          </div>
+        ) : (
         <ChartContainer
           config={chartConfig}
           className="[&_.recharts-pie-label-text]:fill-foreground mx-auto aspect-square lg:min-w-100 max-h-[250px] pb-0"
@@ -120,6 +133,7 @@ export default function PieChartBlock() {
             </Pie>
           </PieChart>
         </ChartContainer>
+        )}
       </CardContent>
       <CardFooter className="flex-col gap-2 text-sm">
         <div className="flex items-center gap-2 leading-none font-medium">

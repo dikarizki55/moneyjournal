@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { formatRupiah } from "./RupiahInput";
 import { Wallet, TrendingUp, TrendingDown, Target, CreditCard } from "lucide-react";
 import Link from "next/link";
+import { Skeleton } from "@/components/ui/skeleton";
 import { DynamicIcon, isValidIcon } from "@/components/ui/icon-picker";
 
 interface PaymentSourceBalance {
@@ -67,11 +68,17 @@ export default function DashboardOverview() {
 
   if (isLoading) {
     return (
-      <div className="animate-pulse space-y-4">
-        <div className="h-32 bg-gray-800/20 rounded-2xl" />
+      <div className="space-y-4">
+        <Skeleton className="h-32 w-full rounded-2xl" />
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          <div className="h-32 bg-gray-800/20 rounded-2xl" />
-          <div className="h-32 bg-gray-800/20 rounded-2xl" />
+          <Skeleton className="h-32 rounded-2xl" />
+          <Skeleton className="h-32 rounded-2xl" />
+          <Skeleton className="h-32 rounded-2xl" />
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-44 rounded-2xl" />
+          ))}
         </div>
       </div>
     );

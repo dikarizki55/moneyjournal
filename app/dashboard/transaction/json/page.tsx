@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 
 import { Copy } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import JsonTableComponent from "./JsonTableComponent";
 
 const defaultData = {
@@ -25,6 +26,7 @@ export default function Page() {
 
   const [copied, setCopied] = useState(false);
   const [monthlyOutcomeCats, setMonthlyOutcomeCats] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const fetchCats = async () => {
@@ -38,6 +40,8 @@ export default function Page() {
         }
       } catch (error) {
         console.error("Failed to fetch monthly outcomes:", error);
+      } finally {
+        setIsLoading(false);
       }
     };
     fetchCats();
@@ -66,6 +70,19 @@ export default function Page() {
 
   return (
     <div className=" p-10">
+      {isLoading ? (
+        <div className="space-y-6">
+          <div className="space-y-3">
+            <Skeleton className="h-4 w-3/4" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-2/3" />
+            <Skeleton className="h-10 w-40" />
+          </div>
+          <Skeleton className="h-[40vh] w-full rounded-2xl" />
+          <Skeleton className="h-40 w-full rounded-2xl" />
+        </div>
+      ) : (
+      <>
       <div className=" p-5 w-full">
         <p>
           Copy this prompt to chatgpt or whatever ai agent that support image
@@ -99,6 +116,8 @@ export default function Page() {
           jsonErrorVoid={(e) => setJsonError(e)}
         />
       </div>
+      </>
+      )}
     </div>
   );
 }

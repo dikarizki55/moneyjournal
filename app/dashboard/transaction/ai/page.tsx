@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import JsonTableComponent from "../json/JsonTableComponent";
@@ -125,7 +126,13 @@ export default function Ai() {
         {isLoading ? "Wait.." : "Submit"}
       </Button>
 
-      {isLoading && <div className=" font-bold text-4xl">Loading...</div>}
+      {isLoading && (
+        <div className="space-y-4 mt-5">
+          <Skeleton className="h-6 w-64" />
+          <Skeleton className="h-40 w-full max-w-100 rounded-xl" />
+          <Skeleton className="h-10 w-32" />
+        </div>
+      )}
       <div className=" flex flex-wrap mt-5">
         {content && (
           <JsonTableComponent setJsonData={setContent} jsonData={content} />

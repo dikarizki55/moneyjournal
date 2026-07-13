@@ -36,6 +36,7 @@ import {
   ArchiveX,
   Star,
 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import TransactionCard from "@/components/transaction/transactionCard";
 
@@ -218,8 +219,42 @@ export default function PaymentSourcePage() {
       </div>
 
       {isLoading ? (
-        <div className="flex justify-center p-12">
-          <Loader2 className="animate-spin text-primary" size={32} />
+        <div className="space-y-4">
+          <div className="lg:hidden space-y-3">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="flex items-center gap-3 p-4 border rounded-lg">
+                <Skeleton className="h-10 w-10 rounded-lg" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-3 w-20" />
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="hidden lg:block rounded-md border">
+            <div className="p-4 space-y-4">
+              <div className="flex gap-4">
+                <Skeleton className="h-4 w-8" />
+                <Skeleton className="h-4 w-8" />
+                <Skeleton className="h-4 w-40" />
+                <Skeleton className="h-4 w-24 ml-auto" />
+                <Skeleton className="h-4 w-24" />
+              </div>
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="flex gap-4 items-center">
+                  <Skeleton className="h-4 w-8" />
+                  <Skeleton className="h-8 w-8 rounded-lg" />
+                  <Skeleton className="h-4 w-36" />
+                  <Skeleton className="h-4 w-24 ml-auto" />
+                  <div className="flex gap-1">
+                    <Skeleton className="h-8 w-8" />
+                    <Skeleton className="h-8 w-8" />
+                    <Skeleton className="h-8 w-8" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       ) : sources.length === 0 ? (
         <div className="text-center p-12 text-muted-foreground border rounded-lg border-dashed">
