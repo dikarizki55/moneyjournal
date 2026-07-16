@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -35,6 +35,7 @@ interface DeletedTransaction {
   category: string | null;
   type: "income" | "outcome";
   date: string | null;
+  payment_source_id?: string | null;
   deleted_at: string;
 }
 
@@ -43,19 +44,67 @@ interface DeletedMonthlyOutcome {
   title: string;
   amount: number;
   category: string;
+  icon: string | null;
+  deleted_at: string;
+}
+
+interface DeletedPaymentSource {
+  id: string;
+  name: string;
+  icon: string | null;
+  default: boolean;
   deleted_at: string;
 }
 
 export default function RecycleBinPage() {
   const [transactions, setTransactions] = useState<DeletedTransaction[]>([]);
-  const [monthlyOutcomes, setMonthlyOutcomes] = useState<DeletedMonthlyOutcome[]>([]);
+  const [monthlyOutcomes, setMonthlyOutcomes] = useState<
+    DeletedMonthlyOutcome[]
+  >([]);
+  const [paymentSources, setPaymentSources] = useState<DeletedPaymentSource[]>(
+    [],
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [selectedTx, setSelectedTx] = useState<Set<string>>(new Set());
   const [selectedMo, setSelectedMo] = useState<Set<string>>(new Set());
+  const [selectedPs, setSelectedPs] = useState<Set<string>>(new Set());
   const [mobileSelectTx, setMobileSelectTx] = useState(false);
   const [mobileSelectMo, setMobileSelectMo] = useState(false);
-  const [actionType, setActionType] = useState<"restore" | "permanent" | null>(null);
+  const [mobileSelectPs, setMobileSelectPs] = useState(false);
+  const [actionType, setActionType] = useState<"restore" | "permanent" | null>(
+    null,
+  );
   const [activeTab, setActiveTab] = useState("transactions");
+  const [categoryIconMap, setCategoryIconMap] = useState<Map<string, string>>(
+    new Map(),
+  );
+
+  useEffect(() => {
+    fetch("/api/wallet/icons", { credentials: "include" })
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.success) {
+          const map = new Map<string, string>();
+          json.data.forEach((w: { category: string; icon: string | null }) => {
+            if (w.icon && w.category) {
+              map.set(w.category.toLowerCase(), w.icon);
+            }
+          });
+          setCategoryIconMap(map);
+        }
+      });
+  }, []);
+
+  const resolveIcon = useCallback(
+    (category: string | null, title: string): string => {
+      if (category) {
+        const icon = categoryIconMap.get(category.toLowerCase());
+        if (icon) return icon;
+      }
+      return title.charAt(0).toUpperCase();
+    },
+    [categoryIconMap],
+  );
 
   const fetchDeleted = async () => {
     setIsLoading(true);
@@ -65,6 +114,7 @@ export default function RecycleBinPage() {
       if (json.success) {
         setTransactions(json.data.transactions);
         setMonthlyOutcomes(json.data.monthlyOutcomes);
+        setPaymentSources(json.data.paymentSources);
       }
     } catch {
       toast.error("Failed to fetch deleted items");
@@ -77,7 +127,10 @@ export default function RecycleBinPage() {
     fetchDeleted();
   }, []);
 
-  const handleRestore = async (type: "transaction" | "monthly_outcome", ids: string[]) => {
+  const handleRestore = async (
+    type: "transaction" | "monthly_outcome" | "payment_source",
+    ids: string[],
+  ) => {
     try {
       const res = await fetch("/api/recycle-bin", {
         method: "POST",
@@ -89,8 +142,10 @@ export default function RecycleBinPage() {
         toast.success("Restored successfully");
         setSelectedTx(new Set());
         setSelectedMo(new Set());
+        setSelectedPs(new Set());
         setMobileSelectTx(false);
         setMobileSelectMo(false);
+        setMobileSelectPs(false);
         fetchDeleted();
       } else {
         toast.error(json.message || "Failed to restore");
@@ -100,7 +155,10 @@ export default function RecycleBinPage() {
     }
   };
 
-  const handlePermanentDelete = async (type: "transaction" | "monthly_outcome", ids: string[]) => {
+  const handlePermanentDelete = async (
+    type: "transaction" | "monthly_outcome" | "payment_source",
+    ids: string[],
+  ) => {
     try {
       const res = await fetch("/api/recycle-bin", {
         method: "DELETE",
@@ -112,8 +170,10 @@ export default function RecycleBinPage() {
         toast.success("Permanently deleted");
         setSelectedTx(new Set());
         setSelectedMo(new Set());
+        setSelectedPs(new Set());
         setMobileSelectTx(false);
         setMobileSelectMo(false);
+        setMobileSelectPs(false);
         fetchDeleted();
       } else {
         toast.error(json.message || "Failed to delete");
@@ -157,19 +217,54 @@ export default function RecycleBinPage() {
     }
   };
 
+  const toggleSelectPs = (id: string) => {
+    setSelectedPs((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleAllPs = () => {
+    if (selectedPs.size === paymentSources.length) {
+      setSelectedPs(new Set());
+    } else {
+      setSelectedPs(new Set(paymentSources.map((p) => p.id)));
+    }
+  };
+
   const confirmAction = (action: "restore" | "permanent") => {
     setActionType(action);
   };
 
   const executeAction = () => {
-    const type = activeTab === "transactions" ? "transaction" : "monthly_outcome";
-    const ids = activeTab === "transactions" ? Array.from(selectedTx) : Array.from(selectedMo);
+    const typeMap: Record<
+      string,
+      "transaction" | "monthly_outcome" | "payment_source"
+    > = {
+      transactions: "transaction",
+      "monthly-outcomes": "monthly_outcome",
+      "payment-sources": "payment_source",
+    };
+    const type = typeMap[activeTab];
+    const idsMap: Record<string, Set<string>> = {
+      transactions: selectedTx,
+      "monthly-outcomes": selectedMo,
+      "payment-sources": selectedPs,
+    };
+    const ids = Array.from(idsMap[activeTab]);
     if (actionType === "restore") handleRestore(type, ids);
     else handlePermanentDelete(type, ids);
     setActionType(null);
   };
 
-  const hasSelection = activeTab === "transactions" ? selectedTx.size > 0 : selectedMo.size > 0;
+  const hasSelection =
+    activeTab === "transactions"
+      ? selectedTx.size > 0
+      : activeTab === "monthly-outcomes"
+        ? selectedMo.size > 0
+        : selectedPs.size > 0;
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
@@ -178,7 +273,9 @@ export default function RecycleBinPage() {
           <ArchiveX className="h-8 w-8" />
           Recycle Bin
         </h1>
-        <p className="text-muted-foreground">Manage your deleted transactions and monthly outcomes.</p>
+        <p className="text-muted-foreground">
+          Manage your deleted transactions and monthly outcomes.
+        </p>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -189,6 +286,9 @@ export default function RecycleBinPage() {
             </TabsTrigger>
             <TabsTrigger value="monthly-outcomes">
               Wallets ({monthlyOutcomes.length})
+            </TabsTrigger>
+            <TabsTrigger value="payment-sources">
+              Payment Sources ({paymentSources.length})
             </TabsTrigger>
           </TabsList>
 
@@ -201,7 +301,13 @@ export default function RecycleBinPage() {
                 className="gap-1"
               >
                 <RotateCcw className="h-4 w-4" />
-                Restore ({activeTab === "transactions" ? selectedTx.size : selectedMo.size})
+                Restore (
+                {activeTab === "transactions"
+                  ? selectedTx.size
+                  : activeTab === "monthly-outcomes"
+                    ? selectedMo.size
+                    : selectedPs.size}
+                )
               </Button>
               <Button
                 variant="destructive"
@@ -210,7 +316,13 @@ export default function RecycleBinPage() {
                 className="gap-1"
               >
                 <Trash2 className="h-4 w-4" />
-                Delete Forever ({activeTab === "transactions" ? selectedTx.size : selectedMo.size})
+                Delete Forever (
+                {activeTab === "transactions"
+                  ? selectedTx.size
+                  : activeTab === "monthly-outcomes"
+                    ? selectedMo.size
+                    : selectedPs.size}
+                )
               </Button>
             </div>
           )}
@@ -221,7 +333,10 @@ export default function RecycleBinPage() {
             <div className="space-y-4">
               <div className="lg:hidden space-y-3">
                 {[1, 2, 3].map((i) => (
-                  <div key={i} className="flex items-center gap-3 p-4 border rounded-lg">
+                  <div
+                    key={i}
+                    className="flex items-center gap-3 p-4 border rounded-lg"
+                  >
                     <Skeleton className="h-10 w-10 rounded-full" />
                     <div className="flex-1 space-y-2">
                       <Skeleton className="h-4 w-40" />
@@ -262,41 +377,88 @@ export default function RecycleBinPage() {
             <>
               <div className="lg:hidden space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">{transactions.length} transactions</span>
+                  <span className="text-sm text-muted-foreground">
+                    {transactions.length} transactions
+                  </span>
                   {mobileSelectTx ? (
                     <div className="flex items-center gap-2">
-                      <Button size="sm" variant="outline" onClick={() => setSelectedTx(new Set(transactions.map((t) => t.id)))}>Select All</Button>
-                      <Button size="sm" variant="outline" onClick={() => { setMobileSelectTx(false); setSelectedTx(new Set()); }}>Cancel</Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                          setSelectedTx(new Set(transactions.map((t) => t.id)))
+                        }
+                      >
+                        Select All
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setMobileSelectTx(false);
+                          setSelectedTx(new Set());
+                        }}
+                      >
+                        Cancel
+                      </Button>
                     </div>
                   ) : (
-                    <Button size="sm" variant="outline" onClick={() => setMobileSelectTx(true)}>Select</Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setMobileSelectTx(true)}
+                    >
+                      Select
+                    </Button>
                   )}
                 </div>
                 {mobileSelectTx && selectedTx.size > 0 && (
                   <div className="flex items-center gap-2">
-                    <Button size="sm" variant="outline" className="gap-1" onClick={() => confirmAction("restore")}>
-                      <RotateCcw className="h-4 w-4" /> Restore ({selectedTx.size})
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="gap-1"
+                      onClick={() => confirmAction("restore")}
+                    >
+                      <RotateCcw className="h-4 w-4" /> Restore (
+                      {selectedTx.size})
                     </Button>
-                    <Button size="sm" variant="destructive" className="gap-1" onClick={() => confirmAction("permanent")}>
-                      <Trash2 className="h-4 w-4" /> Delete Forever ({selectedTx.size})
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      className="gap-1"
+                      onClick={() => confirmAction("permanent")}
+                    >
+                      <Trash2 className="h-4 w-4" /> Delete Forever (
+                      {selectedTx.size})
                     </Button>
                   </div>
                 )}
                 {transactions.map((tx) => (
                   <TransactionCard
                     key={tx.id}
-                    icon={tx.title.charAt(0).toUpperCase()}
+                    icon={resolveIcon(tx.category, tx.title)}
                     title={tx.title}
                     notes=""
                     category={tx.category || "Uncategorized"}
                     amount={tx.type === "outcome" ? -Number(tx.amount) : Number(tx.amount)}
+                    paymentSourceId={tx.payment_source_id}
                     selectMode={mobileSelectTx}
                     selected={selectedTx.has(tx.id)}
                     onSelectChange={() => toggleSelectTx(tx.id)}
-                    onClick={() => { if (mobileSelectTx) toggleSelectTx(tx.id); }}
+                    onClick={() => {
+                      if (mobileSelectTx) toggleSelectTx(tx.id);
+                    }}
                     swipeActions={[
-                      { label: "Restore", onClick: () => handleRestore("transaction", [tx.id]) },
-                      { label: "Delete Forever", onClick: () => handlePermanentDelete("transaction", [tx.id]) },
+                      {
+                        label: "Restore",
+                        onClick: () => handleRestore("transaction", [tx.id]),
+                      },
+                      {
+                        label: "Delete Forever",
+                        onClick: () =>
+                          handlePermanentDelete("transaction", [tx.id]),
+                      },
                     ]}
                   />
                 ))}
@@ -307,7 +469,10 @@ export default function RecycleBinPage() {
                     <TableRow>
                       <TableHead className="w-10">
                         <Checkbox
-                          checked={transactions.length > 0 && selectedTx.size === transactions.length}
+                          checked={
+                            transactions.length > 0 &&
+                            selectedTx.size === transactions.length
+                          }
                           onCheckedChange={toggleAllTx}
                         />
                       </TableHead>
@@ -327,21 +492,30 @@ export default function RecycleBinPage() {
                             onCheckedChange={() => toggleSelectTx(tx.id)}
                           />
                         </TableCell>
-                        <TableCell className="font-medium">{tx.title}</TableCell>
+                        <TableCell className="font-medium">
+                          {tx.title}
+                        </TableCell>
                         <TableCell>
-                          <span className={`text-xs font-semibold uppercase ${tx.type === "income" ? "text-green-600" : "text-destructive"}`}>
+                          <span
+                            className={`text-xs font-semibold uppercase ${tx.type === "income" ? "text-green-600" : "text-destructive"}`}
+                          >
                             {tx.type}
                           </span>
                         </TableCell>
                         <TableCell>{tx.category}</TableCell>
-                        <TableCell className={`text-right font-medium ${tx.type === "income" ? "text-green-600" : "text-destructive"}`}>
+                        <TableCell
+                          className={`text-right font-medium ${tx.type === "income" ? "text-green-600" : "text-destructive"}`}
+                        >
                           {tx.type === "income" ? "" : "-"}
                           {formatRupiah(Number(tx.amount).toString())}
                         </TableCell>
                         <TableCell className="text-muted-foreground text-sm">
                           {new Date(tx.deleted_at).toLocaleDateString("id-ID", {
-                            day: "numeric", month: "short", year: "numeric",
-                            hour: "2-digit", minute: "2-digit",
+                            day: "numeric",
+                            month: "short",
+                            year: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
                           })}
                         </TableCell>
                       </TableRow>
@@ -358,7 +532,10 @@ export default function RecycleBinPage() {
             <div className="space-y-4">
               <div className="lg:hidden space-y-3">
                 {[1, 2, 3].map((i) => (
-                  <div key={i} className="flex items-center gap-3 p-4 border rounded-lg">
+                  <div
+                    key={i}
+                    className="flex items-center gap-3 p-4 border rounded-lg"
+                  >
                     <Skeleton className="h-10 w-10 rounded-full" />
                     <div className="flex-1 space-y-2">
                       <Skeleton className="h-4 w-40" />
@@ -397,30 +574,69 @@ export default function RecycleBinPage() {
             <>
               <div className="lg:hidden space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">{monthlyOutcomes.length} wallets</span>
+                  <span className="text-sm text-muted-foreground">
+                    {monthlyOutcomes.length} wallets
+                  </span>
                   {mobileSelectMo ? (
                     <div className="flex items-center gap-2">
-                      <Button size="sm" variant="outline" onClick={() => setSelectedMo(new Set(monthlyOutcomes.map((m) => m.id)))}>Select All</Button>
-                      <Button size="sm" variant="outline" onClick={() => { setMobileSelectMo(false); setSelectedMo(new Set()); }}>Cancel</Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                          setSelectedMo(
+                            new Set(monthlyOutcomes.map((m) => m.id)),
+                          )
+                        }
+                      >
+                        Select All
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setMobileSelectMo(false);
+                          setSelectedMo(new Set());
+                        }}
+                      >
+                        Cancel
+                      </Button>
                     </div>
                   ) : (
-                    <Button size="sm" variant="outline" onClick={() => setMobileSelectMo(true)}>Select</Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setMobileSelectMo(true)}
+                    >
+                      Select
+                    </Button>
                   )}
                 </div>
                 {mobileSelectMo && selectedMo.size > 0 && (
                   <div className="flex items-center gap-2">
-                    <Button size="sm" variant="outline" className="gap-1" onClick={() => confirmAction("restore")}>
-                      <RotateCcw className="h-4 w-4" /> Restore ({selectedMo.size})
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="gap-1"
+                      onClick={() => confirmAction("restore")}
+                    >
+                      <RotateCcw className="h-4 w-4" /> Restore (
+                      {selectedMo.size})
                     </Button>
-                    <Button size="sm" variant="destructive" className="gap-1" onClick={() => confirmAction("permanent")}>
-                      <Trash2 className="h-4 w-4" /> Delete Forever ({selectedMo.size})
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      className="gap-1"
+                      onClick={() => confirmAction("permanent")}
+                    >
+                      <Trash2 className="h-4 w-4" /> Delete Forever (
+                      {selectedMo.size})
                     </Button>
                   </div>
                 )}
                 {monthlyOutcomes.map((mo) => (
                   <TransactionCard
                     key={mo.id}
-                    icon={mo.title.charAt(0).toUpperCase()}
+                    icon={mo.icon || mo.title.charAt(0).toUpperCase()}
                     title={mo.title}
                     notes=""
                     category={mo.category}
@@ -428,10 +644,20 @@ export default function RecycleBinPage() {
                     selectMode={mobileSelectMo}
                     selected={selectedMo.has(mo.id)}
                     onSelectChange={() => toggleSelectMo(mo.id)}
-                    onClick={() => { if (mobileSelectMo) toggleSelectMo(mo.id); }}
+                    onClick={() => {
+                      if (mobileSelectMo) toggleSelectMo(mo.id);
+                    }}
                     swipeActions={[
-                      { label: "Restore", onClick: () => handleRestore("monthly_outcome", [mo.id]) },
-                      { label: "Delete Forever", onClick: () => handlePermanentDelete("monthly_outcome", [mo.id]) },
+                      {
+                        label: "Restore",
+                        onClick: () =>
+                          handleRestore("monthly_outcome", [mo.id]),
+                      },
+                      {
+                        label: "Delete Forever",
+                        onClick: () =>
+                          handlePermanentDelete("monthly_outcome", [mo.id]),
+                      },
                     ]}
                   />
                 ))}
@@ -442,7 +668,10 @@ export default function RecycleBinPage() {
                     <TableRow>
                       <TableHead className="w-10">
                         <Checkbox
-                          checked={monthlyOutcomes.length > 0 && selectedMo.size === monthlyOutcomes.length}
+                          checked={
+                            monthlyOutcomes.length > 0 &&
+                            selectedMo.size === monthlyOutcomes.length
+                          }
                           onCheckedChange={toggleAllMo}
                         />
                       </TableHead>
@@ -461,15 +690,200 @@ export default function RecycleBinPage() {
                             onCheckedChange={() => toggleSelectMo(mo.id)}
                           />
                         </TableCell>
-                        <TableCell className="font-medium">{mo.title}</TableCell>
+                        <TableCell className="font-medium">
+                          {mo.title}
+                        </TableCell>
                         <TableCell>{mo.category}</TableCell>
                         <TableCell className="text-right font-medium">
                           {formatRupiah(Number(mo.amount).toString())}
                         </TableCell>
                         <TableCell className="text-muted-foreground text-sm">
                           {new Date(mo.deleted_at).toLocaleDateString("id-ID", {
-                            day: "numeric", month: "short", year: "numeric",
-                            hour: "2-digit", minute: "2-digit",
+                            day: "numeric",
+                            month: "short",
+                            year: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
+          )}
+        </TabsContent>
+
+        <TabsContent value="payment-sources">
+          {isLoading ? (
+            <div className="space-y-4">
+              <div className="lg:hidden space-y-3">
+                {[1, 2, 3].map((i) => (
+                  <div
+                    key={i}
+                    className="flex items-center gap-3 p-4 border rounded-lg"
+                  >
+                    <Skeleton className="h-10 w-10 rounded-full" />
+                    <div className="flex-1 space-y-2">
+                      <Skeleton className="h-4 w-40" />
+                      <Skeleton className="h-3 w-24" />
+                    </div>
+                    <Skeleton className="h-6 w-16" />
+                  </div>
+                ))}
+              </div>
+              <div className="hidden lg:block rounded-md border">
+                <div className="p-4 space-y-4">
+                  <div className="flex gap-4">
+                    <Skeleton className="h-4 w-6" />
+                    <Skeleton className="h-4 w-48" />
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-4 w-24 ml-auto" />
+                    <Skeleton className="h-4 w-32" />
+                  </div>
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="flex gap-4 items-center">
+                      <Skeleton className="h-4 w-6" />
+                      <Skeleton className="h-4 w-44" />
+                      <Skeleton className="h-4 w-20" />
+                      <Skeleton className="h-4 w-24 ml-auto" />
+                      <Skeleton className="h-4 w-28" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : paymentSources.length === 0 ? (
+            <div className="text-center p-12 text-muted-foreground border rounded-lg border-dashed">
+              No deleted payment sources.
+            </div>
+          ) : (
+            <>
+              <div className="lg:hidden space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">
+                    {paymentSources.length} payment sources
+                  </span>
+                  {mobileSelectPs ? (
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                          setSelectedPs(
+                            new Set(paymentSources.map((p) => p.id)),
+                          )
+                        }
+                      >
+                        Select All
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setMobileSelectPs(false);
+                          setSelectedPs(new Set());
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setMobileSelectPs(true)}
+                    >
+                      Select
+                    </Button>
+                  )}
+                </div>
+                {mobileSelectPs && selectedPs.size > 0 && (
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="gap-1"
+                      onClick={() => confirmAction("restore")}
+                    >
+                      <RotateCcw className="h-4 w-4" /> Restore (
+                      {selectedPs.size})
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      className="gap-1"
+                      onClick={() => confirmAction("permanent")}
+                    >
+                      <Trash2 className="h-4 w-4" /> Delete Forever (
+                      {selectedPs.size})
+                    </Button>
+                  </div>
+                )}
+                {paymentSources.map((ps) => (
+                  <TransactionCard
+                    key={ps.id}
+                    icon={ps.icon || ps.name.charAt(0).toUpperCase()}
+                    title=""
+                    category={ps.name}
+                    notes=""
+                    selectMode={mobileSelectPs}
+                    selected={selectedPs.has(ps.id)}
+                    onSelectChange={() => toggleSelectPs(ps.id)}
+                    onClick={() => {
+                      if (mobileSelectPs) toggleSelectPs(ps.id);
+                    }}
+                    swipeActions={[
+                      {
+                        label: "Restore",
+                        onClick: () => handleRestore("payment_source", [ps.id]),
+                      },
+                      {
+                        label: "Delete Forever",
+                        onClick: () =>
+                          handlePermanentDelete("payment_source", [ps.id]),
+                      },
+                    ]}
+                  />
+                ))}
+              </div>
+              <div className="hidden lg:block rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-10">
+                        <Checkbox
+                          checked={
+                            paymentSources.length > 0 &&
+                            selectedPs.size === paymentSources.length
+                          }
+                          onCheckedChange={toggleAllPs}
+                        />
+                      </TableHead>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Default</TableHead>
+                      <TableHead>Deleted At</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {paymentSources.map((ps) => (
+                      <TableRow key={ps.id}>
+                        <TableCell>
+                          <Checkbox
+                            checked={selectedPs.has(ps.id)}
+                            onCheckedChange={() => toggleSelectPs(ps.id)}
+                          />
+                        </TableCell>
+                        <TableCell className="font-medium">{ps.name}</TableCell>
+                        <TableCell>{ps.default ? "Yes" : "No"}</TableCell>
+                        <TableCell className="text-muted-foreground text-sm">
+                          {new Date(ps.deleted_at).toLocaleDateString("id-ID", {
+                            day: "numeric",
+                            month: "short",
+                            year: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
                           })}
                         </TableCell>
                       </TableRow>
@@ -486,7 +900,9 @@ export default function RecycleBinPage() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {actionType === "restore" ? "Restore items?" : "Permanently delete items?"}
+              {actionType === "restore"
+                ? "Restore items?"
+                : "Permanently delete items?"}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {actionType === "restore"

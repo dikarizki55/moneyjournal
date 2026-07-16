@@ -14,6 +14,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Star } from "lucide-react";
 
 export default function TransactionCard({
   icon,
@@ -22,6 +23,7 @@ export default function TransactionCard({
   category,
   amount,
   paymentSourceId,
+  defaultBadge,
   selectMode,
   selected,
   onSelectChange,
@@ -35,8 +37,9 @@ export default function TransactionCard({
   title: string;
   notes: string;
   category: string;
-  amount: number;
+  amount?: number;
   paymentSourceId?: string | null;
+  defaultBadge?: boolean;
   selectMode?: boolean;
   selected?: boolean;
   onSelectChange?: (checked: boolean) => void;
@@ -88,12 +91,20 @@ export default function TransactionCard({
         setShowActions(false);
         animate(x, 0, { type: "spring", stiffness: 500, damping: 40 });
       } else {
-        animate(x, -swipeWidth, { type: "spring", stiffness: 500, damping: 40 });
+        animate(x, -swipeWidth, {
+          type: "spring",
+          stiffness: 500,
+          damping: 40,
+        });
       }
     } else {
       if (info.offset.x < -toleranceOpen || info.velocity.x < -500) {
         setShowActions(true);
-        animate(x, -swipeWidth, { type: "spring", stiffness: 500, damping: 40 });
+        animate(x, -swipeWidth, {
+          type: "spring",
+          stiffness: 500,
+          damping: 40,
+        });
       } else {
         animate(x, 0, { type: "spring", stiffness: 500, damping: 40 });
       }
@@ -160,8 +171,14 @@ export default function TransactionCard({
                 </div>
                 <div className="flex flex-col gap-1 w-full min-w-0">
                   <div className="flex justify-between w-full gap-2">
-                    <div className="truncate font-medium flex gap-2">
+                    <div className="truncate font-medium flex gap-2 items-center capitalize">
                       {category || title}
+                      {defaultBadge && (
+                        <span className="text-muted-foreground text-sm flex items-center gap-1 shrink-0">
+                          {/* <Star className="h-3 w-3" /> */}
+                          Default
+                        </span>
+                      )}
                       {paymentSource && (
                         <span className="text-[10px] text-muted-foreground/50 mt-0.5 flex items-center gap-1">
                           {isValidIcon(paymentSource.icon) ? (
@@ -176,13 +193,15 @@ export default function TransactionCard({
                         </span>
                       )}
                     </div>
-                    <div
-                      className={`shrink-0 font-semibold ${
-                        amount < 0 ? "text-destructive" : "text-green-700"
-                      }`}
-                    >
-                      {formatRupiah(amount)}
-                    </div>
+                    {amount !== undefined && (
+                      <div
+                        className={`shrink-0 font-semibold ${
+                          amount < 0 ? "text-destructive" : "text-green-700"
+                        }`}
+                      >
+                        {formatRupiah(amount)}
+                      </div>
+                    )}
                   </div>
                   <p className="text-xs text-muted-foreground line-clamp-1">
                     {title}
@@ -205,7 +224,11 @@ export default function TransactionCard({
                 handleActionClick(action);
               }}
               className={`w-20 shrink-0 text-white font-semibold text-sm flex items-center justify-center cursor-pointer border-l border-white/20 ${
-                action.label === "Restore" ? "bg-blue-600" : "bg-destructive"
+                action.label === "Restore"
+                  ? "bg-blue-600"
+                  : action.label === "Default"
+                    ? "bg-amber-600"
+                    : "bg-destructive"
               }`}
             >
               {action.label}
@@ -222,14 +245,18 @@ export default function TransactionCard({
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {pendingAction?.label} transaction?
+              {pendingAction?.label === "Default"
+                ? "Set as default payment source?"
+                : `${pendingAction?.label} transaction?`}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              {pendingAction?.label === "Delete Forever"
-                ? "This action cannot be undone. This transaction will be permanently deleted."
-                : pendingAction?.label === "Restore"
-                  ? "This transaction will be moved back to your transactions."
-                  : "This will move this transaction to the recycle bin. You can restore it later."}
+              {pendingAction?.label === "Default"
+                ? "This will set this payment source as your default for new transactions."
+                : pendingAction?.label === "Delete Forever"
+                  ? "This action cannot be undone. This transaction will be permanently deleted."
+                  : pendingAction?.label === "Restore"
+                    ? "This transaction will be moved back to your transactions."
+                    : "This will move this transaction to the recycle bin. You can restore it later."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

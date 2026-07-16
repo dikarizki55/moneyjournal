@@ -103,6 +103,10 @@ export async function GET(req: NextRequest) {
         )
         .reduce((sum, t) => sum + Number(t.amount), 0);
 
+      const unassignedCount = categoryTx.filter(
+        (t) => !t.payment_source_id
+      ).length;
+
       const perSource: Record<string, number> = {};
       for (const tx of categoryTx) {
         const psId = tx.payment_source_id;
@@ -139,6 +143,7 @@ export async function GET(req: NextRequest) {
         thisMonthFunded,
         thisMonthSpent,
         paymentSourceBalances,
+        unassignedCount,
       };
     });
 
@@ -146,6 +151,14 @@ export async function GET(req: NextRequest) {
       (sum, c) => sum + c.balance,
       0
     );
+
+    const unassignedTransactionCount = await prisma.transaction.count({
+      where: {
+        user_id: user.id,
+        payment_source_id: null,
+        deleted_at: null,
+      },
+    });
 
     const paymentSourceTotalsRaw = await prisma.$queryRaw<
       { uuid: string; paymentSource: string; icon: string | null; amount: number }[]
@@ -176,6 +189,7 @@ export async function GET(req: NextRequest) {
       containers: containerWallets,
       totalNetWorth: globalBalance + totalContainerBalance,
       paymentSourceTotals: paymentSourceTotalsRaw,
+      unassignedTransactionCount,
     });
   } catch (error) {
     console.log(error);

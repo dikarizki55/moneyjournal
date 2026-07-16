@@ -16,11 +16,17 @@ export async function GET(req: NextRequest) {
       orderBy: { deleted_at: "desc" },
     });
 
+    const deletedPaymentSources = await prisma.paymentSource.findMany({
+      where: { user_id: user.id, deleted_at: { not: null } },
+      orderBy: { deleted_at: "desc" },
+    });
+
     return NextResponse.json({
       success: true,
       data: {
         transactions: deletedTransactions,
         monthlyOutcomes: deletedOutcomes,
+        paymentSources: deletedPaymentSources,
       },
     });
   } catch (error) {
@@ -48,6 +54,11 @@ export async function POST(req: NextRequest) {
       });
     } else if (type === "monthly_outcome") {
       await prisma.monthlyOutcome.updateMany({
+        where: { user_id: user.id, id: { in: ids }, deleted_at: { not: null } },
+        data: { deleted_at: null },
+      });
+    } else if (type === "payment_source") {
+      await prisma.paymentSource.updateMany({
         where: { user_id: user.id, id: { in: ids }, deleted_at: { not: null } },
         data: { deleted_at: null },
       });
@@ -80,6 +91,10 @@ export async function DELETE(req: NextRequest) {
       });
     } else if (type === "monthly_outcome") {
       await prisma.monthlyOutcome.deleteMany({
+        where: { user_id: user.id, id: { in: ids }, deleted_at: { not: null } },
+      });
+    } else if (type === "payment_source") {
+      await prisma.paymentSource.deleteMany({
         where: { user_id: user.id, id: { in: ids }, deleted_at: { not: null } },
       });
     } else {

@@ -35,10 +35,13 @@ import {
   CreditCard,
   ArchiveX,
   Star,
+  AlertTriangle,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { formatRupiah } from "../RupiahInput";
 import { toast } from "sonner";
 import TransactionCard from "@/components/transaction/transactionCard";
+import PaymentSourceCombobox from "@/components/ui/payment-source-combobox";
 
 interface PaymentSourceItem {
   id: string;
@@ -62,6 +65,35 @@ export default function PaymentSourcePage() {
   );
   const [newName, setNewName] = useState("");
   const [newIcon, setNewIcon] = useState("");
+  const [unassignedCount, setUnassignedCount] = useState(0);
+  const [migrateSourceId, setMigrateSourceId] = useState("");
+  const [isMigrating, setIsMigrating] = useState(false);
+  const [migrateDone, setMigrateDone] = useState(false);
+  const [sourceBalances, setSourceBalances] = useState<Record<string, number>>(
+    {},
+  );
+  const [deleteMigrateSource, setDeleteMigrateSource] =
+    useState<PaymentSourceItem | null>(null);
+  const [deleteMigrateDestId, setDeleteMigrateDestId] = useState("");
+
+  const fetchBalances = async () => {
+    try {
+      const res = await fetch("/api/monthly-outcome/balance");
+      const json = await res.json();
+      if (json.success) {
+        setUnassignedCount(json.unassignedTransactionCount ?? 0);
+        const balMap: Record<string, number> = {};
+        if (Array.isArray(json.paymentSourceTotals)) {
+          for (const item of json.paymentSourceTotals) {
+            balMap[item.uuid] = item.amount;
+          }
+        }
+        setSourceBalances(balMap);
+      }
+    } catch {
+      // silently fail
+    }
+  };
 
   const fetchSources = async () => {
     setIsLoading(true);
@@ -78,6 +110,7 @@ export default function PaymentSourcePage() {
 
   useEffect(() => {
     fetchSources();
+    fetchBalances();
   }, []);
 
   const handleAdd = async () => {
@@ -148,6 +181,34 @@ export default function PaymentSourcePage() {
     }
   };
 
+  const handleDeleteMigrate = async () => {
+    if (!deleteMigrateSource || !deleteMigrateDestId) {
+      toast.error("Select a destination payment source");
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      const res = await fetch(
+        `/api/payment-source?id=${deleteMigrateSource.id}&migrateTo=${deleteMigrateDestId}`,
+        { method: "DELETE" },
+      );
+      const json = await res.json();
+      if (json.success) {
+        toast.success("Payment source migrated and deleted");
+        setDeleteMigrateSource(null);
+        setDeleteMigrateDestId("");
+        fetchSources();
+        fetchBalances();
+      } else {
+        toast.error(json.message || "Failed to delete");
+      }
+    } catch {
+      toast.error("An error occurred");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleDelete = async () => {
     if (!deleteConfirm) return;
     setIsSubmitting(true);
@@ -167,6 +228,33 @@ export default function PaymentSourcePage() {
       toast.error("An error occurred");
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleMigrate = async () => {
+    if (!migrateSourceId) {
+      toast.error("Select a payment source");
+      return;
+    }
+    setIsMigrating(true);
+    try {
+      const res = await fetch("/api/payment-source/migrate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ paymentSourceId: migrateSourceId }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        toast.success(json.message);
+        setUnassignedCount(0);
+        setMigrateDone(true);
+      } else {
+        toast.error(json.message || "Migration failed");
+      }
+    } catch {
+      toast.error("An error occurred");
+    } finally {
+      setIsMigrating(false);
     }
   };
 
@@ -204,6 +292,44 @@ export default function PaymentSourcePage() {
         </p>
       </div>
 
+      {/* {unassignedCount > 0 && !migrateDone && (
+        <div className="mb-6 p-4 border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950 rounded-lg">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+                {unassignedCount} transaction(s) without a payment source
+              </p>
+              <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
+                These transactions won't be counted in any payment source balance.
+                Assign them to a source below.
+              </p>
+              <div className="flex items-center gap-2 mt-3">
+                <div className="flex-1">
+                  <PaymentSourceCombobox
+                    value={migrateSourceId}
+                    onChange={setMigrateSourceId}
+                    sources={sources}
+                  />
+                </div>
+                <Button
+                  size="sm"
+                  onClick={handleMigrate}
+                  disabled={isMigrating || !migrateSourceId}
+                  className="gap-1"
+                >
+                  {isMigrating ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    "Migrate"
+                  )}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )} */}
+
       <div className="flex justify-end mb-6">
         <Button
           onClick={() => {
@@ -222,7 +348,10 @@ export default function PaymentSourcePage() {
         <div className="space-y-4">
           <div className="lg:hidden space-y-3">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="flex items-center gap-3 p-4 border rounded-lg">
+              <div
+                key={i}
+                className="flex items-center gap-3 p-4 border rounded-lg"
+              >
                 <Skeleton className="h-10 w-10 rounded-lg" />
                 <div className="flex-1 space-y-2">
                   <Skeleton className="h-4 w-32" />
@@ -268,13 +397,24 @@ export default function PaymentSourcePage() {
               <TransactionCard
                 key={source.id}
                 icon={source.icon || source.name.charAt(0).toUpperCase()}
-                title={source.name}
+                title=""
+                category={source.name}
                 notes=""
-                category=""
-                amount={0}
+                amount={sourceBalances[source.id] ?? 0}
+                defaultBadge={source.default}
+                onClick={() => openEdit(source)}
                 swipeActions={[
-                  { label: "Edit", onClick: () => openEdit(source) },
-                  { label: "Delete", onClick: () => setDeleteConfirm(source) },
+                  {
+                    label: "Delete",
+                    onClick: () => {
+                      if ((sourceBalances[source.id] ?? 0) !== 0) {
+                        setDeleteMigrateSource(source);
+                        setDeleteMigrateDestId("");
+                      } else {
+                        setDeleteConfirm(source);
+                      }
+                    },
+                  },
                 ]}
               />
             ))}
@@ -343,7 +483,14 @@ export default function PaymentSourcePage() {
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8 text-destructive hover:bg-destructive/10"
-                          onClick={() => setDeleteConfirm(source)}
+                          onClick={() => {
+                            if ((sourceBalances[source.id] ?? 0) !== 0) {
+                              setDeleteMigrateSource(source);
+                              setDeleteMigrateDestId("");
+                            } else {
+                              setDeleteConfirm(source);
+                            }
+                          }}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -422,6 +569,26 @@ export default function PaymentSourcePage() {
             <Label>Icon (optional)</Label>
             <IconPicker value={newIcon} onChange={setNewIcon} />
           </div>
+          {editingSource && !editingSource.default && (
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full gap-2"
+              onClick={() => {
+                if (editingSource) handleSetDefault(editingSource);
+              }}
+              disabled={isSubmitting}
+            >
+              <Star className="h-4 w-4" />
+              Set as Default
+            </Button>
+          )}
+          {editingSource?.default && (
+            <p className="text-sm text-muted-foreground text-center flex items-center justify-center gap-1">
+              {/* <Star className="h-4 w-4 fill-white text-white" /> */}
+              Current default
+            </p>
+          )}
           <Button type="submit" className="w-full" disabled={isSubmitting}>
             {isSubmitting ? (
               <Loader2 className="animate-spin" />
@@ -442,8 +609,8 @@ export default function PaymentSourcePage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete payment source?</AlertDialogTitle>
             <AlertDialogDescription>
-              Transactions using this source will retain their payment source
-              reference. You can always create it again later.
+              This source has no remaining balance and will be removed
+              permanently.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -457,6 +624,58 @@ export default function PaymentSourcePage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ResponsiveDialog
+        open={!!deleteMigrateSource}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleteMigrateSource(null);
+            setDeleteMigrateDestId("");
+          }
+        }}
+        title={`Delete ${deleteMigrateSource?.name || ""}`}
+      >
+        <div className="space-y-4 py-4">
+          <div className="flex items-start gap-3 p-3 bg-amber-50 dark:bg-amber-950 rounded-lg border border-amber-200 dark:border-amber-800">
+            <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
+            <div>
+              <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+                This source has a balance of{" "}
+                {formatRupiah(
+                  String(sourceBalances[deleteMigrateSource?.id || ""] ?? 0),
+                )}
+              </p>
+              <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
+                Migrate all transactions to another payment source before
+                deleting.
+              </p>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label>Migrate transactions to</Label>
+            <PaymentSourceCombobox
+              value={deleteMigrateDestId}
+              onChange={setDeleteMigrateDestId}
+              sources={sources.filter((s) => s.id !== deleteMigrateSource?.id)}
+            />
+          </div>
+          <Button
+            onClick={handleDeleteMigrate}
+            className="w-full gap-2"
+            disabled={isSubmitting || !deleteMigrateDestId}
+            variant="destructive"
+          >
+            {isSubmitting ? (
+              <Loader2 className="animate-spin" />
+            ) : (
+              <>
+                <Trash2 className="h-4 w-4" />
+                Migrate & Delete
+              </>
+            )}
+          </Button>
+        </div>
+      </ResponsiveDialog>
     </div>
   );
 }

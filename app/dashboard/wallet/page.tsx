@@ -18,6 +18,7 @@ import {
   ArrowLeftRight,
   CreditCard,
   List,
+  AlertTriangle,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
@@ -135,6 +136,15 @@ export default function WalletPage() {
   const [reallocateAmount, setReallocateAmount] = useState(0);
 
   const [newIcon, setNewIcon] = useState("");
+  const [containerUnassignedCounts, setContainerUnassignedCounts] = useState<
+    Record<string, number>
+  >({});
+  const [migrateDialog, setMigrateDialog] = useState<{
+    open: boolean;
+    outcome: MonthlyOutcome | null;
+  }>({ open: false, outcome: null });
+  const [migratePaymentSourceId, setMigratePaymentSourceId] = useState("");
+  const [isMigrating, setIsMigrating] = useState(false);
 
   const fetchOutcomes = async () => {
     setIsLoading(true);
@@ -189,6 +199,15 @@ export default function WalletPage() {
         }
         if (data.paymentSourceTotals) {
           setPaymentSourceTotals(data.paymentSourceTotals);
+        }
+        if (data.containers) {
+          const counts: Record<string, number> = {};
+          for (const c of data.containers) {
+            if (c.unassignedCount > 0) {
+              counts[c.id] = c.unassignedCount;
+            }
+          }
+          setContainerUnassignedCounts(counts);
         }
       }
     } catch {
@@ -466,6 +485,43 @@ export default function WalletPage() {
       toast.error("An error occurred");
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleMigrateWallet = async () => {
+    if (!migrateDialog.outcome || !migratePaymentSourceId) {
+      toast.error("Select a payment source");
+      return;
+    }
+    setIsMigrating(true);
+    try {
+      const res = await fetch("/api/payment-source/migrate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          paymentSourceId: migratePaymentSourceId,
+          category: migrateDialog.outcome.category,
+        }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        toast.success(json.message);
+        setMigrateDialog({ open: false, outcome: null });
+        setMigratePaymentSourceId("");
+        setContainerUnassignedCounts((prev) => {
+          const next = { ...prev };
+          if (migrateDialog.outcome) delete next[migrateDialog.outcome.id];
+          return next;
+        });
+        fetchOutcomes();
+        fetchBalance();
+      } else {
+        toast.error(json.message || "Migration failed");
+      }
+    } catch {
+      toast.error("An error occurred");
+    } finally {
+      setIsMigrating(false);
     }
   };
 
@@ -1218,6 +1274,57 @@ export default function WalletPage() {
         </div>
       </ResponsiveDialog>
 
+      <ResponsiveDialog
+        open={migrateDialog.open}
+        onOpenChange={(open) => {
+          if (!open) {
+            setMigrateDialog({ open: false, outcome: null });
+            setMigratePaymentSourceId("");
+          }
+        }}
+        title={`Migrate Transactions — ${migrateDialog.outcome?.title || ""}`}
+      >
+        <div className="space-y-4 py-4">
+          <div className="flex items-start gap-3 p-3 bg-amber-50 dark:bg-amber-950 rounded-lg border border-amber-200 dark:border-amber-800">
+            <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
+            <div>
+              <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+                {containerUnassignedCounts[migrateDialog.outcome?.id || ""] || 0} unassigned transaction(s)
+              </p>
+              <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
+                These are old transactions without a payment source. Choose where to assign them.
+              </p>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label>Destination Payment Source</Label>
+            <PaymentSourceCombobox
+              value={migratePaymentSourceId}
+              onChange={setMigratePaymentSourceId}
+              sources={paymentSources.map((ps) => ({
+                ...ps,
+                balance:
+                  containerSourceBalances[migrateDialog.outcome?.id || ""]?.[
+                    ps.id
+                  ]?.balance,
+              }))}
+              placeholder="Select a payment source..."
+            />
+          </div>
+          <Button
+            onClick={handleMigrateWallet}
+            className="w-full"
+            disabled={isMigrating || !migratePaymentSourceId}
+          >
+            {isMigrating ? (
+              <Loader2 className="animate-spin" />
+            ) : (
+              "Migrate Transactions"
+            )}
+          </Button>
+        </div>
+      </ResponsiveDialog>
+
       {isLoading ? (
         <div className="grid gap-4 lg:grid-cols-3">
           {[1, 2, 3].map((i) => (
@@ -1428,6 +1535,28 @@ export default function WalletPage() {
                           </div>
                         );
                       })()}
+                    {containerUnassignedCounts[outcome.id] > 0 && (
+                      <div className="pt-2 border-t border-amber-200 dark:border-amber-800">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-amber-700 dark:text-amber-300">
+                            ⚠ {containerUnassignedCounts[outcome.id]} transaction(s) without a source
+                          </span>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-6 text-xs border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-300"
+                            onClick={() => {
+                              setMigrateDialog({ open: true, outcome });
+                              setMigratePaymentSourceId(
+                                outcome.default_payment_source_id || paymentSources[0]?.id || "",
+                              );
+                            }}
+                          >
+                            Migrate
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                     <div className=" flex gap-3 pt-2 flex-wrap">
                       <Button
                         variant="outline"

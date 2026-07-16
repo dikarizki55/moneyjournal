@@ -102,6 +102,7 @@ export async function DELETE(req: NextRequest) {
     const user = await verifyUser(req);
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
+    const migrateTo = searchParams.get("migrateTo");
 
     if (!id) {
       return NextResponse.json({ message: "Missing ID" }, { status: 400 });
@@ -116,6 +117,22 @@ export async function DELETE(req: NextRequest) {
         { message: "Payment source not found" },
         { status: 404 }
       );
+    }
+
+    if (migrateTo) {
+      const dest = await prisma.paymentSource.findFirst({
+        where: { id: migrateTo, user_id: user.id, deleted_at: null },
+      });
+      if (!dest) {
+        return NextResponse.json(
+          { message: "Destination payment source not found" },
+          { status: 404 }
+        );
+      }
+      await prisma.transaction.updateMany({
+        where: { payment_source_id: id, user_id: user.id, deleted_at: null },
+        data: { payment_source_id: migrateTo },
+      });
     }
 
     await prisma.paymentSource.update({
