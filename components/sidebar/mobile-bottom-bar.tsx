@@ -1,6 +1,6 @@
 "use client";
 
-import { Home, Banknote, Repeat, ArchiveX, User } from "lucide-react";
+import { Home, Banknote, Repeat, ArchiveX, Tags, User } from "lucide-react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 
@@ -8,6 +8,7 @@ const items = [
   { title: "Home", url: "/dashboard", icon: Home },
   { title: "Transaction", url: "/dashboard/transaction", icon: Banknote },
   { title: "Wallets", url: "/dashboard/wallet", icon: Repeat },
+  { title: "Categories", url: "/dashboard/category", icon: Tags },
   { title: "Recycle Bin", url: "/dashboard/recycle-bin", icon: ArchiveX },
   { title: "Account", url: "/dashboard/account", icon: User },
 ];
@@ -17,7 +18,6 @@ export function MobileBottomBar() {
 
   return (
     <nav
-      // style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
       className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-background border-t pt-2 flex items-start justify-around h-20 safe-area-bottom"
     >
       {items.map((item) => {

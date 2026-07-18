@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const wallet = await prisma.monthlyOutcome.findFirst({
+    const wallet = await prisma.wallet.findFirst({
       where: { id: walletId, user_id: user.id, deleted_at: null },
     });
 
@@ -42,16 +42,11 @@ export async function POST(req: NextRequest) {
     const allTx = await prisma.transaction.findMany({
       where: {
         user_id: user.id,
-        isSavings: true,
+        wallet_id: walletId,
         deleted_at: null,
-        category: wallet.category,
       },
       select: { amount: true, type: true, payment_source_id: true },
     });
-
-    const walletBalance = allTx.reduce((sum, t) => {
-      return sum + (t.type === "income" ? Number(t.amount) : -Number(t.amount));
-    }, 0);
 
     const sourceBalance = allTx
       .filter((t) => t.payment_source_id === fromPaymentSourceId)
@@ -59,13 +54,10 @@ export async function POST(req: NextRequest) {
         return sum + (t.type === "income" ? Number(t.amount) : -Number(t.amount));
       }, 0);
 
-    const hasAnySourceData = allTx.some((t) => t.payment_source_id);
-    const availableBalance = hasAnySourceData ? sourceBalance : walletBalance;
-
-    if (Number(amount) > availableBalance) {
+    if (Number(amount) > sourceBalance) {
       return NextResponse.json(
         {
-          message: `Insufficient balance in source. Available: Rp ${availableBalance.toLocaleString()}`,
+          message: `Insufficient balance in source. Available: Rp ${sourceBalance.toLocaleString()}`,
         },
         { status: 400 }
       );
@@ -73,19 +65,24 @@ export async function POST(req: NextRequest) {
 
     const pairId = `pair_${crypto.randomUUID()}`;
 
+    const systemCategory = await prisma.category.findFirst({
+      where: { user_id: user.id },
+      orderBy: { created_at: "asc" },
+    });
+
     const [outcomeTx, incomeTx] = await prisma.$transaction([
       prisma.transaction.create({
         data: {
           user_id: user.id,
           title: `Move to ${wallet.title}`,
           amount: Number(amount),
-          category: wallet.category,
           type: "outcome",
-          isSavings: true,
           transferPairId: pairId,
           payment_source_id: fromPaymentSourceId,
+          wallet_id: walletId,
           date: new Date(),
           notes: `Moved from ${fromPaymentSourceId} to ${toPaymentSourceId}`,
+          category_id: systemCategory?.id || "",
         },
       }),
       prisma.transaction.create({
@@ -93,13 +90,13 @@ export async function POST(req: NextRequest) {
           user_id: user.id,
           title: `Move from ${wallet.title}`,
           amount: Number(amount),
-          category: wallet.category,
           type: "income",
-          isSavings: true,
           transferPairId: pairId,
           payment_source_id: toPaymentSourceId,
+          wallet_id: walletId,
           date: new Date(),
           notes: `Moved from ${fromPaymentSourceId} to ${toPaymentSourceId}`,
+          category_id: systemCategory?.id || "",
         },
       }),
     ]);

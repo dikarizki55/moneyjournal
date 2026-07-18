@@ -6,9 +6,7 @@ import { CreditCard } from "lucide-react";
 import PaginationComponent from "./paginationComponent";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import ChatgptIcon from "@/components/icon/chatgptIcon";
 import { DashboardDateFilter } from "../DashboardDateFilter";
-import { HideTransferToggle } from "./hide-transfer-toggle";
 import { CategoryFilter } from "./category-filter";
 import { verifyUserServer } from "@/lib/verifyuser";
 import { Prisma } from "@prisma/client";
@@ -21,18 +19,17 @@ const Page = async ({
 }: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) => {
-  // const searchParams = useSearchParams();
-  // const page = Number(searchParams?.get("page") ?? 1);
   const page = Number((await searchParams).page ?? 1);
   const q = (await searchParams).q ?? "";
   const searchQuery = typeof q === "string" ? q : undefined;
   const from = ((await searchParams).from as string) ?? "";
   const to = ((await searchParams).to as string) ?? "";
-  const categoriesParam = (await searchParams).categories ?? "";
+  const categoryIdsParam = (await searchParams).categoryIds ?? "";
   const sort = ((await searchParams).sort as string) ?? "desc";
   const sortBy = ((await searchParams).sortBy as string) ?? "date";
   const hideTransferToSavings =
     ((await searchParams).hideTransferToSavings as string) !== "false";
+  const walletId = ((await searchParams).walletId as string) ?? "";
 
   const limit = 25;
   const offset = (page - 1) * limit;
@@ -41,8 +38,8 @@ const Page = async ({
     try {
       const user = await verifyUserServer();
 
-      const filterCategories = categoriesParam
-        ? (categoriesParam as string).split(",")
+      const filterCategoryIds = categoryIdsParam
+        ? (categoryIdsParam as string).split(",")
         : [];
 
       const where: Prisma.transactionWhereInput = {
@@ -52,7 +49,6 @@ const Page = async ({
           ? {
               OR: [
                 { title: { contains: searchQuery, mode: "insensitive" } },
-                { category: { contains: searchQuery, mode: "insensitive" } },
               ],
             }
           : {}),
@@ -64,37 +60,35 @@ const Page = async ({
               },
             }
           : {}),
-        ...(filterCategories.length > 0
+        ...(filterCategoryIds.length > 0
           ? {
-              category: { in: filterCategories },
+              category_id: { in: filterCategoryIds },
             }
           : {}),
         ...(hideTransferToSavings ? { transferPairId: null } : {}),
+        ...(walletId ? { wallet_id: walletId } : {}),
       };
 
       const transaction = async () => {
         if (sortBy === "amount") {
           let dynamicClauses = Prisma.empty;
           if (searchQuery) {
-            dynamicClauses = Prisma.sql`${dynamicClauses} AND ("title" ILIKE ${`%${searchQuery}%`} OR "category" ILIKE ${`%${searchQuery}%`})`;
+            dynamicClauses = Prisma.sql`${dynamicClauses} AND ("title" ILIKE ${`%${searchQuery}%`})`;
           }
           if (from) {
-            dynamicClauses = Prisma.sql`${dynamicClauses} AND "date" >= ${new Date(
-              from,
-            )}`;
+            dynamicClauses = Prisma.sql`${dynamicClauses} AND "date" >= ${new Date(from)}`;
           }
           if (to) {
-            dynamicClauses = Prisma.sql`${dynamicClauses} AND "date" <= ${new Date(
-              to,
-            )}`;
+            dynamicClauses = Prisma.sql`${dynamicClauses} AND "date" <= ${new Date(to)}`;
           }
-          if (filterCategories.length > 0) {
-            dynamicClauses = Prisma.sql`${dynamicClauses} AND "category" IN (${Prisma.join(
-              filterCategories,
-            )})`;
+          if (filterCategoryIds.length > 0) {
+            dynamicClauses = Prisma.sql`${dynamicClauses} AND "category_id" = ANY(${filterCategoryIds})`;
           }
           if (hideTransferToSavings) {
             dynamicClauses = Prisma.sql`${dynamicClauses} AND "transfer_pair_id" IS NULL`;
+          }
+          if (walletId) {
+            dynamicClauses = Prisma.sql`${dynamicClauses} AND "wallet_id" = ${walletId}::uuid`;
           }
 
           return await prisma.$queryRaw`
@@ -122,6 +116,11 @@ const Page = async ({
             ],
             skip: offset || 0,
             take: limit || 25,
+            include: {
+              category: { select: { id: true, name: true, icon: true, color: true } },
+              paymentSource: { select: { id: true, name: true, icon: true } },
+              wallet: { select: { id: true, title: true, icon: true } },
+            },
           });
         }
       };
@@ -177,19 +176,9 @@ const Page = async ({
           <div className="flex flex-col md:flex-row items-center gap-4">
             <DashboardDateFilter showSearch />
             <CategoryFilter />
-            <HideTransferToggle />
           </div>
         </div>
 
-        {/* <div className="fixed z-100 lg:bottom-15 lg:right-15 bottom-20 right-5">
-          <div>
-            <Link href="/dashboard/transaction/ai">
-              <div className=" bg-primary rounded-full text-secondary  flex flex-col justify-center items-center p-3 font-bold">
-                <ChatgptIcon className=" h-10 w-10 lg:w-10 lg:h-10 text-secondary" />
-              </div>
-            </Link>
-          </div>
-        </div> */}
         <div className="lg:hidden flex flex-col gap-5">
           <MobileTransactionList data={data} />
         </div>

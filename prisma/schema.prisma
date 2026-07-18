@@ -1,7 +1,7 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
   previewFeatures = ["multiSchema"]
-  schemas = ["moneyjournal"]
+  schemas         = ["moneyjournal"]
 }
 
 datasource db {
@@ -75,36 +75,20 @@ model Session {
 }
 
 model User {
-  id            String            @id @default(cuid())
-  email         String?           @unique
-  emailVerified DateTime?         @map("email_verified")
+  id            String          @id @default(cuid())
+  email         String?         @unique
+  emailVerified DateTime?       @map("email_verified")
   name          String?
   image         String?
   password      String?
   accounts      Account[]
+  paymentSource paymentSource[]
   sessions      Session[]
-  transaction    transaction[]
-  monthlyOutcome monthlyOutcome[]
-  paymentSource  paymentSource[]
+  transaction   transaction[]
+  wallet        wallet[]
+  category      category[]
 
   @@map("users")
-  @@schema("moneyjournal")
-}
-
-model monthlyOutcome {
-  id                     String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  user_id                String
-  title                  String
-  amount                 Decimal         @db.Decimal
-  category               String
-  created_at             DateTime        @default(dbgenerated("timezone('utc'::text, now())")) @db.Timestamp(6)
-  icon                   String?
-  deleted_at             DateTime?       @db.Timestamp(6)
-  default_payment_source_id String?      @map("default_payment_source_id") @db.Uuid
-  defaultPaymentSource   paymentSource?  @relation(fields: [default_payment_source_id], references: [id])
-  users                  User            @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-
-  @@map("monthly_outcome")
   @@schema("moneyjournal")
 }
 
@@ -130,18 +114,34 @@ model wishes {
   @@schema("moneyjournal")
 }
 
-model paymentSource {
-  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+model category {
+  id         String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   user_id    String
   name       String
   icon       String?
-  default    Boolean   @default(false)
-  created_at DateTime  @default(dbgenerated("timezone('utc'::text, now())")) @db.Timestamp(6)
-  deleted_at DateTime? @db.Timestamp(6)
-  users      User      @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  color      String?
+  created_at DateTime      @default(dbgenerated("timezone('utc'::text, now())")) @db.Timestamp(6)
+  deleted_at DateTime?     @db.Timestamp(6)
 
-  transaction     transaction[]
-  monthlyOutcome  monthlyOutcome[]
+  users       User          @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  transaction transaction[]
+
+  @@map("category")
+  @@schema("moneyjournal")
+}
+
+model paymentSource {
+  id          String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id     String
+  name        String
+  icon        String?
+  created_at  DateTime      @default(dbgenerated("timezone('utc'::text, now())")) @db.Timestamp(6)
+  deleted_at  DateTime?     @db.Timestamp(6)
+  default     Boolean       @default(false)
+
+  users       User              @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  transaction transaction[]
+  wallets     WalletPaymentSource[]
 
   @@map("payment_source")
   @@schema("moneyjournal")
@@ -149,22 +149,24 @@ model paymentSource {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model transaction {
-  id               String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  user_id          String?
-  title            String
-  amount           Decimal         @db.Decimal
-  category         String?
-  notes            String?
-  date             DateTime?       @default(dbgenerated("CURRENT_DATE")) @db.Date
-  created_at       DateTime?       @default(dbgenerated("timezone('utc'::text, now())")) @db.Timestamp(6)
-  deleted_at       DateTime?       @db.Timestamp(6)
-  type             TransactionType
-  isSavings         Boolean         @default(false)
-  savingsContainer  String?
+  id                String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id           String?
+  title             String
+  amount            Decimal         @db.Decimal
+  notes             String?
+  date              DateTime?       @default(dbgenerated("CURRENT_DATE")) @db.Date
+  created_at        DateTime?       @default(dbgenerated("timezone('utc'::text, now())")) @db.Timestamp(6)
+  type              TransactionType
+  deleted_at        DateTime?       @db.Timestamp(6)
   transferPairId    String?
   payment_source_id String?         @map("payment_source_id") @db.Uuid
-  paymentSource     paymentSource?  @relation(fields: [payment_source_id], references: [id])
-  users             User?           @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  category_id       String?         @map("category_id") @db.Uuid
+  wallet_id         String?         @map("wallet_id") @db.Uuid
+
+  paymentSource paymentSource? @relation(fields: [payment_source_id], references: [id])
+  category      category?      @relation(fields: [category_id], references: [id])
+  wallet        wallet?        @relation(fields: [wallet_id], references: [id])
+  users         User?          @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@schema("moneyjournal")
 }
@@ -173,6 +175,34 @@ model limitn8n {
   limit Decimal @db.Decimal
   id    String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
 
+  @@schema("moneyjournal")
+}
+
+model wallet {
+  id         String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id    String
+  title      String
+  amount     Decimal        @db.Decimal
+  created_at DateTime       @default(dbgenerated("timezone('utc'::text, now())")) @db.Timestamp(6)
+  deleted_at DateTime?      @db.Timestamp(6)
+  icon       String?
+
+  users           User                 @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  payment_sources WalletPaymentSource[]
+  transaction     transaction[]
+
+  @@schema("moneyjournal")
+}
+
+model WalletPaymentSource {
+  wallet_id         String  @db.Uuid
+  payment_source_id String  @db.Uuid
+
+  wallet         wallet         @relation(fields: [wallet_id], references: [id], onDelete: Cascade)
+  payment_source paymentSource  @relation(fields: [payment_source_id], references: [id], onDelete: Cascade)
+
+  @@id([wallet_id, payment_source_id])
+  @@map("wallet_payment_source")
   @@schema("moneyjournal")
 }
 

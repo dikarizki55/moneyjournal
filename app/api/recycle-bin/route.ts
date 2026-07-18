@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
       orderBy: { deleted_at: "desc" },
     });
 
-    const deletedOutcomes = await prisma.monthlyOutcome.findMany({
+    const deletedWallets = await prisma.wallet.findMany({
       where: { user_id: user.id, deleted_at: { not: null } },
       orderBy: { deleted_at: "desc" },
     });
@@ -22,12 +22,18 @@ export async function GET(req: NextRequest) {
       orderBy: { deleted_at: "desc" },
     });
 
+    const deletedCategories = await prisma.category.findMany({
+      where: { user_id: user.id, deleted_at: { not: null } },
+      orderBy: { deleted_at: "desc" },
+    });
+
     return NextResponse.json({
       success: true,
       data: {
         transactions: deletedTransactions,
-        monthlyOutcomes: deletedOutcomes,
+        wallets: deletedWallets,
         paymentSources: deletedPaymentSources,
+        categories: deletedCategories,
       },
     });
   } catch (error) {
@@ -50,7 +56,7 @@ export async function POST(req: NextRequest) {
     if (!type || !ids || !Array.isArray(ids) || ids.length === 0) {
       return NextResponse.json(
         { message: "Missing required fields: type and ids" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -59,8 +65,8 @@ export async function POST(req: NextRequest) {
         where: { user_id: user.id, id: { in: ids }, deleted_at: { not: null } },
         data: { deleted_at: null },
       });
-    } else if (type === "monthly_outcome") {
-      await prisma.monthlyOutcome.updateMany({
+    } else if (type === "wallet") {
+      await prisma.wallet.updateMany({
         where: { user_id: user.id, id: { in: ids }, deleted_at: { not: null } },
         data: { deleted_at: null },
       });
@@ -69,11 +75,19 @@ export async function POST(req: NextRequest) {
         where: { user_id: user.id, id: { in: ids }, deleted_at: { not: null } },
         data: { deleted_at: null },
       });
+    } else if (type === "category") {
+      await prisma.category.updateMany({
+        where: { user_id: user.id, id: { in: ids }, deleted_at: { not: null } },
+        data: { deleted_at: null },
+      });
     } else {
       return NextResponse.json({ message: "Invalid type" }, { status: 400 });
     }
 
-    return NextResponse.json({ success: true, message: "Restored successfully" });
+    return NextResponse.json({
+      success: true,
+      message: "Restored successfully",
+    });
   } catch (error) {
     console.log(error);
     return NextResponse.json({ message: "error" }, { status: 500 });
@@ -94,7 +108,7 @@ export async function DELETE(req: NextRequest) {
     if (!type || !ids || !Array.isArray(ids) || ids.length === 0) {
       return NextResponse.json(
         { message: "Missing required fields: type and ids" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -102,12 +116,16 @@ export async function DELETE(req: NextRequest) {
       await prisma.transaction.deleteMany({
         where: { user_id: user.id, id: { in: ids }, deleted_at: { not: null } },
       });
-    } else if (type === "monthly_outcome") {
-      await prisma.monthlyOutcome.deleteMany({
+    } else if (type === "wallet") {
+      await prisma.wallet.deleteMany({
         where: { user_id: user.id, id: { in: ids }, deleted_at: { not: null } },
       });
     } else if (type === "payment_source") {
       await prisma.paymentSource.deleteMany({
+        where: { user_id: user.id, id: { in: ids }, deleted_at: { not: null } },
+      });
+    } else if (type === "category") {
+      await prisma.category.deleteMany({
         where: { user_id: user.id, id: { in: ids }, deleted_at: { not: null } },
       });
     } else {

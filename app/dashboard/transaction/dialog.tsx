@@ -28,8 +28,9 @@ import { Label } from "@/components/ui/label";
 import { Dispatch, SetStateAction, useEffect } from "react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import RupiahInput, { formatRupiah } from "../RupiahInput";
-import CategoryCombobox from "@/components/ui/category-combobox";
 import PaymentSourceCombobox from "@/components/ui/payment-source-combobox";
+import CategorySelect from "@/components/ui/category-select";
+import WalletSelect from "@/components/ui/wallet-select";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -54,13 +55,13 @@ type DrawerDialogProps = {
 type FormInput = {
   title: string;
   type: "income" | "outcome";
-  category: string;
+  categoryId: string;
   amount: number | null;
   notes: string;
   date: string;
-  isSavings: boolean;
   transferPairId: string | null;
   paymentSourceId: string | null;
+  walletId: string | null;
 };
 
 export function DrawerDialog({
@@ -84,7 +85,6 @@ export function DrawerDialog({
     return (
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogTrigger asChild>
-          {/* <Button variant="outline">Create Transaction</Button> */}
           {customButton}
         </DialogTrigger>
         <DialogContent className="sm:max-w-[425px]">
@@ -106,7 +106,6 @@ export function DrawerDialog({
   return (
     <Drawer open={open} onOpenChange={setOpen} repositionInputs={false}>
       <DrawerTrigger asChild>
-        {/* <Button variant="outline">Create Transaction</Button> */}
         {customButton}
       </DrawerTrigger>
       <DrawerContent>
@@ -143,19 +142,18 @@ function ProfileForm({
   const [form, setForm] = React.useState<FormInput>({
     title: initialData?.title || "",
     type: initialData?.type || "income",
-    category: initialData?.category || "",
+    categoryId: initialData?.categoryId || "",
     notes: initialData?.notes || "",
     amount: initialData?.amount || null,
     date:
       initialData?.date.split("T")[0] || new Date().toISOString().split("T")[0],
-    isSavings: initialData?.isSavings || false,
     transferPairId: initialData?.transferPairId || null,
     paymentSourceId: initialData?.paymentSourceId || null,
+    walletId: initialData?.walletId || null,
   });
 
   const handleOnChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target;
-
     setForm((prev) => ({ ...prev, [id]: value }));
   };
 
@@ -171,16 +169,12 @@ function ProfileForm({
     window.location.reload();
   };
 
-  const [categoryList, setCategoryList] = React.useState<string[]>([]);
-  const [walletCategoryMap, setWalletCategoryMap] = React.useState<
-    Map<string, string>
-  >(new Map());
-  const [walletDefaultSourceMap, setWalletDefaultSourceMap] = React.useState<
-    Map<string, string | null>
-  >(new Map());
-  const [walletIconsMap, setWalletIconsMap] = React.useState<
-    Map<string, string>
-  >(new Map());
+  const [categoryList, setCategoryList] = React.useState<
+    { id: string; name: string; icon?: string | null; color?: string | null }[]
+  >([]);
+  const [walletList, setWalletList] = React.useState<
+    { id: string; title: string; icon?: string | null }[]
+  >([]);
   const [globalBalance, setGlobalBalance] = React.useState(0);
   const [walletBalances, setWalletBalances] = React.useState<
     Map<string, number>
@@ -190,28 +184,36 @@ function ProfileForm({
   >([]);
   const [quickAddOpen, setQuickAddOpen] = React.useState(false);
   const [quickAddName, setQuickAddName] = React.useState("");
+  const [quickCatAddOpen, setQuickCatAddOpen] = React.useState(false);
+  const [quickCatName, setQuickCatName] = React.useState("");
 
   useEffect(() => {
-    const getCategoryList = async () => {
+    const fetchData = async () => {
       try {
-        const [transactionRes, outcomeRes, balanceRes, paymentSourceRes] = await Promise.all([
-          fetch("/api/transaction/distinct/category", {
-            credentials: "include",
-          }),
+        const [categoryRes, walletRes, balanceRes, paymentSourceRes] = await Promise.all([
+          fetch("/api/category", { credentials: "include" }),
           fetch("/api/monthly-outcome", { credentials: "include" }),
           fetch("/api/monthly-outcome/balance", { credentials: "include" }),
           fetch("/api/payment-source", { credentials: "include" }),
         ]);
 
-        const transactionData = await transactionRes.json();
-        const outcomeData = await outcomeRes.json();
+        const categoryData = await categoryRes.json();
+        const walletData = await walletRes.json();
         const balanceData = await balanceRes.json();
+
+        if (categoryData.success) {
+          setCategoryList(categoryData.data);
+        }
+
+        if (Array.isArray(walletData)) {
+          setWalletList(walletData.map((w: any) => ({ id: w.id, title: w.title, icon: w.icon })));
+        }
 
         if (balanceData.success) {
           const balMap = new Map<string, number>();
           balanceData.containers?.forEach(
-            (c: { category: string; balance: number }) => {
-              if (c.category) balMap.set(c.category.toLowerCase(), c.balance);
+            (c: { id: string; balance: number }) => {
+              if (c.id) balMap.set(c.id, c.balance);
             }
           );
           setWalletBalances(balMap);
@@ -222,73 +224,26 @@ function ProfileForm({
         if (paymentSourceJson.success) {
           setPaymentSources(paymentSourceJson.data);
         }
-
-        const transactionCats: string[] = transactionData.data || [];
-        const outcomeCats: string[] = Array.isArray(outcomeData)
-          ? outcomeData.map((o: { category: string }) => o.category)
-          : [];
-
-        const combined = Array.from(
-          new Set([...transactionCats, ...outcomeCats])
-        )
-          .filter(Boolean)
-          .sort() as string[];
-
-        setCategoryList(combined);
-
-        const walletMap = new Map<string, string>();
-        const walletDefaultMap = new Map<string, string | null>();
-        const walletIconMap = new Map<string, string>();
-        if (Array.isArray(outcomeData)) {
-          outcomeData.forEach(
-            (w: { category: string; title: string; icon?: string | null; default_payment_source_id?: string | null }) => {
-              if (w.category) {
-                walletMap.set(w.category.toLowerCase(), w.title);
-                if (w.icon) walletIconMap.set(w.category.toLowerCase(), w.icon);
-                if (w.default_payment_source_id) {
-                  walletDefaultMap.set(w.category.toLowerCase(), w.default_payment_source_id);
-                }
-              }
-            }
-          );
-        }
-        setWalletCategoryMap(walletMap);
-        setWalletDefaultSourceMap(walletDefaultMap);
-        setWalletIconsMap(walletIconMap);
       } catch {
         // Silently fail
       }
     };
 
-    getCategoryList();
+    fetchData();
   }, []);
 
-  useEffect(() => {
-    const cat = form.category?.toLowerCase();
-    const isWallet = cat ? walletCategoryMap.has(cat) : false;
-    setForm((prev) => {
-      const update: Partial<FormInput> = { isSavings: isWallet };
-      if (isWallet && cat && !prev.paymentSourceId) {
-        const defaultSource = walletDefaultSourceMap.get(cat);
-        if (defaultSource) update.paymentSourceId = defaultSource;
-      }
-      return { ...prev, ...update };
-    });
-  }, [form.category, walletCategoryMap, walletDefaultSourceMap]);
-
-  const isWalletCategory = form.category
-    ? walletCategoryMap.has(form.category.toLowerCase())
-    : false;
-  const linkedWalletName = isWalletCategory
-    ? walletCategoryMap.get(form.category.toLowerCase())
+  const selectedWallet = form.walletId;
+  const isWalletTransaction = !!selectedWallet;
+  const linkedWalletName = isWalletTransaction
+    ? walletList.find((w) => w.id === selectedWallet)?.title
     : null;
 
   const isOutcome = form.type === "outcome";
-  const walletBalance = form.category
-    ? walletBalances.get(form.category.toLowerCase()) ?? 0
+  const walletBalance = selectedWallet
+    ? walletBalances.get(selectedWallet) ?? 0
     : 0;
   const editBuffer = initialData?.amount ?? 0;
-  const availableBalance = isWalletCategory ? walletBalance : globalBalance;
+  const availableBalance = isWalletTransaction ? walletBalance : globalBalance;
   const effectiveBalance = availableBalance + editBuffer;
   const maxAmount = isOutcome && !form.transferPairId
     ? Math.max(0, effectiveBalance)
@@ -323,7 +278,7 @@ function ProfileForm({
       {form.transferPairId ? (
         <>
           <div className="px-3 py-2 bg-amber-50 dark:bg-amber-950 rounded-lg border border-amber-200 dark:border-amber-800 text-sm text-amber-700 dark:text-amber-300">
-            🔗 Linked transfer — edits apply to both transactions
+            Linked transfer — edits apply to both transactions
           </div>
           <div className="grid gap-3">
             <Label htmlFor="title">Title</Label>
@@ -354,7 +309,7 @@ function ProfileForm({
                   amount: value,
                 })
               }
-            ></RupiahInput>
+            />
           </div>
         </>
       ) : (
@@ -369,7 +324,7 @@ function ProfileForm({
                   setForm((prev) => {
                     const newType = value as FormInput["type"];
                     if (newType === "outcome") {
-                      const newBalance = isWalletCategory
+                      const newBalance = isWalletTransaction
                         ? walletBalance
                         : globalBalance;
                       const newEffective = newBalance + editBuffer;
@@ -401,24 +356,37 @@ function ProfileForm({
           </div>
           <div className="grid gap-3">
             <Label htmlFor="category">Category</Label>
-            <CategoryCombobox
-              value={form.category}
-              onChange={(value) => {
+            <CategorySelect
+              value={form.categoryId}
+              onChange={(id) => {
                 setForm((prev) => {
                   if (prev.transferPairId) return prev;
-                  return { ...prev, category: value };
+                  return { ...prev, categoryId: id };
                 });
               }}
               categories={categoryList}
-              walletIcons={walletIconsMap}
+              onQuickAdd={() => {
+                setQuickCatAddOpen(true);
+                setQuickCatName("");
+              }}
             />
           </div>
-          {isWalletCategory && linkedWalletName && !form.transferPairId && (
+          <div className="grid gap-3">
+            <Label htmlFor="wallet">Wallet (optional)</Label>
+            <WalletSelect
+              value={form.walletId || ""}
+              onChange={(id) =>
+                setForm((prev) => ({ ...prev, walletId: id }))
+              }
+              wallets={walletList}
+            />
+          </div>
+          {isWalletTransaction && linkedWalletName && !form.transferPairId && (
             <div className="px-3 py-2 bg-blue-50 dark:bg-blue-950 rounded-lg border border-blue-200 dark:border-blue-800 text-sm text-blue-700 dark:text-blue-300">
-              <span className="font-medium">Linked to wallet:</span>{" "}
+              <span className="font-medium">Wallet:</span>{" "}
               <strong>{linkedWalletName}</strong>
               <span className="ml-1 text-xs">
-                ({form.type === "income" ? "Fund" : "Withdraw"})
+                ({form.type === "income" ? "Fund" : "Spend"})
               </span>
             </div>
           )}
@@ -432,7 +400,7 @@ function ProfileForm({
             />
           </div>
           <div className="grid gap-3">
-            <Label htmlFor="paymentSourceId">Payment Source</Label>
+            <Label htmlFor="paymentSourceId">Payment Source *</Label>
             <PaymentSourceCombobox
               value={form.paymentSourceId || ""}
               onChange={(id) =>
@@ -447,6 +415,9 @@ function ProfileForm({
                 setQuickAddName("");
               }}
             />
+            {!form.paymentSourceId && (
+              <p className="text-xs text-destructive">Payment source is required</p>
+            )}
           </div>
           <div className="grid gap-3">
             <Label htmlFor="amount">Amount</Label>
@@ -463,7 +434,7 @@ function ProfileForm({
             />
             {exceedsBalance && (
               <p className="text-sm text-destructive font-medium">
-                {isWalletCategory
+                {isWalletTransaction
                   ? `Insufficient wallet balance. Available: ${formatRupiah(availableBalance)}.`
                   : `Insufficient global balance. Available: ${formatRupiah(availableBalance)}.`}
               </p>
@@ -471,7 +442,9 @@ function ProfileForm({
           </div>
         </>
       )}
-      <Button type="submit" disabled={exceedsBalance}>Save changes</Button>
+      <Button type="submit" disabled={exceedsBalance || !form.paymentSourceId || !form.categoryId}>
+        Save changes
+      </Button>
     </form>
 
     <AlertDialog open={quickAddOpen} onOpenChange={setQuickAddOpen}>
@@ -503,6 +476,46 @@ function ProfileForm({
               placeholder="Source name"
               value={quickAddName}
               onChange={(e) => setQuickAddName(e.target.value)}
+              autoFocus
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel type="button">Cancel</AlertDialogCancel>
+            <AlertDialogAction type="submit">Create</AlertDialogAction>
+          </AlertDialogFooter>
+        </form>
+      </AlertDialogContent>
+    </AlertDialog>
+
+    <AlertDialog open={quickCatAddOpen} onOpenChange={setQuickCatAddOpen}>
+      <AlertDialogContent>
+        <form onSubmit={(e) => {
+          e.preventDefault();
+          if (!quickCatName.trim()) return;
+          fetch("/api/category", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name: quickCatName.trim() }),
+          })
+            .then((res) => res.json())
+            .then((json) => {
+              if (json.success) {
+                setCategoryList((prev) => [...prev, json.data]);
+                setForm((prev) => ({ ...prev, categoryId: json.data.id }));
+                setQuickCatAddOpen(false);
+                setQuickCatName("");
+              }
+            });
+        }}>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Add Category</AlertDialogTitle>
+            <AlertDialogDescription>Create a new category (e.g. Food & Drinks, Gasoline).</AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="py-4">
+            <Input
+              placeholder="Category name"
+              value={quickCatName}
+              onChange={(e) => setQuickCatName(e.target.value)}
               autoFocus
             />
           </div>

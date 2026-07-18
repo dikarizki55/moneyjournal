@@ -17,50 +17,30 @@ export async function GET(req: NextRequest) {
     const q = parseParams("q", "string") as string | undefined;
     const from = parseParams("from", "string") as string | undefined;
     const to = parseParams("to", "string") as string | undefined;
-    const categoriesStr = parseParams("categories", "string") as
-      | string
-      | undefined;
+    const categoryIdsStr = parseParams("categoryIds", "string") as string | undefined;
     const limit = parseParams("limit", "number") as number | undefined;
     const offset = parseParams("offset", "number") as number | undefined;
     const sortField = (parseParams("sortBy", "string") as string) ?? "date";
     const sortDirection =
       (parseParams("sort", "string") as string) === "asc" ? "asc" : "desc";
-    const hideTransferToSavings = parseParams("hideTransferToSavings", "string") !== "false";
 
-    const filterCategories = categoriesStr ? categoriesStr.split(",") : [];
+    const filterCategoryIds = categoryIdsStr ? categoryIdsStr.split(",") : [];
+    const walletId = parseParams("walletId", "string") as string | undefined;
 
     const where: Prisma.transactionWhereInput = {
       user_id: user.id,
       deleted_at: null,
-      ...(hideTransferToSavings ? { transferPairId: null } : {}),
-      ...(q
-        ? {
-            OR: [
-              { title: { contains: q, mode: "insensitive" } },
-              { category: { contains: q, mode: "insensitive" } },
-            ],
-          }
-        : {}),
-      ...(from || to
-        ? {
-            date: {
-              ...(from ? { gte: new Date(from) } : {}),
-              ...(to ? { lte: new Date(to) } : {}),
-            },
-          }
-        : {}),
-      ...(filterCategories.length > 0
-        ? {
-            category: { in: filterCategories },
-          }
-        : {}),
+      ...(q ? { OR: [{ title: { contains: q, mode: "insensitive" } }] } : {}),
+      ...(from || to ? { date: { ...(from ? { gte: new Date(from) } : {}), ...(to ? { lte: new Date(to) } : {}) } } : {}),
+      ...(filterCategoryIds.length > 0 ? { category_id: { in: filterCategoryIds } } : {}),
+      ...(walletId ? { wallet_id: walletId } : {}),
     };
 
     const transaction = async () => {
       if (sortField === "amount") {
         let dynamicClauses = Prisma.empty;
         if (q) {
-          dynamicClauses = Prisma.sql`${dynamicClauses} AND ("title" ILIKE ${`%${q}%`} OR "category" ILIKE ${`%${q}%`})`;
+          dynamicClauses = Prisma.sql`${dynamicClauses} AND ("title" ILIKE ${`%${q}%`})`;
         }
         if (from) {
           dynamicClauses = Prisma.sql`${dynamicClauses} AND "date" >= ${new Date(
@@ -72,13 +52,11 @@ export async function GET(req: NextRequest) {
             to
           )}`;
         }
-        if (filterCategories.length > 0) {
-          dynamicClauses = Prisma.sql`${dynamicClauses} AND "category" IN (${Prisma.join(
-            filterCategories
-          )})`;
+        if (filterCategoryIds.length > 0) {
+          dynamicClauses = Prisma.sql`${dynamicClauses} AND "category_id" = ANY(${filterCategoryIds})`;
         }
-        if (hideTransferToSavings) {
-          dynamicClauses = Prisma.sql`${dynamicClauses} AND "transfer_pair_id" IS NULL`;
+        if (walletId) {
+          dynamicClauses = Prisma.sql`${dynamicClauses} AND "wallet_id" = ${walletId}::uuid`;
         }
 
         return await prisma.$queryRaw`
@@ -106,6 +84,11 @@ export async function GET(req: NextRequest) {
           ],
           skip: offset || 0,
           take: limit || 25,
+          include: {
+            category: { select: { id: true, name: true, icon: true, color: true } },
+            paymentSource: { select: { id: true, name: true, icon: true } },
+            wallet: { select: { id: true, title: true, icon: true } },
+          },
         });
       }
     };
@@ -143,21 +126,20 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
 
-    const { title, amount, type, category, notes, date, paymentSourceId } = body;
+    const { title, amount, type, categoryId, notes, date, paymentSourceId, walletId } = body;
 
-    let isSavings = body.isSavings ?? false;
+    if (!paymentSourceId) {
+      return NextResponse.json(
+        { message: "Payment source is required" },
+        { status: 400 }
+      );
+    }
 
-    const wallets = await prisma.monthlyOutcome.findMany({
-      where: { user_id: user.id, deleted_at: null },
-      select: { category: true },
-    });
-
-    const walletCategories = wallets
-      .map((w) => w.category?.toLowerCase())
-      .filter(Boolean);
-
-    if (category && walletCategories.includes(category.toLowerCase())) {
-      isSavings = true;
+    if (!categoryId) {
+      return NextResponse.json(
+        { message: "Category is required" },
+        { status: 400 }
+      );
     }
 
     const transaction = await prisma.transaction.create({
@@ -166,11 +148,16 @@ export async function POST(req: NextRequest) {
         title,
         amount,
         type,
-        category,
+        category_id: categoryId,
         notes,
         date: date && date.trim() !== "" ? new Date(date) : undefined,
-        isSavings,
-        payment_source_id: paymentSourceId || null,
+        payment_source_id: paymentSourceId,
+        wallet_id: walletId || null,
+      },
+      include: {
+        category: { select: { id: true, name: true, icon: true, color: true } },
+        paymentSource: { select: { id: true, name: true, icon: true } },
+        wallet: { select: { id: true, title: true, icon: true } },
       },
     });
 

@@ -18,22 +18,7 @@ export async function POST(
     }
 
     const body = await req.json();
-    const { title, amount, type, category, notes, date, paymentSourceId } = body;
-
-    let isSavings = body.isSavings ?? false;
-
-    const wallets = await prisma.monthlyOutcome.findMany({
-      where: { user_id: user.id, deleted_at: null },
-      select: { category: true },
-    });
-
-    const walletCategories = wallets
-      .map((w) => w.category?.toLowerCase())
-      .filter(Boolean);
-
-    if (category && walletCategories.includes(category.toLowerCase())) {
-      isSavings = true;
-    }
+    const { title, amount, type, categoryId, notes, date, paymentSourceId, walletId } = body;
 
     const existing = await prisma.transaction.findFirst({
       where: { id, user_id: user.id, deleted_at: null },
@@ -58,6 +43,8 @@ export async function POST(
       updateData.date =
         date && date.trim() !== "" ? new Date(date) : existing.date;
       updateData.payment_source_id = paymentSourceId ?? existing.payment_source_id;
+      updateData.category_id = categoryId ?? existing.category_id;
+      updateData.wallet_id = walletId !== undefined ? walletId : existing.wallet_id;
 
       await prisma.$transaction([
         prisma.transaction.update({
@@ -80,11 +67,11 @@ export async function POST(
           title,
           amount,
           type,
-          category,
           notes,
+          category_id: categoryId,
           date: date && date.trim() !== "" ? new Date(date) : undefined,
-          isSavings,
-          payment_source_id: paymentSourceId || null,
+          payment_source_id: paymentSourceId,
+          wallet_id: walletId || null,
         },
       });
     }

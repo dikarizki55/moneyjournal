@@ -23,6 +23,7 @@ export default function TransactionCard({
   category,
   amount,
   paymentSourceId,
+  walletId,
   defaultBadge,
   selectMode,
   selected,
@@ -39,6 +40,7 @@ export default function TransactionCard({
   category: string;
   amount?: number;
   paymentSourceId?: string | null;
+  walletId?: string | null;
   defaultBadge?: boolean;
   selectMode?: boolean;
   selected?: boolean;
@@ -70,6 +72,29 @@ export default function TransactionCard({
         }
       });
   }, [paymentSourceId]);
+
+  const [wallet, setWallet] = useState<{
+    icon: string;
+    title: string;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!walletId) {
+      setWallet(null);
+      return;
+    }
+    fetch("/api/wallet/icons")
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.success) {
+          const w = json.data.find(
+            (s: { id: string }) => s.id === walletId,
+          );
+          if (w) setWallet({ icon: w.icon, title: w.title });
+        }
+      });
+  }, [walletId]);
+
   const isLucideIcon = isValidIcon(icon);
   const [showActions, setShowActions] = useState(false);
   const [pendingAction, setPendingAction] = useState<{
@@ -177,6 +202,16 @@ export default function TransactionCard({
                         <span className="text-muted-foreground text-sm flex items-center gap-1 shrink-0">
                           {/* <Star className="h-3 w-3" /> */}
                           Default
+                        </span>
+                      )}
+                      {wallet && (
+                        <span className="text-[10px] text-muted-foreground/50 mt-0.5 flex items-center gap-1">
+                          {isValidIcon(wallet.icon) ? (
+                            <DynamicIcon name={wallet.icon} className="h-3 w-3" />
+                          ) : (
+                            <span>{wallet.icon}</span>
+                          )}
+                          {wallet.title}
                         </span>
                       )}
                       {paymentSource && (

@@ -12,55 +12,62 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: contentTypeError }, { status: 415 });
     }
 
-    const { outcomeId, amount, date, paymentSourceId, destinationPaymentSourceId } = await req.json();
+    const { walletId, amount, date, paymentSourceId } = await req.json();
 
-    if (!outcomeId || !amount || Number(amount) <= 0) {
+    if (!walletId || !amount || Number(amount) <= 0) {
       return NextResponse.json(
-        { message: "Invalid amount or missing outcome ID" },
+        { message: "Invalid amount or missing wallet ID" },
         { status: 400 }
       );
     }
 
-    const outcome = await prisma.monthlyOutcome.findFirst({
-      where: { id: outcomeId, user_id: user.id, deleted_at: null },
+    const wallet = await prisma.wallet.findFirst({
+      where: { id: walletId, user_id: user.id, deleted_at: null },
     });
 
-    if (!outcome) {
+    if (!wallet) {
       return NextResponse.json(
         { message: "Wallet not found" },
         { status: 404 }
       );
     }
 
-    const allNonSavingsTx = await prisma.transaction.findMany({
+    if (!paymentSourceId) {
+      return NextResponse.json(
+        { message: "Payment source is required" },
+        { status: 400 }
+      );
+    }
+
+    const paymentSource = await prisma.paymentSource.findFirst({
+      where: { id: paymentSourceId, user_id: user.id, deleted_at: null },
+    });
+
+    if (!paymentSource) {
+      return NextResponse.json(
+        { message: "Payment source not found" },
+        { status: 404 }
+      );
+    }
+
+    const allGlobalTx = await prisma.transaction.findMany({
       where: {
         user_id: user.id,
-        isSavings: false,
+        wallet_id: null,
         deleted_at: null,
       },
       select: { amount: true, type: true, payment_source_id: true },
     });
 
-    const globalIncome = allNonSavingsTx
-      .filter((t) => t.type === "income")
-      .reduce((sum, t) => sum + Number(t.amount), 0);
-
-    const globalOutcome = allNonSavingsTx
-      .filter((t) => t.type === "outcome")
-      .reduce((sum, t) => sum + Number(t.amount), 0);
-
-    const totalBalance = globalIncome - globalOutcome;
-
     const sourceBalances: Record<string, number> = {};
-    for (const tx of allNonSavingsTx) {
+    for (const tx of allGlobalTx) {
       const psId = tx.payment_source_id;
       if (!psId) continue;
       if (!sourceBalances[psId]) sourceBalances[psId] = 0;
       sourceBalances[psId] += tx.type === "income" ? Number(tx.amount) : -Number(tx.amount);
     }
 
-    const sourcePsId = paymentSourceId || outcome.default_payment_source_id || null;
-    const availableBalance = sourcePsId ? (sourceBalances[sourcePsId] ?? 0) : totalBalance;
+    const availableBalance = sourceBalances[paymentSourceId] ?? 0;
 
     if (Number(amount) > availableBalance) {
       return NextResponse.json(
@@ -69,44 +76,47 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const destPsId = destinationPaymentSourceId || outcome.default_payment_source_id || sourcePsId;
-
     const pairId = `pair_${crypto.randomUUID()}`;
+
+    const systemCategory = await prisma.category.findFirst({
+      where: { user_id: user.id },
+      orderBy: { created_at: "asc" },
+    });
 
     const [incomeTx, outcomeTx] = await prisma.$transaction([
       prisma.transaction.create({
         data: {
           user_id: user.id,
-          title: outcome.title,
+          title: wallet.title,
           amount: Number(amount),
-          category: outcome.category,
           type: "income",
-          isSavings: true,
           transferPairId: pairId,
           date: date ? new Date(date) : new Date(),
-          notes: `Funded to ${outcome.title} wallet`,
-          payment_source_id: destPsId,
+          notes: `Funded to ${wallet.title} wallet`,
+          payment_source_id: paymentSourceId,
+          wallet_id: walletId,
+          category_id: systemCategory?.id || "",
         },
       }),
       prisma.transaction.create({
         data: {
           user_id: user.id,
-          title: `Transfer to ${outcome.title}`,
+          title: `Transfer to ${wallet.title}`,
           amount: Number(amount),
-          category: outcome.category,
           type: "outcome",
-          isSavings: false,
           transferPairId: pairId,
           date: date ? new Date(date) : new Date(),
-          notes: `Transferred to ${outcome.title} wallet`,
-          payment_source_id: sourcePsId,
+          notes: `Transferred to ${wallet.title} wallet`,
+          payment_source_id: paymentSourceId,
+          wallet_id: null,
+          category_id: systemCategory?.id || "",
         },
       }),
     ]);
 
     return NextResponse.json({
       success: true,
-      message: `Successfully funded ${outcome.title} with Rp ${Number(amount).toLocaleString()}`,
+      message: `Successfully funded ${wallet.title} with Rp ${Number(amount).toLocaleString()}`,
       data: { income: incomeTx, outcome: outcomeTx },
     });
   } catch (error) {

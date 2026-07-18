@@ -6,127 +6,106 @@ export async function GET(req: NextRequest) {
   try {
     const user = await verifyUser(req);
 
-    const containers = await prisma.monthlyOutcome.findMany({
+    const wallets = await prisma.wallet.findMany({
       where: { user_id: user.id, deleted_at: null },
       orderBy: { created_at: "desc" },
     });
+
+    const paymentSources = await prisma.paymentSource.findMany({
+      where: { user_id: user.id, deleted_at: null },
+      select: { id: true, name: true, icon: true },
+    });
+    const psMap = new Map(paymentSources.map((ps) => [ps.id, ps]));
 
     const startOfMonth = new Date();
     startOfMonth.setDate(1);
     startOfMonth.setHours(0, 0, 0, 0);
 
-    const paymentSources = await prisma.paymentSource.findMany({
-      where: { user_id: user.id, deleted_at: null },
-      select: { id: true, name: true },
-    });
-    const psMap = new Map(paymentSources.map((ps) => [ps.id, ps.name]));
-
-    const allSavingsTx = await prisma.transaction.findMany({
+    const allGlobalTx = await prisma.transaction.findMany({
       where: {
         user_id: user.id,
-        isSavings: true,
-        deleted_at: null,
-      },
-      select: { amount: true, category: true, type: true, date: true, payment_source_id: true },
-    });
-
-    const allNonSavingsTx = await prisma.transaction.findMany({
-      where: {
-        user_id: user.id,
-        isSavings: false,
+        wallet_id: null,
         deleted_at: null,
       },
       select: { amount: true, type: true, date: true, payment_source_id: true },
     });
 
-    const globalTotalIncome = allNonSavingsTx
+    const globalTotalIncome = allGlobalTx
       .filter((t) => t.type === "income")
       .reduce((sum, t) => sum + Number(t.amount), 0);
 
-    const globalTotalOutcome = allNonSavingsTx
+    const globalTotalOutcome = allGlobalTx
       .filter((t) => t.type === "outcome")
       .reduce((sum, t) => sum + Number(t.amount), 0);
 
-    const globalThisMonthIncome = allNonSavingsTx
+    const globalThisMonthIncome = allGlobalTx
       .filter((t) => t.type === "income" && t.date && t.date >= startOfMonth)
       .reduce((sum, t) => sum + Number(t.amount), 0);
 
-    const globalThisMonthOutcome = allNonSavingsTx
+    const globalThisMonthOutcome = allGlobalTx
       .filter((t) => t.type === "outcome" && t.date && t.date >= startOfMonth)
       .reduce((sum, t) => sum + Number(t.amount), 0);
 
     const globalBalance = globalTotalIncome - globalTotalOutcome;
 
-    const globalPaymentSourceBalances: Record<string, number> = {};
-    for (const tx of allNonSavingsTx) {
+    const globalPaymentSourceBalances: Record<string, { name: string; icon: string | null; balance: number }> = {};
+    for (const tx of allGlobalTx) {
       const psId = tx.payment_source_id;
       if (!psId) continue;
-      if (!globalPaymentSourceBalances[psId]) globalPaymentSourceBalances[psId] = 0;
-      globalPaymentSourceBalances[psId] +=
+      if (!globalPaymentSourceBalances[psId]) {
+        const ps = psMap.get(psId);
+        globalPaymentSourceBalances[psId] = { name: ps?.name || "Unknown", icon: ps?.icon || null, balance: 0 };
+      }
+      globalPaymentSourceBalances[psId].balance +=
         tx.type === "income" ? Number(tx.amount) : -Number(tx.amount);
     }
-    const globalPaymentSourceBalancesNamed: Record<string, { name: string; balance: number }> = {};
-    for (const [id, bal] of Object.entries(globalPaymentSourceBalances)) {
-      globalPaymentSourceBalancesNamed[id] = {
-        name: psMap.get(id) || "Unknown",
-        balance: bal,
-      };
-    }
 
-    const containerWallets = containers.map((container) => {
-      const categoryTx = allSavingsTx.filter(
-        (t) =>
-          t.category?.toLowerCase() === container.category?.toLowerCase()
-      );
+    const allWalletTx = await prisma.transaction.findMany({
+      where: {
+        user_id: user.id,
+        wallet_id: { not: null },
+        deleted_at: null,
+      },
+      select: { amount: true, type: true, date: true, payment_source_id: true, wallet_id: true },
+    });
 
-      const totalFunded = categoryTx
+    const containerWallets = wallets.map((container) => {
+      const walletTx = allWalletTx.filter((t) => t.wallet_id === container.id);
+
+      const totalFunded = walletTx
         .filter((t) => t.type === "income")
         .reduce((sum, t) => sum + Number(t.amount), 0);
 
-      const totalSpent = categoryTx
+      const totalSpent = walletTx
         .filter((t) => t.type === "outcome")
         .reduce((sum, t) => sum + Number(t.amount), 0);
 
       const balance = totalFunded - totalSpent;
 
-      const thisMonthFunded = categoryTx
-        .filter(
-          (t) =>
-            t.type === "income" && t.date && t.date >= startOfMonth
-        )
+      const thisMonthFunded = walletTx
+        .filter((t) => t.type === "income" && t.date && t.date >= startOfMonth)
         .reduce((sum, t) => sum + Number(t.amount), 0);
 
-      const thisMonthSpent = categoryTx
-        .filter(
-          (t) =>
-            t.type === "outcome" && t.date && t.date >= startOfMonth
-        )
+      const thisMonthSpent = walletTx
+        .filter((t) => t.type === "outcome" && t.date && t.date >= startOfMonth)
         .reduce((sum, t) => sum + Number(t.amount), 0);
-
-      const unassignedCount = categoryTx.filter(
-        (t) => !t.payment_source_id
-      ).length;
 
       const perSource: Record<string, number> = {};
-      for (const tx of categoryTx) {
+      for (const tx of walletTx) {
         const psId = tx.payment_source_id;
         if (!psId) continue;
         if (!perSource[psId]) perSource[psId] = 0;
-        perSource[psId] +=
-          tx.type === "income" ? Number(tx.amount) : -Number(tx.amount);
+        perSource[psId] += tx.type === "income" ? Number(tx.amount) : -Number(tx.amount);
       }
 
-      const perSourceSum = Object.values(perSource).reduce((sum, v) => sum + v, 0);
-      const diff = balance - perSourceSum;
-      if (diff !== 0 && container.default_payment_source_id) {
-        const defaultId = container.default_payment_source_id;
-        perSource[defaultId] = (perSource[defaultId] || 0) + diff;
-      }
+      const unassignedCount = walletTx.filter((t) => !t.payment_source_id).length;
 
-      const paymentSourceBalances: Record<string, { name: string; balance: number }> = {};
+      const paymentSourceBalances: Record<string, { name: string; icon: string | null; balance: number }> = {};
       for (const [id, bal] of Object.entries(perSource)) {
+        const ps = psMap.get(id);
         paymentSourceBalances[id] = {
-          name: psMap.get(id) || "Unknown",
+          name: ps?.name || "Unknown",
+          icon: ps?.icon || null,
           balance: bal,
         };
       }
@@ -134,7 +113,6 @@ export async function GET(req: NextRequest) {
       return {
         id: container.id,
         title: container.title,
-        category: container.category,
         icon: container.icon,
         target: Number(container.amount),
         balance,
@@ -151,14 +129,6 @@ export async function GET(req: NextRequest) {
       (sum, c) => sum + c.balance,
       0
     );
-
-    const unassignedTransactionCount = await prisma.transaction.count({
-      where: {
-        user_id: user.id,
-        payment_source_id: null,
-        deleted_at: null,
-      },
-    });
 
     const paymentSourceTotalsRaw = await prisma.$queryRaw<
       { uuid: string; paymentSource: string; icon: string | null; amount: number }[]
@@ -184,12 +154,11 @@ export async function GET(req: NextRequest) {
         totalOutcome: globalTotalOutcome,
         thisMonthIncome: globalThisMonthIncome,
         thisMonthOutcome: globalThisMonthOutcome,
-        paymentSourceBalances: globalPaymentSourceBalancesNamed,
+        paymentSourceBalances: globalPaymentSourceBalances,
       },
       containers: containerWallets,
       totalNetWorth: globalBalance + totalContainerBalance,
       paymentSourceTotals: paymentSourceTotalsRaw,
-      unassignedTransactionCount,
     });
   } catch (error) {
     console.log(error);

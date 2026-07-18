@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
     const group = searchParams.get("group") || "type";
     const from = searchParams.get("from");
     const to = searchParams.get("to");
-    const excludeSavings = searchParams.get("excludeSavings") === "true";
+    const excludeWalletTx = searchParams.get("excludeWalletTx") === "true";
 
     const validGroups = ["type", "category"];
     if (!validGroups.includes(group)) {
@@ -21,8 +21,8 @@ export async function GET(req: NextRequest) {
     }
 
     const where: any = { user_id: user.id, deleted_at: null };
-    if (excludeSavings) {
-      where.isSavings = false;
+    if (excludeWalletTx) {
+      where.wallet_id = null;
     }
     if (from || to) {
       where.date = {
@@ -31,9 +31,8 @@ export async function GET(req: NextRequest) {
       };
     }
 
-    // Adjust grouping based on parameter
     const groupByFields: any[] =
-      group === "category" ? ["category", "type"] : ["type"];
+      group === "category" ? ["category_id", "type"] : ["type"];
 
     const result = await prisma.transaction.groupBy({
       by: groupByFields,

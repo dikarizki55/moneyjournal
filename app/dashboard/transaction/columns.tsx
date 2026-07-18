@@ -1,7 +1,7 @@
 "use client";
 
 import { ColumnDef } from "@tanstack/react-table";
-import { ArrowUpDown, MoreHorizontal, Pencil, Trash } from "lucide-react";
+import { ArrowUpDown, MoreHorizontal, Pencil, Trash, Wallet } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -13,7 +13,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import type { transaction } from "@prisma/client";
+
 import { DrawerDialog } from "./dialog";
 import { useEffect, useState } from "react";
 import {
@@ -29,29 +29,62 @@ import {
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Checkbox } from "@/components/ui/checkbox";
+import { DynamicIcon, isValidIcon } from "@/components/ui/icon-picker";
 
-function PaymentSourceCell({ paymentSourceId }: { paymentSourceId: string | null }) {
-  const [sources, setSources] = useState<Record<string, { name: string; icon?: string | null }>>({});
+interface TransactionRow {
+  id: string;
+  title: string;
+  amount: number;
+  type: "income" | "outcome";
+  notes: string | null;
+  date: string | null;
+  created_at: string | null;
+  deleted_at: string | null;
+  transferPairId: string | null;
+  payment_source_id: string;
+  category_id: string;
+  wallet_id: string | null;
+  user_id: string | null;
+  category?: { id: string; name: string; icon?: string | null; color?: string | null } | null;
+  paymentSource?: { id: string; name: string; icon?: string | null } | null;
+  wallet?: { id: string; title: string; icon?: string | null } | null;
+}
 
-  useEffect(() => {
-    fetch("/api/payment-source")
-      .then((res) => res.json())
-      .then((json) => {
-        if (json.success) {
-          const map: Record<string, { name: string; icon?: string | null }> = {};
-          json.data.forEach((ps: { id: string; name: string; icon?: string | null }) => {
-            map[ps.id] = ps;
-          });
-          setSources(map);
-        }
-      });
-  }, []);
+function CategoryCell({ category }: { category: TransactionRow["category"] }) {
+  if (!category) return <span className="text-muted-foreground text-xs">—</span>;
+  return (
+    <div className="flex items-center gap-1.5">
+      {category.icon && isValidIcon(category.icon) ? (
+        <div
+          className="w-5 h-5 flex items-center justify-center rounded text-xs"
+          style={{
+            backgroundColor: category.color ? `${category.color}20` : "hsl(var(--primary) / 0.1)",
+            color: category.color || "hsl(var(--primary))",
+          }}
+        >
+          <DynamicIcon name={category.icon} className="h-3 w-3" />
+        </div>
+      ) : null}
+      <span>{category.name}</span>
+    </div>
+  );
+}
 
-  if (!paymentSourceId) return <span className="text-muted-foreground text-xs">—</span>;
-  const source = sources[paymentSourceId];
+function PaymentSourceCell({ paymentSource }: { paymentSource: TransactionRow["paymentSource"] }) {
+  if (!paymentSource) return <span className="text-muted-foreground text-xs">—</span>;
   return (
     <span className="text-xs font-medium">
-      {source ? `${source.icon || ""} ${source.name}` : "..."}
+      {paymentSource.icon || ""} {paymentSource.name}
+    </span>
+  );
+}
+
+function WalletCell({ wallet }: { wallet: TransactionRow["wallet"] }) {
+  if (!wallet) return null;
+  return (
+    <span className="inline-flex items-center gap-1 text-xs bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 px-1.5 py-0.5 rounded">
+      <Wallet className="h-3 w-3" />
+      {wallet.title}
     </span>
   );
 }
@@ -60,33 +93,33 @@ function CategoryHeader() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
-  const [categories, setCategories] = useState<string[]>([]);
-  const currentCategories = searchParams?.get("categories")?.split(",") || [];
+  const [categories, setCategories] = useState<{ id: string; name: string; icon?: string | null }[]>([]);
+  const currentCategoryIds = searchParams?.get("categoryIds")?.split(",") || [];
 
   const sortBy = searchParams?.get("sortBy") ?? "date";
   const sort = searchParams?.get("sort") ?? "desc";
 
   useEffect(() => {
-    fetch("/api/transaction/distinct/category")
+    fetch("/api/transaction/distinct/category_id")
       .then((res) => res.json())
       .then((json) => {
         if (json.success) setCategories(json.data);
       });
   }, []);
 
-  const toggleCategory = (cat: string) => {
+  const toggleCategory = (catId: string) => {
     const params = new URLSearchParams(searchParams ?? "");
-    let newCats = [...currentCategories];
-    if (newCats.includes(cat)) {
-      newCats = newCats.filter((c) => c !== cat);
+    let newCats = [...currentCategoryIds];
+    if (newCats.includes(catId)) {
+      newCats = newCats.filter((c) => c !== catId);
     } else {
-      newCats.push(cat);
+      newCats.push(catId);
     }
 
     if (newCats.length > 0) {
-      params.set("categories", newCats.join(","));
+      params.set("categoryIds", newCats.join(","));
     } else {
-      params.delete("categories");
+      params.delete("categoryIds");
     }
     params.set("page", "1");
     router.push(`${pathname}?${params.toString()}`);
@@ -94,10 +127,10 @@ function CategoryHeader() {
 
   const toggleSort = () => {
     const params = new URLSearchParams(searchParams ?? "");
-    params.set("sortBy", "category");
+    params.set("sortBy", "category_id");
     params.set(
       "sort",
-      sortBy !== "category" ? "asc" : sort === "asc" ? "desc" : "asc"
+      sortBy !== "category_id" ? "asc" : sort === "asc" ? "desc" : "asc"
     );
     params.set("page", "1");
     router.push(`${pathname}?${params.toString()}`);
@@ -111,24 +144,24 @@ function CategoryHeader() {
           className="-ml-4 h-8 data-[state=open]:bg-accent"
         >
           <span>Category</span>
-          {sortBy === "category" && <ArrowUpDown className="ml-2 h-4 w-4" />}
+          {sortBy === "category_id" && <ArrowUpDown className="ml-2 h-4 w-4" />}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start">
         <DropdownMenuItem onClick={toggleSort}>
           Sort{" "}
-          {sort === "asc" && sortBy === "category" ? "Descending" : "Ascending"}
+          {sort === "asc" && sortBy === "category_id" ? "Descending" : "Ascending"}
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuLabel>Filter Categories</DropdownMenuLabel>
         {categories.map((cat) => (
           <DropdownMenuCheckboxItem
-            key={cat}
-            checked={currentCategories.includes(cat)}
-            onCheckedChange={() => toggleCategory(cat)}
+            key={cat.id}
+            checked={currentCategoryIds.includes(cat.id)}
+            onCheckedChange={() => toggleCategory(cat.id)}
             onSelect={(e) => e.preventDefault()}
           >
-            {cat}
+            {cat.icon || ""} {cat.name}
           </DropdownMenuCheckboxItem>
         ))}
       </DropdownMenuContent>
@@ -136,7 +169,9 @@ function CategoryHeader() {
   );
 }
 
-export const columns: ColumnDef<transaction>[] = [
+
+
+export const columns: ColumnDef<TransactionRow>[] = [
   {
     id: "select",
     header: ({ table }) => (
@@ -170,6 +205,7 @@ export const columns: ColumnDef<transaction>[] = [
     cell: ({ row }) => {
       const title: string = row.getValue("title");
       const isLinked = !!row.original.transferPairId;
+      const w = row.original.wallet;
       return (
         <div className="flex items-center gap-2">
           <span>{title}</span>
@@ -178,6 +214,7 @@ export const columns: ColumnDef<transaction>[] = [
               🔗
             </span>
           )}
+          <WalletCell wallet={w} />
         </div>
       );
     },
@@ -185,6 +222,7 @@ export const columns: ColumnDef<transaction>[] = [
   {
     accessorKey: "category",
     header: () => <CategoryHeader />,
+    cell: ({ row }) => <CategoryCell category={row.original.category} />,
   },
   {
     accessorKey: "notes",
@@ -237,7 +275,7 @@ export const columns: ColumnDef<transaction>[] = [
     id: "paymentSource",
     header: "Source",
     cell: ({ row }) => (
-      <PaymentSourceCell paymentSourceId={row.original.payment_source_id} />
+      <PaymentSourceCell paymentSource={row.original.paymentSource} />
     ),
   },
   {
@@ -288,7 +326,7 @@ function NumberCell({ index }: { index: number }) {
   return <span>{index + 1 + (page - 1) * 25}</span>;
 }
 
-function ActionCell({ rawData }: { rawData: transaction }) {
+function ActionCell({ rawData }: { rawData: TransactionRow }) {
   const [isOpen, setIsOpen] = useState(false);
   return (
     <DropdownMenu>
@@ -313,13 +351,13 @@ function ActionCell({ rawData }: { rawData: transaction }) {
           initialData={{
             title: rawData.title,
             type: rawData.type,
-            category: rawData.category || "",
+            categoryId: rawData.category_id || "",
             amount: Number(rawData.amount),
             notes: rawData.notes || "",
             date: String(rawData.date) || "",
-            isSavings: rawData.isSavings || false,
             transferPairId: rawData.transferPairId || null,
-            paymentSourceId: (rawData as any).payment_source_id || null,
+            paymentSourceId: rawData.payment_source_id || null,
+            walletId: rawData.wallet_id || null,
           }}
           title="Edit Transaction"
           description="Edit transaction data"

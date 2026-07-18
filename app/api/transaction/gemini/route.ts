@@ -29,13 +29,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Fetch user's monthly outcome categories
-    const monthlyOutcomes = await prisma.monthlyOutcome.findMany({
+    const categories = await prisma.category.findMany({
       where: { user_id: user.id },
-      select: { category: true },
+      select: { name: true },
     });
     const customCategories = Array.from(
-      new Set(monthlyOutcomes.map((mo) => mo.category))
+      new Set(categories.map((c) => c.name))
     );
 
     const modelName = "gemini-2.0-flash";

@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const outcome = await prisma.monthlyOutcome.findFirst({
+    const outcome = await prisma.wallet.findFirst({
       where: {
         id: outcomeId,
         user_id: user.id,
@@ -31,24 +31,34 @@ export async function POST(req: NextRequest) {
 
     if (!outcome) {
       return NextResponse.json(
-        { message: "Monthly outcome not found" },
+        { message: "Wallet not found" },
         { status: 404 }
       );
     }
 
-    const psId = paymentSourceId || outcome.default_payment_source_id || null;
+    const psId = paymentSourceId || null;
+    if (!psId) {
+      return NextResponse.json(
+        { message: "Payment source is required" },
+        { status: 400 }
+      );
+    }
+
+    const systemCategory = await prisma.category.findFirst({
+      where: { user_id: user.id },
+      orderBy: { created_at: "asc" },
+    });
 
     const transaction = await prisma.transaction.create({
       data: {
         user_id: user.id,
         title: outcome.title,
         amount: Number(amount),
-        category: outcome.category,
         date: date ? new Date(date) : new Date(),
         type: "outcome",
-        isSavings: true,
-        notes: `Auto-generated from monthly outcome: ${outcome.title}`,
+        notes: `Auto-generated from wallet: ${outcome.title}`,
         payment_source_id: psId,
+        category_id: systemCategory?.id || "",
       },
     });
 

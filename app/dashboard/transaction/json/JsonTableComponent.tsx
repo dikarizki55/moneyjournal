@@ -36,7 +36,7 @@ const defaultData = {
   title: "title",
   type: "income",
   amount: 0,
-  category: "shop",
+  categoryId: "",
   notes: "notes",
   date: "2025-07-29",
   created_at: "2025-07-29",
@@ -171,9 +171,9 @@ export default function JsonTableComponent({
                     <TableCell>
                       <Input
                         className=" w-30"
-                        value={String(cell.category)}
+                        value={String((cell as any).categoryId || "")}
                         onChange={(e) =>
-                          handleChange(i, "category", e.target.value)
+                          handleChange(i, "categoryId", e.target.value)
                         }
                       />
                     </TableCell>

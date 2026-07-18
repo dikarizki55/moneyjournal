@@ -57,7 +57,6 @@ interface MonthlyOutcome {
   id: string;
   title: string;
   amount: number;
-  category: string;
   icon?: string | null;
   spent: number;
   balance: number;
@@ -65,7 +64,6 @@ interface MonthlyOutcome {
   totalSpent: number;
   thisMonthFunded: number;
   thisMonthSpent: number;
-  default_payment_source_id?: string | null;
   paymentSources?: PaymentSourceInfo[];
 }
 
@@ -89,9 +87,7 @@ export default function WalletPage() {
   const [newOutcome, setNewOutcome] = useState({
     title: "",
     amount: 0,
-    category: "",
     icon: "",
-    defaultPaymentSourceId: "",
   });
   const [editingOutcome, setEditingOutcome] = useState<MonthlyOutcome | null>(
     null,
@@ -108,7 +104,7 @@ export default function WalletPage() {
   }>({ open: false, outcome: null });
   const [fundAmount, setFundAmount] = useState(0);
   const [fundPaymentSourceId, setFundPaymentSourceId] = useState("");
-  const [fundDestinationPaymentSourceId, setFundDestinationPaymentSourceId] = useState("");
+
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [quickAddName, setQuickAddName] = useState("");
   const [quickAddTarget, setQuickAddTarget] = useState<string | null>(null);
@@ -127,6 +123,7 @@ export default function WalletPage() {
   const [transferAmount, setTransferAmount] = useState(0);
   const [transferPaymentSourceId, setTransferPaymentSourceId] = useState("");
   const [transferDestPaymentSourceId, setTransferDestPaymentSourceId] = useState("");
+
   const [reallocateDialog, setReallocateDialog] = useState<{
     open: boolean;
     outcome: MonthlyOutcome | null;
@@ -221,21 +218,10 @@ export default function WalletPage() {
     fetchPaymentSources();
   }, []);
 
-  useEffect(() => {
-    if (
-      isDialogOpen &&
-      paymentSources.length > 0 &&
-      !newOutcome.defaultPaymentSourceId
-    ) {
-      setNewOutcome((prev) => ({
-        ...prev,
-        defaultPaymentSourceId: paymentSources[0].id,
-      }));
-    }
-  }, [isDialogOpen, paymentSources]);
+
 
   const handleAddOutcome = async () => {
-    if (!newOutcome.title || !newOutcome.amount || !newOutcome.category) {
+    if (!newOutcome.title || !newOutcome.amount) {
       toast.error("Please fill all fields");
       return;
     }
@@ -244,18 +230,13 @@ export default function WalletPage() {
     try {
       const res = await fetch("/api/monthly-outcome", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newOutcome),
       });
 
       if (res.ok) {
         toast.success("Wallet created successfully");
-        setNewOutcome({
-          title: "",
-          amount: 0,
-          category: "",
-          icon: "",
-          defaultPaymentSourceId: "",
-        });
+        setNewOutcome({ title: "", amount: 0, icon: "" });
         setIsDialogOpen(false);
         fetchOutcomes();
       } else {
@@ -270,11 +251,7 @@ export default function WalletPage() {
   };
 
   const handleEditOutcome = async () => {
-    if (
-      !editingOutcome?.title ||
-      !editingOutcome?.amount ||
-      !editingOutcome?.category
-    ) {
+    if (!editingOutcome?.title || !editingOutcome?.amount) {
       toast.error("Please fill all fields");
       return;
     }
@@ -285,13 +262,11 @@ export default function WalletPage() {
         id: editingOutcome.id,
         title: editingOutcome.title,
         amount: editingOutcome.amount,
-        category: editingOutcome.category,
         icon: editingOutcome.icon,
-        defaultPaymentSourceId:
-          (editingOutcome as any).default_payment_source_id || null,
       };
       const res = await fetch("/api/monthly-outcome", {
         method: "PUT",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
 
@@ -340,11 +315,11 @@ export default function WalletPage() {
     try {
       const res = await fetch("/api/monthly-outcome/fund", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          outcomeId: fundDialog.outcome.id,
+          walletId: fundDialog.outcome.id,
           amount: fundAmount,
           paymentSourceId: fundPaymentSourceId || undefined,
-          destinationPaymentSourceId: fundDestinationPaymentSourceId || undefined,
         }),
       });
 
@@ -353,7 +328,6 @@ export default function WalletPage() {
         setFundDialog({ open: false, outcome: null });
         setFundAmount(0);
         setFundPaymentSourceId("");
-        setFundDestinationPaymentSourceId("");
         fetchOutcomes();
         fetchBalance();
       } else {
@@ -377,8 +351,9 @@ export default function WalletPage() {
     try {
       const res = await fetch("/api/monthly-outcome/withdraw", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          outcomeId: withdrawDialog.outcome.id,
+          walletId: withdrawDialog.outcome.id,
           amount: withdrawAmount,
           title: withdrawTitle || undefined,
           paymentSourceId: withdrawPaymentSourceId || undefined,
@@ -417,6 +392,7 @@ export default function WalletPage() {
     try {
       const res = await fetch("/api/monthly-outcome/transfer", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           sourceWalletId: transferDialog.source.id,
           destinationWalletId: transferDestId,
@@ -461,6 +437,7 @@ export default function WalletPage() {
     try {
       const res = await fetch("/api/monthly-outcome/reallocate", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           walletId: reallocateDialog.outcome.id,
           fromPaymentSourceId: reallocateFrom,
@@ -500,7 +477,7 @@ export default function WalletPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           paymentSourceId: migratePaymentSourceId,
-          category: migrateDialog.outcome.category,
+          walletId: migrateDialog.outcome.id,
         }),
       });
       const json = await res.json();
@@ -570,6 +547,7 @@ export default function WalletPage() {
             open={isDialogOpen}
             onOpenChange={setIsDialogOpen}
             title="Add New Wallet"
+            description="Create a new wallet to track your savings or budget."
             trigger={
               <Button className="gap-2">
                 <Plus size={18} />
@@ -595,39 +573,12 @@ export default function WalletPage() {
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium">Category</label>
-                <Input
-                  placeholder="e.g. Emergency"
-                  value={newOutcome.category}
-                  onChange={(e) =>
-                    setNewOutcome({ ...newOutcome, category: e.target.value })
-                  }
-                />
-              </div>
-              <div className="space-y-2">
                 <label className="text-sm font-medium">Icon</label>
                 <IconPicker
                   value={newOutcome.icon}
                   onChange={(iconName) =>
                     setNewOutcome({ ...newOutcome, icon: iconName })
                   }
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">
-                  Default Payment Source
-                </label>
-                  <PaymentSourceCombobox
-                    value={newOutcome.defaultPaymentSourceId}
-                    onChange={(id) =>
-                      setNewOutcome({ ...newOutcome, defaultPaymentSourceId: id })
-                    }
-                    sources={paymentSources}
-                    onQuickAdd={() => {
-                    setQuickAddOpen(true);
-                    setQuickAddName("");
-                    setQuickAddTarget("walletAdd");
-                  }}
                 />
               </div>
               <div className="space-y-2">
@@ -655,6 +606,7 @@ export default function WalletPage() {
         open={isEditDialogOpen}
         onOpenChange={setIsEditDialogOpen}
         title="Edit Wallet"
+        description="Update the wallet name, icon, or budget amount."
       >
         <form
           onSubmit={(e) => {
@@ -678,20 +630,6 @@ export default function WalletPage() {
             />
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-medium">Category</label>
-            <Input
-              placeholder="e.g. Emergency"
-              value={editingOutcome?.category || ""}
-              onChange={(e) =>
-                editingOutcome &&
-                setEditingOutcome({
-                  ...editingOutcome,
-                  category: e.target.value,
-                })
-              }
-            />
-          </div>
-          <div className="space-y-2">
             <label className="text-sm font-medium">Icon</label>
             <IconPicker
               value={editingOutcome?.icon || ""}
@@ -699,27 +637,6 @@ export default function WalletPage() {
                 editingOutcome &&
                 setEditingOutcome({ ...editingOutcome, icon: iconName })
               }
-            />
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium">
-              Default Payment Source
-            </label>
-            <PaymentSourceCombobox
-              value={(editingOutcome as any)?.default_payment_source_id || ""}
-              onChange={(id) =>
-                editingOutcome &&
-                setEditingOutcome({
-                  ...editingOutcome,
-                  default_payment_source_id: id || null,
-                } as any)
-              }
-              sources={paymentSources}
-              onQuickAdd={() => {
-                setQuickAddOpen(true);
-                setQuickAddName("");
-                setQuickAddTarget("walletEdit");
-              }}
             />
           </div>
           <div className="space-y-2">
@@ -749,10 +666,10 @@ export default function WalletPage() {
             setFundDialog({ open: false, outcome: null });
             setFundAmount(0);
             setFundPaymentSourceId("");
-            setFundDestinationPaymentSourceId("");
           }
         }}
         title={`Fund ${fundDialog.outcome?.title || ""}`}
+        description="Add money from your global funds into this wallet."
       >
         <div className="space-y-4 py-4">
           <div className="flex flex-wrap gap-3 p-3 bg-muted rounded-lg text-sm">
@@ -787,27 +704,7 @@ export default function WalletPage() {
               }}
             />
           </div>
-          <div className="space-y-2">
-            <Label>Destination Source</Label>
-            <PaymentSourceCombobox
-              value={fundDestinationPaymentSourceId}
-              onChange={setFundDestinationPaymentSourceId}
-              sources={(() => {
-                const walletSources =
-                  containerSourceBalances[fundDialog.outcome?.id || ""] || {};
-                return paymentSources.map((ps) => ({
-                  ...ps,
-                  balance: walletSources[ps.id]?.balance,
-                }));
-              })()}
-              placeholder="Select destination source..."
-              onQuickAdd={() => {
-                setQuickAddOpen(true);
-                setQuickAddName("");
-                setQuickAddTarget("fundDest");
-              }}
-            />
-          </div>
+
           <div className="space-y-2">
             <Label>Amount to add</Label>
             <RupiahInput
@@ -875,6 +772,7 @@ export default function WalletPage() {
           }
         }}
         title={`Withdraw from ${withdrawDialog.outcome?.title || ""}`}
+        description="Withdraw money from this wallet back to your global funds."
       >
         <div className="space-y-4 py-4">
           {(() => {
@@ -1002,6 +900,7 @@ export default function WalletPage() {
           }
         }}
         title={`Transfer from ${transferDialog.source?.title || ""}`}
+        description="Move money between wallets."
       >
         <div className="space-y-4 py-4">
           {(() => {
@@ -1076,19 +975,24 @@ export default function WalletPage() {
                 ))}
             </select>
           </div>
-          <div className="space-y-2">
-            <Label>Destination Source</Label>
-            <PaymentSourceCombobox
-              value={transferDestPaymentSourceId}
-              onChange={setTransferDestPaymentSourceId}
-              sources={paymentSources}
-              onQuickAdd={() => {
-                setQuickAddOpen(true);
-                setQuickAddName("");
-                setQuickAddTarget("transferDest");
-              }}
-            />
-          </div>
+
+          {transferDestId && (
+            <div className="space-y-2">
+              <Label>Destination Payment Source</Label>
+              <PaymentSourceCombobox
+                value={transferDestPaymentSourceId}
+                onChange={setTransferDestPaymentSourceId}
+                sources={(() => {
+                  const destSources = containerSourceBalances[transferDestId] || {};
+                  return paymentSources.map((ps) => ({
+                    ...ps,
+                    balance: destSources[ps.id]?.balance,
+                  }));
+                })()}
+              />
+            </div>
+          )}
+
           <div className="space-y-2">
             <label className="text-sm font-medium">Amount</label>
             <RupiahInput
@@ -1150,6 +1054,7 @@ export default function WalletPage() {
           }
         }}
         title={`Move Money in ${reallocateDialog.outcome?.title || ""}`}
+        description="Reallocate money between payment sources within this wallet."
       >
         <div className="space-y-4 py-4">
           {(() => {
@@ -1283,6 +1188,7 @@ export default function WalletPage() {
           }
         }}
         title={`Migrate Transactions — ${migrateDialog.outcome?.title || ""}`}
+        description="Migrate all transactions from one payment source to another."
       >
         <div className="space-y-4 py-4">
           <div className="flex items-start gap-3 p-3 bg-amber-50 dark:bg-amber-950 rounded-lg border border-amber-200 dark:border-amber-800">
@@ -1391,26 +1297,7 @@ export default function WalletPage() {
                           {outcome.title}
                         </CardTitle>
                       </div>
-                      <p className="text-sm text-muted-foreground uppercase font-semibold">
-                        {outcome.category}
-                      </p>
-                      {outcome.default_payment_source_id &&
-                        (() => {
-                          const ps = paymentSources.find(
-                            (s) => s.id === outcome.default_payment_source_id,
-                          );
-                          return ps ? (
-                            <span className="text-[11px] text-muted-foreground/50 flex items-center gap-1">
-                              {isValidIcon(ps.icon) ? (
-                                <DynamicIcon
-                                  name={ps.icon!}
-                                  className="h-3 w-3"
-                                />
-                              ) : null}
-                              Default: {ps.name}
-                            </span>
-                          ) : null;
-                        })()}
+
                     </div>
                     <div className="flex items-center gap-2">
                       <Button
@@ -1548,7 +1435,7 @@ export default function WalletPage() {
                             onClick={() => {
                               setMigrateDialog({ open: true, outcome });
                               setMigratePaymentSourceId(
-                                outcome.default_payment_source_id || paymentSources[0]?.id || "",
+                                paymentSources[0]?.id || "",
                               );
                             }}
                           >
@@ -1563,10 +1450,8 @@ export default function WalletPage() {
                         size="sm"
                         onClick={() => {
                           setFundDialog({ open: true, outcome });
-                          setFundAmount(outcome.amount);
-                          setFundPaymentSourceId(
-                            outcome.default_payment_source_id || "",
-                          );
+                          setFundAmount(0);
+                          setFundPaymentSourceId("");
                         }}
                       >
                         <TrendingUp className="w-4 h-4 mr-1" />
@@ -1579,9 +1464,7 @@ export default function WalletPage() {
                           setWithdrawDialog({ open: true, outcome });
                           setWithdrawAmount(0);
                           setWithdrawTitle("");
-                          setWithdrawPaymentSourceId(
-                            outcome.default_payment_source_id || "",
-                          );
+                          setWithdrawPaymentSourceId("");
                         }}
                       >
                         <TrendingDown className="w-4 h-4 mr-1" />
@@ -1594,9 +1477,7 @@ export default function WalletPage() {
                           setTransferDialog({ open: true, source: outcome });
                           setTransferDestId("");
                           setTransferAmount(0);
-                          setTransferPaymentSourceId(
-                            outcome.default_payment_source_id || "",
-                          );
+                          setTransferPaymentSourceId("");
                         }}
                       >
                         <ArrowLeftRight className="w-4 h-4 mr-1" />
@@ -1613,10 +1494,7 @@ export default function WalletPage() {
                           ).find(([, b]) => b.balance > 0);
                           setReallocateDialog({ open: true, outcome });
                           setReallocateFrom(
-                            firstWithBalance?.[0] ||
-                              outcome.default_payment_source_id ||
-                              paymentSources[0]?.id ||
-                              "",
+                            firstWithBalance?.[0] || paymentSources[0]?.id || "",
                           );
                           setReallocateTo("");
                           setReallocateAmount(0);
@@ -1626,7 +1504,7 @@ export default function WalletPage() {
                         Move
                       </Button>
                       <Link
-                        href={`/dashboard/transaction?categories=${encodeURIComponent(outcome.category)}`}
+                        href={`/dashboard/transaction`}
                       >
                         <Button variant="outline" size="sm">
                           <List className="w-4 h-4 mr-1" />
@@ -1657,39 +1535,20 @@ export default function WalletPage() {
                 }),
               })
                 .then((res) => res.json())
-                .then((json) => {
-                  if (json.success) {
-                    setPaymentSources((prev) => [...prev, json.data]);
-                    const newId = json.data.id;
-                    if (quickAddTarget === "fund")
-                      setFundPaymentSourceId(newId);
-                    else if (quickAddTarget === "fundDest")
-                      setFundDestinationPaymentSourceId(newId);
-                    else if (quickAddTarget === "withdraw")
-                      setWithdrawPaymentSourceId(newId);
-                    else if (quickAddTarget === "transfer")
-                      setTransferPaymentSourceId(newId);
-                    else if (quickAddTarget === "transferDest")
-                      setTransferDestPaymentSourceId(newId);
-                    else if (quickAddTarget === "walletAdd")
-                      setNewOutcome((prev) => ({
-                        ...prev,
-                        defaultPaymentSourceId: newId,
-                      }));
-                    else if (quickAddTarget === "walletEdit")
-                      setEditingOutcome((prev) =>
-                        prev
-                          ? ({
-                              ...prev,
-                              default_payment_source_id: newId,
-                            } as any)
-                          : null,
-                      );
-                    setQuickAddOpen(false);
-                    setQuickAddName("");
-                    setQuickAddTarget(null);
-                  }
-                });
+                  .then((json) => {
+                    if (json.success) {
+                      setPaymentSources((prev) => [...prev, json.data]);
+                      const newId = json.data.id;
+                      if (quickAddTarget === "fund")
+                        setFundPaymentSourceId(newId);
+                      else if (quickAddTarget === "withdraw")
+                        setWithdrawPaymentSourceId(newId);
+                      else if (quickAddTarget === "transfer")
+                        setTransferPaymentSourceId(newId);
+                      setQuickAddOpen(false);
+                      setQuickAddName("");
+                    }
+                  });
             }}
           >
             <AlertDialogHeader>

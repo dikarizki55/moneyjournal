@@ -24,6 +24,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Trash2, RotateCcw, Loader2, ArchiveX } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { DynamicIcon, isValidIcon } from "@/components/ui/icon-picker";
 import { toast } from "sonner";
 import { formatRupiah } from "../RupiahInput";
 import TransactionCard from "@/components/transaction/transactionCard";
@@ -36,14 +37,14 @@ interface DeletedTransaction {
   type: "income" | "outcome";
   date: string | null;
   payment_source_id?: string | null;
+  wallet_id?: string | null;
   deleted_at: string;
 }
 
-interface DeletedMonthlyOutcome {
+interface DeletedWallet {
   id: string;
   title: string;
   amount: number;
-  category: string;
   icon: string | null;
   deleted_at: string;
 }
@@ -56,21 +57,34 @@ interface DeletedPaymentSource {
   deleted_at: string;
 }
 
+interface DeletedCategory {
+  id: string;
+  name: string;
+  icon: string | null;
+  color: string | null;
+  deleted_at: string;
+}
+
 export default function RecycleBinPage() {
   const [transactions, setTransactions] = useState<DeletedTransaction[]>([]);
-  const [monthlyOutcomes, setMonthlyOutcomes] = useState<
-    DeletedMonthlyOutcome[]
+  const [deletedWallets, setDeletedWallets] = useState<
+    DeletedWallet[]
   >([]);
   const [paymentSources, setPaymentSources] = useState<DeletedPaymentSource[]>(
+    [],
+  );
+  const [deletedCategories, setDeletedCategories] = useState<DeletedCategory[]>(
     [],
   );
   const [isLoading, setIsLoading] = useState(true);
   const [selectedTx, setSelectedTx] = useState<Set<string>>(new Set());
   const [selectedMo, setSelectedMo] = useState<Set<string>>(new Set());
   const [selectedPs, setSelectedPs] = useState<Set<string>>(new Set());
+  const [selectedCat, setSelectedCat] = useState<Set<string>>(new Set());
   const [mobileSelectTx, setMobileSelectTx] = useState(false);
   const [mobileSelectMo, setMobileSelectMo] = useState(false);
   const [mobileSelectPs, setMobileSelectPs] = useState(false);
+  const [mobileSelectCat, setMobileSelectCat] = useState(false);
   const [actionType, setActionType] = useState<"restore" | "permanent" | null>(
     null,
   );
@@ -113,8 +127,9 @@ export default function RecycleBinPage() {
       const json = await res.json();
       if (json.success) {
         setTransactions(json.data.transactions);
-        setMonthlyOutcomes(json.data.monthlyOutcomes);
+        setDeletedWallets(json.data.wallets);
         setPaymentSources(json.data.paymentSources);
+        setDeletedCategories(json.data.categories || []);
       }
     } catch {
       toast.error("Failed to fetch deleted items");
@@ -128,7 +143,7 @@ export default function RecycleBinPage() {
   }, []);
 
   const handleRestore = async (
-    type: "transaction" | "monthly_outcome" | "payment_source",
+    type: "transaction" | "wallet" | "payment_source" | "category",
     ids: string[],
   ) => {
     try {
@@ -143,9 +158,11 @@ export default function RecycleBinPage() {
         setSelectedTx(new Set());
         setSelectedMo(new Set());
         setSelectedPs(new Set());
+        setSelectedCat(new Set());
         setMobileSelectTx(false);
         setMobileSelectMo(false);
         setMobileSelectPs(false);
+        setMobileSelectCat(false);
         fetchDeleted();
       } else {
         toast.error(json.message || "Failed to restore");
@@ -156,7 +173,7 @@ export default function RecycleBinPage() {
   };
 
   const handlePermanentDelete = async (
-    type: "transaction" | "monthly_outcome" | "payment_source",
+    type: "transaction" | "wallet" | "payment_source" | "category",
     ids: string[],
   ) => {
     try {
@@ -171,9 +188,11 @@ export default function RecycleBinPage() {
         setSelectedTx(new Set());
         setSelectedMo(new Set());
         setSelectedPs(new Set());
+        setSelectedCat(new Set());
         setMobileSelectTx(false);
         setMobileSelectMo(false);
         setMobileSelectPs(false);
+        setMobileSelectCat(false);
         fetchDeleted();
       } else {
         toast.error(json.message || "Failed to delete");
@@ -210,10 +229,10 @@ export default function RecycleBinPage() {
   };
 
   const toggleAllMo = () => {
-    if (selectedMo.size === monthlyOutcomes.length) {
+    if (selectedMo.size === deletedWallets.length) {
       setSelectedMo(new Set());
     } else {
-      setSelectedMo(new Set(monthlyOutcomes.map((m) => m.id)));
+      setSelectedMo(new Set(deletedWallets.map((m) => m.id)));
     }
   };
 
@@ -234,24 +253,41 @@ export default function RecycleBinPage() {
     }
   };
 
+  const toggleSelectCat = (id: string) => {
+    setSelectedCat((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleAllCat = () => {
+    if (selectedCat.size === deletedCategories.length) {
+      setSelectedCat(new Set());
+    } else {
+      setSelectedCat(new Set(deletedCategories.map((c) => c.id)));
+    }
+  };
+
   const confirmAction = (action: "restore" | "permanent") => {
     setActionType(action);
   };
 
   const executeAction = () => {
-    const typeMap: Record<
-      string,
-      "transaction" | "monthly_outcome" | "payment_source"
-    > = {
-      transactions: "transaction",
-      "monthly-outcomes": "monthly_outcome",
-      "payment-sources": "payment_source",
-    };
+    const typeMap: Record<string, "transaction" | "wallet" | "payment_source" | "category"> =
+      {
+        transactions: "transaction",
+        wallets: "wallet",
+        "payment-sources": "payment_source",
+        categories: "category",
+      };
     const type = typeMap[activeTab];
     const idsMap: Record<string, Set<string>> = {
       transactions: selectedTx,
-      "monthly-outcomes": selectedMo,
+      wallets: selectedMo,
       "payment-sources": selectedPs,
+      categories: selectedCat,
     };
     const ids = Array.from(idsMap[activeTab]);
     if (actionType === "restore") handleRestore(type, ids);
@@ -264,7 +300,9 @@ export default function RecycleBinPage() {
       ? selectedTx.size > 0
       : activeTab === "monthly-outcomes"
         ? selectedMo.size > 0
-        : selectedPs.size > 0;
+        : activeTab === "payment-sources"
+          ? selectedPs.size > 0
+          : selectedCat.size > 0;
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
@@ -285,10 +323,13 @@ export default function RecycleBinPage() {
               Transactions ({transactions.length})
             </TabsTrigger>
             <TabsTrigger value="monthly-outcomes">
-              Wallets ({monthlyOutcomes.length})
+              Wallets ({deletedWallets.length})
             </TabsTrigger>
             <TabsTrigger value="payment-sources">
               Payment Sources ({paymentSources.length})
+            </TabsTrigger>
+            <TabsTrigger value="categories">
+              Categories ({deletedCategories.length})
             </TabsTrigger>
           </TabsList>
 
@@ -306,7 +347,9 @@ export default function RecycleBinPage() {
                   ? selectedTx.size
                   : activeTab === "monthly-outcomes"
                     ? selectedMo.size
-                    : selectedPs.size}
+                    : activeTab === "payment-sources"
+                      ? selectedPs.size
+                      : selectedCat.size}
                 )
               </Button>
               <Button
@@ -321,7 +364,9 @@ export default function RecycleBinPage() {
                   ? selectedTx.size
                   : activeTab === "monthly-outcomes"
                     ? selectedMo.size
-                    : selectedPs.size}
+                    : activeTab === "payment-sources"
+                      ? selectedPs.size
+                      : selectedCat.size}
                 )
               </Button>
             </div>
@@ -441,8 +486,13 @@ export default function RecycleBinPage() {
                     title={tx.title}
                     notes=""
                     category={tx.category || "Uncategorized"}
-                    amount={tx.type === "outcome" ? -Number(tx.amount) : Number(tx.amount)}
+                    amount={
+                      tx.type === "outcome"
+                        ? -Number(tx.amount)
+                        : Number(tx.amount)
+                    }
                     paymentSourceId={tx.payment_source_id}
+                    walletId={tx.wallet_id}
                     selectMode={mobileSelectTx}
                     selected={selectedTx.has(tx.id)}
                     onSelectChange={() => toggleSelectTx(tx.id)}
@@ -566,16 +616,16 @@ export default function RecycleBinPage() {
                 </div>
               </div>
             </div>
-          ) : monthlyOutcomes.length === 0 ? (
+          ) : deletedWallets.length === 0 ? (
             <div className="text-center p-12 text-muted-foreground border rounded-lg border-dashed">
-              No deleted monthly outcomes.
+              No deleted wallets.
             </div>
           ) : (
             <>
               <div className="lg:hidden space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">
-                    {monthlyOutcomes.length} wallets
+                    {deletedWallets.length} wallets
                   </span>
                   {mobileSelectMo ? (
                     <div className="flex items-center gap-2">
@@ -584,7 +634,7 @@ export default function RecycleBinPage() {
                         variant="outline"
                         onClick={() =>
                           setSelectedMo(
-                            new Set(monthlyOutcomes.map((m) => m.id)),
+                            new Set(deletedWallets.map((m) => m.id)),
                           )
                         }
                       >
@@ -633,13 +683,13 @@ export default function RecycleBinPage() {
                     </Button>
                   </div>
                 )}
-                {monthlyOutcomes.map((mo) => (
-                  <TransactionCard
+                {deletedWallets.map((mo) => (
+                    <TransactionCard
                     key={mo.id}
                     icon={mo.icon || mo.title.charAt(0).toUpperCase()}
                     title={mo.title}
                     notes=""
-                    category={mo.category}
+                    category={mo.title}
                     amount={Number(mo.amount)}
                     selectMode={mobileSelectMo}
                     selected={selectedMo.has(mo.id)}
@@ -650,13 +700,11 @@ export default function RecycleBinPage() {
                     swipeActions={[
                       {
                         label: "Restore",
-                        onClick: () =>
-                          handleRestore("monthly_outcome", [mo.id]),
+                        onClick: () => handleRestore("wallet", [mo.id]),
                       },
                       {
                         label: "Delete Forever",
-                        onClick: () =>
-                          handlePermanentDelete("monthly_outcome", [mo.id]),
+                        onClick: () => handlePermanentDelete("wallet", [mo.id]),
                       },
                     ]}
                   />
@@ -669,20 +717,19 @@ export default function RecycleBinPage() {
                       <TableHead className="w-10">
                         <Checkbox
                           checked={
-                            monthlyOutcomes.length > 0 &&
-                            selectedMo.size === monthlyOutcomes.length
+                            deletedWallets.length > 0 &&
+                            selectedMo.size === deletedWallets.length
                           }
                           onCheckedChange={toggleAllMo}
                         />
                       </TableHead>
                       <TableHead>Title</TableHead>
-                      <TableHead>Category</TableHead>
                       <TableHead className="text-right">Amount</TableHead>
                       <TableHead>Deleted At</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {monthlyOutcomes.map((mo) => (
+                    {deletedWallets.map((mo) => (
                       <TableRow key={mo.id}>
                         <TableCell>
                           <Checkbox
@@ -693,7 +740,6 @@ export default function RecycleBinPage() {
                         <TableCell className="font-medium">
                           {mo.title}
                         </TableCell>
-                        <TableCell>{mo.category}</TableCell>
                         <TableCell className="text-right font-medium">
                           {formatRupiah(Number(mo.amount).toString())}
                         </TableCell>
@@ -879,6 +925,188 @@ export default function RecycleBinPage() {
                         <TableCell>{ps.default ? "Yes" : "No"}</TableCell>
                         <TableCell className="text-muted-foreground text-sm">
                           {new Date(ps.deleted_at).toLocaleDateString("id-ID", {
+                            day: "numeric",
+                            month: "short",
+                            year: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
+          )}
+        </TabsContent>
+
+        <TabsContent value="categories">
+          {isLoading ? (
+            <div className="space-y-4">
+              <div className="lg:hidden space-y-3">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="flex items-center gap-3 p-4 border rounded-lg">
+                    <Skeleton className="h-10 w-10 rounded-full" />
+                    <div className="flex-1 space-y-2">
+                      <Skeleton className="h-4 w-40" />
+                      <Skeleton className="h-3 w-24" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="hidden lg:block rounded-md border">
+                <div className="p-4 space-y-4">
+                  <div className="flex gap-4">
+                    <Skeleton className="h-4 w-6" />
+                    <Skeleton className="h-4 w-48" />
+                    <Skeleton className="h-4 w-32 ml-auto" />
+                  </div>
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="flex gap-4 items-center">
+                      <Skeleton className="h-4 w-6" />
+                      <Skeleton className="h-4 w-44" />
+                      <Skeleton className="h-4 w-28 ml-auto" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : deletedCategories.length === 0 ? (
+            <div className="text-center p-12 text-muted-foreground border rounded-lg border-dashed">
+              No deleted categories.
+            </div>
+          ) : (
+            <>
+              <div className="lg:hidden space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">
+                    {deletedCategories.length} categories
+                  </span>
+                  {mobileSelectCat ? (
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                          setSelectedCat(new Set(deletedCategories.map((c) => c.id)))
+                        }
+                      >
+                        Select All
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setMobileSelectCat(false);
+                          setSelectedCat(new Set());
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setMobileSelectCat(true)}
+                    >
+                      Select
+                    </Button>
+                  )}
+                </div>
+                {mobileSelectCat && selectedCat.size > 0 && (
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="gap-1"
+                      onClick={() => confirmAction("restore")}
+                    >
+                      <RotateCcw className="h-4 w-4" /> Restore ({selectedCat.size})
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      className="gap-1"
+                      onClick={() => confirmAction("permanent")}
+                    >
+                      <Trash2 className="h-4 w-4" /> Delete Forever ({selectedCat.size})
+                    </Button>
+                  </div>
+                )}
+                {deletedCategories.map((cat) => (
+                  <TransactionCard
+                    key={cat.id}
+                    icon={cat.icon && isValidIcon(cat.icon) ? cat.icon : cat.name.charAt(0).toUpperCase()}
+                    title={cat.name}
+                    notes=""
+                    category={cat.name}
+                    selectMode={mobileSelectCat}
+                    selected={selectedCat.has(cat.id)}
+                    onSelectChange={() => toggleSelectCat(cat.id)}
+                    onClick={() => {
+                      if (mobileSelectCat) toggleSelectCat(cat.id);
+                    }}
+                    swipeActions={[
+                      {
+                        label: "Restore",
+                        onClick: () => handleRestore("category", [cat.id]),
+                      },
+                      {
+                        label: "Delete Forever",
+                        onClick: () => handlePermanentDelete("category", [cat.id]),
+                      },
+                    ]}
+                  />
+                ))}
+              </div>
+              <div className="hidden lg:block rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-10">
+                        <Checkbox
+                          checked={
+                            deletedCategories.length > 0 &&
+                            selectedCat.size === deletedCategories.length
+                          }
+                          onCheckedChange={toggleAllCat}
+                        />
+                      </TableHead>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Deleted At</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {deletedCategories.map((cat) => (
+                      <TableRow key={cat.id}>
+                        <TableCell>
+                          <Checkbox
+                            checked={selectedCat.has(cat.id)}
+                            onCheckedChange={() => toggleSelectCat(cat.id)}
+                          />
+                        </TableCell>
+                        <TableCell className="font-medium">
+                          <div className="flex items-center gap-2">
+                            <div
+                              className="w-6 h-6 flex items-center justify-center rounded text-xs shrink-0"
+                              style={{
+                                backgroundColor: cat.color ? `${cat.color}20` : "hsl(var(--primary) / 0.1)",
+                                color: cat.color || "hsl(var(--primary))",
+                              }}
+                            >
+                              {isValidIcon(cat.icon) ? (
+                                <DynamicIcon name={cat.icon!} className="h-3.5 w-3.5" />
+                              ) : (
+                                <span>{cat.name.charAt(0).toUpperCase()}</span>
+                              )}
+                            </div>
+                            {cat.name}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground text-sm">
+                          {new Date(cat.deleted_at).toLocaleDateString("id-ID", {
                             day: "numeric",
                             month: "short",
                             year: "numeric",

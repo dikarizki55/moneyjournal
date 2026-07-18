@@ -15,8 +15,11 @@ import {
 } from "@/components/ui/alert-dialog";
 import { formatRupiah } from "@/app/dashboard/RupiahInput";
 import { DrawerDialog } from "@/app/dashboard/transaction/dialog";
+import { isValidIcon } from "@/components/ui/icon-picker";
 import TransactionCard from "./transactionCard";
 import type { transaction } from "@prisma/client";
+
+type CategoryObj = { id: string; name: string; icon?: string | null; color?: string | null };
 
 type SerializedTransaction = Omit<
   transaction,
@@ -26,6 +29,8 @@ type SerializedTransaction = Omit<
   date: string;
   created_at?: string;
   deleted_at?: string | null;
+  category_id: string;
+  category?: CategoryObj | null;
 };
 
 export default function MobileTransactionList({
@@ -42,14 +47,14 @@ export default function MobileTransactionList({
   const [editItem, setEditItem] = useState<SerializedTransaction | null>(null);
 
   useEffect(() => {
-    fetch("/api/wallet/icons", { credentials: "include" })
+    fetch("/api/category", { credentials: "include" })
       .then((res) => res.json())
       .then((json) => {
         if (json.success) {
           const map = new Map<string, string>();
-          json.data.forEach((w: { category: string; icon: string | null }) => {
-            if (w.icon && w.category) {
-              map.set(w.category.toLowerCase(), w.icon);
+          json.data.forEach((c: { name: string; icon: string | null }) => {
+            if (c.icon && c.name) {
+              map.set(c.name.toLowerCase(), c.icon);
             }
           });
           setCategoryIconMap(map);
@@ -58,10 +63,14 @@ export default function MobileTransactionList({
   }, []);
 
   const resolveIcon = useCallback(
-    (category: string | null, title: string): string => {
-      if (category) {
-        const icon = categoryIconMap.get(category.toLowerCase());
+    (category: string | CategoryObj | null | undefined, title: string): string => {
+      const catName = category ? (typeof category === "string" ? category : category.name) : null;
+      if (catName) {
+        const icon = categoryIconMap.get(catName.toLowerCase());
         if (icon) return icon;
+      }
+      if (typeof category === "object" && category?.icon && isValidIcon(category.icon)) {
+        return category.icon;
       }
       return title.charAt(0).toUpperCase();
     },
@@ -191,14 +200,10 @@ export default function MobileTransactionList({
           initialData={{
             title: editItem.title,
             type: editItem.type,
-            category: editItem.category || "",
+            categoryId: editItem.category_id || "",
             amount: Number(editItem.amount),
             notes: editItem.notes || "",
             date: editItem.date || "",
-            isSavings:
-              "isSavings" in editItem
-                ? Boolean((editItem as any).isSavings)
-                : false,
             transferPairId:
               "transferPairId" in editItem
                 ? (editItem as any).transferPairId || null
@@ -206,6 +211,10 @@ export default function MobileTransactionList({
             paymentSourceId:
               "payment_source_id" in editItem
                 ? (editItem as any).payment_source_id || null
+                : null,
+            walletId:
+              "wallet_id" in editItem
+                ? (editItem as any).wallet_id || null
                 : null,
           }}
           title="Edit Transaction"
@@ -220,13 +229,14 @@ export default function MobileTransactionList({
           icon={resolveIcon(item.category, item.title)}
           title={item.title}
           notes={item.notes || ""}
-          category={item.category || item.title}
+          category={typeof item.category === "object" ? item.category?.name || item.title : (item as any).category || item.title}
           amount={
             item.type === "outcome"
               ? -Number(item.amount)
               : Number(item.amount)
           }
           paymentSourceId={(item as any).payment_source_id}
+          walletId={(item as any).wallet_id}
           selectMode={selectMode}
           selected={selectedIds.has(item.id)}
           onSelectChange={() => toggleSelect(item.id)}

@@ -10,9 +10,22 @@ export async function GET(req: NextRequest) {
     const sources = await prisma.paymentSource.findMany({
       where: { user_id: user.id, deleted_at: null },
       orderBy: { created_at: "desc" },
+      include: {
+        wallets: {
+          select: {
+            wallet_id: true,
+            wallet: { select: { id: true, title: true, icon: true } },
+          },
+        },
+      },
     });
 
-    return NextResponse.json({ success: true, data: sources });
+    const data = sources.map((s) => ({
+      ...s,
+      wallets: s.wallets.map((w) => w.wallet),
+    }));
+
+    return NextResponse.json({ success: true, data });
   } catch (error) {
     console.log(error);
     return NextResponse.json(

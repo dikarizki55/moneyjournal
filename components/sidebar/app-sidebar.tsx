@@ -1,6 +1,6 @@
 "use client";
 
-import { Home, Banknote, Repeat, ArchiveX } from "lucide-react";
+import { Home, Banknote, Repeat, ArchiveX, Tags, BookOpen } from "lucide-react";
 
 import {
   Sidebar,
@@ -20,7 +20,6 @@ import Link from "next/link";
 import ThemeToggle from "../block/themeToggle";
 import ChatgptIcon from "../icon/chatgptIcon";
 
-// Menu items.
 const items = [
   {
     title: "Home",
@@ -38,6 +37,11 @@ const items = [
     icon: Repeat,
   },
   {
+    title: "Categories",
+    url: "/dashboard/category",
+    icon: Tags,
+  },
+  {
     title: "Input Data with AI",
     url: "/dashboard/ai-input",
     icon: ChatgptIcon,
@@ -46,6 +50,11 @@ const items = [
     title: "Recycle Bin",
     url: "/dashboard/recycle-bin",
     icon: ArchiveX,
+  },
+  {
+    title: "Tutorial",
+    url: "/dashboard/tutorial",
+    icon: BookOpen,
   },
 ];
 

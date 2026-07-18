@@ -7,7 +7,7 @@ export async function GET(req: NextRequest) {
     const user = await verifyUser(req);
 
     const { searchParams } = new URL(req.url);
-    const excludeSavings = searchParams.get("excludeSavings") === "true";
+    const excludeWalletTx = searchParams.get("excludeWalletTx") === "true";
 
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -18,8 +18,8 @@ export async function GET(req: NextRequest) {
       deleted_at: null,
       created_at: { gte: startOfMonth, lt: startOfNextMonth },
     };
-    if (excludeSavings) {
-      where.isSavings = false;
+    if (excludeWalletTx) {
+      where.wallet_id = null;
     }
 
     const result = await prisma.transaction.groupBy({

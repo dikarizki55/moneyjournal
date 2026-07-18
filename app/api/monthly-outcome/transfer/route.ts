@@ -28,11 +28,18 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    if (!paymentSourceId) {
+      return NextResponse.json(
+        { message: "Payment source is required" },
+        { status: 400 }
+      );
+    }
+
     const [sourceWallet, destWallet] = await Promise.all([
-      prisma.monthlyOutcome.findFirst({
+      prisma.wallet.findFirst({
         where: { id: sourceWalletId, user_id: user.id, deleted_at: null },
       }),
-      prisma.monthlyOutcome.findFirst({
+      prisma.wallet.findFirst({
         where: { id: destinationWalletId, user_id: user.id, deleted_at: null },
       }),
     ]);
@@ -51,48 +58,38 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const allSavingsTx = await prisma.transaction.findMany({
+    const allWalletTx = await prisma.transaction.findMany({
       where: {
         user_id: user.id,
-        isSavings: true,
+        wallet_id: sourceWalletId,
         deleted_at: null,
       },
-      select: { amount: true, category: true, type: true, payment_source_id: true },
+      select: { amount: true, type: true, payment_source_id: true },
     });
 
-    const sourceTx = allSavingsTx.filter(
-      (t) => t.category?.toLowerCase() === sourceWallet.category?.toLowerCase()
-    );
-
-    const outcomePsId = paymentSourceId || sourceWallet.default_payment_source_id || null;
-
-    const sourceSourceBalances: Record<string, number> = {};
-    for (const tx of sourceTx) {
+    const sourceBalances: Record<string, number> = {};
+    for (const tx of allWalletTx) {
       const sid = tx.payment_source_id;
       if (!sid) continue;
-      if (!sourceSourceBalances[sid]) sourceSourceBalances[sid] = 0;
-      sourceSourceBalances[sid] += tx.type === "income" ? Number(tx.amount) : -Number(tx.amount);
+      if (!sourceBalances[sid]) sourceBalances[sid] = 0;
+      sourceBalances[sid] += tx.type === "income" ? Number(tx.amount) : -Number(tx.amount);
     }
 
-    const sourceBalance = sourceTx
-      .filter((t) => t.type === "income")
-      .reduce((sum, t) => sum + Number(t.amount), 0) -
-      sourceTx
-        .filter((t) => t.type === "outcome")
-        .reduce((sum, t) => sum + Number(t.amount), 0);
+    const availableBalance = sourceBalances[paymentSourceId] ?? 0;
 
-    const availableSourceBalance = outcomePsId ? (sourceSourceBalances[outcomePsId] ?? 0) : sourceBalance;
-
-    if (Number(amount) > availableSourceBalance) {
+    if (Number(amount) > availableBalance) {
       return NextResponse.json(
-        { message: `Insufficient balance in ${sourceWallet.title} for this payment source. Available: Rp ${availableSourceBalance.toLocaleString()}` },
+        { message: `Insufficient balance in ${sourceWallet.title} for this payment source. Available: Rp ${availableBalance.toLocaleString()}` },
         { status: 400 }
       );
     }
 
     const pairId = `pair_${crypto.randomUUID()}`;
 
-    const incomePsId = destinationPaymentSourceId || destWallet.default_payment_source_id || outcomePsId;
+    const systemCategory = await prisma.category.findFirst({
+      where: { user_id: user.id },
+      orderBy: { created_at: "asc" },
+    });
 
     const [outcomeTx, incomeTx] = await prisma.$transaction([
       prisma.transaction.create({
@@ -100,13 +97,13 @@ export async function POST(req: NextRequest) {
           user_id: user.id,
           title: `Transfer to ${destWallet.title}`,
           amount: Number(amount),
-          category: sourceWallet.category,
           type: "outcome",
-          isSavings: true,
           transferPairId: pairId,
           date: date ? new Date(date) : new Date(),
           notes: `Transferred to ${destWallet.title} wallet`,
-          payment_source_id: outcomePsId,
+          payment_source_id: paymentSourceId,
+          wallet_id: sourceWalletId,
+          category_id: systemCategory?.id || "",
         },
       }),
       prisma.transaction.create({
@@ -114,13 +111,13 @@ export async function POST(req: NextRequest) {
           user_id: user.id,
           title: `Transfer from ${sourceWallet.title}`,
           amount: Number(amount),
-          category: destWallet.category,
           type: "income",
-          isSavings: true,
           transferPairId: pairId,
           date: date ? new Date(date) : new Date(),
           notes: `Transferred from ${sourceWallet.title} wallet`,
-          payment_source_id: incomePsId,
+          payment_source_id: destinationPaymentSourceId || paymentSourceId,
+          wallet_id: destinationWalletId,
+          category_id: systemCategory?.id || "",
         },
       }),
     ]);

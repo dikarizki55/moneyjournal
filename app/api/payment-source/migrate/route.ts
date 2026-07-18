@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: contentTypeError }, { status: 415 });
     }
 
-    const { paymentSourceId, category } = await req.json();
+    const { paymentSourceId, walletId } = await req.json();
 
     if (!paymentSourceId) {
       return NextResponse.json(
@@ -38,9 +38,8 @@ export async function POST(req: NextRequest) {
       deleted_at: null,
     };
 
-    if (category) {
-      where.isSavings = true;
-      where.category = category;
+    if (walletId) {
+      where.wallet_id = walletId;
     }
 
     const result = await prisma.transaction.updateMany({
