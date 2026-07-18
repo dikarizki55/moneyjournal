@@ -2,6 +2,7 @@ import { verifyUser } from "@/lib/verifyuser";
 import prisma from "@/prisma";
 import { limitn8n } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
+import { requireJsonContent } from "@/lib/validate-request";
 
 export async function GET() {
   try {
@@ -23,7 +24,12 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
-    verifyUser(req);
+    await verifyUser(req);
+
+    const contentTypeError = requireJsonContent(req);
+    if (contentTypeError) {
+      return NextResponse.json({ message: contentTypeError }, { status: 415 });
+    }
 
     const body: limitn8n = await req.json();
 

@@ -1,10 +1,17 @@
 import { verifyUser } from "@/lib/verifyuser";
 import prisma from "@/prisma";
 import { NextRequest, NextResponse } from "next/server";
+import { requireJsonContent } from "@/lib/validate-request";
 
 export async function POST(req: NextRequest) {
   try {
     const user = await verifyUser(req);
+
+    const contentTypeError = requireJsonContent(req);
+    if (contentTypeError) {
+      return NextResponse.json({ message: contentTypeError }, { status: 415 });
+    }
+
     const { id } = await req.json();
 
     if (!id) {

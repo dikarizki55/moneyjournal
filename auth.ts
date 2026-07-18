@@ -6,7 +6,7 @@ import Credential from "next-auth/providers/credentials";
 import { verifyPassword } from "./lib/scrypt";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
-  trustHost: true, // penting
+  trustHost: process.env.AUTH_URL ? false : process.env.NODE_ENV !== "production",
   providers: [
     Google,
     Credential({

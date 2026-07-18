@@ -1,6 +1,7 @@
 import { verifyUser } from "@/lib/verifyuser";
 import prisma from "@/prisma";
 import { NextRequest, NextResponse } from "next/server";
+import { requireJsonContent } from "@/lib/validate-request";
 
 export async function GET(req: NextRequest) {
   try {
@@ -91,10 +92,8 @@ export async function GET(req: NextRequest) {
     }));
 
     return NextResponse.json(result);
-  } catch (error: unknown) {
-    const message =
-      error instanceof Error ? error.message : "Internal Server Error";
-    return NextResponse.json({ message }, { status: 500 });
+  } catch {
+    return NextResponse.json({ message: "Internal Server Error" }, { status: 500 });
   }
 }
 
@@ -120,6 +119,12 @@ async function resolveDefaultPaymentSource(
 export async function POST(req: NextRequest) {
   try {
     const user = await verifyUser(req);
+
+    const contentTypeError = requireJsonContent(req);
+    if (contentTypeError) {
+      return NextResponse.json({ message: contentTypeError }, { status: 415 });
+    }
+
     const { title, amount, category, icon, defaultPaymentSourceId } =
       await req.json();
 
@@ -147,10 +152,8 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json(outcome);
-  } catch (error: unknown) {
-    const message =
-      error instanceof Error ? error.message : "Internal Server Error";
-    return NextResponse.json({ message }, { status: 500 });
+  } catch {
+    return NextResponse.json({ message: "Internal Server Error" }, { status: 500 });
   }
 }
 
@@ -173,16 +176,20 @@ export async function DELETE(req: NextRequest) {
     });
 
     return NextResponse.json({ message: "Successfully deleted" });
-  } catch (error: unknown) {
-    const message =
-      error instanceof Error ? error.message : "Internal Server Error";
-    return NextResponse.json({ message }, { status: 500 });
+  } catch {
+    return NextResponse.json({ message: "Internal Server Error" }, { status: 500 });
   }
 }
 
 export async function PUT(req: NextRequest) {
   try {
     const user = await verifyUser(req);
+
+    const contentTypeError = requireJsonContent(req);
+    if (contentTypeError) {
+      return NextResponse.json({ message: contentTypeError }, { status: 415 });
+    }
+
     const { id, title, amount, category, icon, defaultPaymentSourceId } =
       await req.json();
 
@@ -213,9 +220,7 @@ export async function PUT(req: NextRequest) {
     });
 
     return NextResponse.json(updated);
-  } catch (error: unknown) {
-    const message =
-      error instanceof Error ? error.message : "Internal Server Error";
-    return NextResponse.json({ message }, { status: 500 });
+  } catch {
+    return NextResponse.json({ message: "Internal Server Error" }, { status: 500 });
   }
 }

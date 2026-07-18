@@ -2,8 +2,14 @@ import { verifyPassword } from "@/lib/scrypt";
 import prisma from "@/prisma";
 import { NextRequest, NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
+import { requireJsonContent } from "@/lib/validate-request";
 
 export async function POST(req: NextRequest) {
+  const contentTypeError = requireJsonContent(req);
+  if (contentTypeError) {
+    return NextResponse.json({ message: contentTypeError }, { status: 415 });
+  }
+
   const body = await req.json();
   const user = await prisma.user.findUnique({ where: { email: body.email } });
 

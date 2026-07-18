@@ -2,6 +2,7 @@ import { verifyUser } from "@/lib/verifyuser";
 import prisma from "@/prisma";
 import { Prisma } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
+import { requireJsonContent } from "@/lib/validate-request";
 
 export async function GET(req: NextRequest) {
   try {
@@ -135,6 +136,11 @@ export async function POST(req: NextRequest) {
   try {
     const user = await verifyUser(req);
 
+    const contentTypeError = requireJsonContent(req);
+    if (contentTypeError) {
+      return NextResponse.json({ message: contentTypeError }, { status: 415 });
+    }
+
     const body = await req.json();
 
     const { title, amount, type, category, notes, date, paymentSourceId } = body;
@@ -182,6 +188,11 @@ export async function POST(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   try {
     const user = await verifyUser(req);
+
+    const contentTypeError = requireJsonContent(req);
+    if (contentTypeError) {
+      return NextResponse.json({ message: contentTypeError }, { status: 415 });
+    }
 
     const body = await req.json();
     const list: string[] = body.list;

@@ -2,6 +2,7 @@ import { verifyUser } from "@/lib/verifyuser";
 import prisma from "@/prisma";
 import { TransactionType } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
+import { requireJsonContent } from "@/lib/validate-request";
 
 interface TransactionInput {
   title: string;
@@ -17,6 +18,11 @@ interface TransactionInput {
 export async function POST(req: NextRequest) {
   try {
     const user = await verifyUser(req);
+
+    const contentTypeError = requireJsonContent(req);
+    if (contentTypeError) {
+      return NextResponse.json({ message: contentTypeError }, { status: 415 });
+    }
 
     const body = (await req.json()) as TransactionInput[];
 
@@ -58,9 +64,7 @@ export async function POST(req: NextRequest) {
       message: "Successfully created transactions",
       data: result,
     });
-  } catch (error: unknown) {
-    const message =
-      error instanceof Error ? error.message : "Internal Server Error";
-    return NextResponse.json({ message }, { status: 500 });
+  } catch {
+    return NextResponse.json({ message: "Internal Server Error" }, { status: 500 });
   }
 }

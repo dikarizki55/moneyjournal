@@ -49,9 +49,8 @@ export async function POST(req: NextRequest) {
       );
 
       if (!uploadRes.ok) {
-        const errText = await uploadRes.text();
         return NextResponse.json(
-          { error: errText },
+          { error: "Failed to upload image" },
           { status: uploadRes.status }
         );
       }

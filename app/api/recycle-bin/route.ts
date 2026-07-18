@@ -1,6 +1,7 @@
 import { verifyUser } from "@/lib/verifyuser";
 import prisma from "@/prisma";
 import { NextRequest, NextResponse } from "next/server";
+import { requireJsonContent } from "@/lib/validate-request";
 
 export async function GET(req: NextRequest) {
   try {
@@ -38,6 +39,12 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const user = await verifyUser(req);
+
+    const contentTypeError = requireJsonContent(req);
+    if (contentTypeError) {
+      return NextResponse.json({ message: contentTypeError }, { status: 415 });
+    }
+
     const { type, ids } = await req.json();
 
     if (!type || !ids || !Array.isArray(ids) || ids.length === 0) {
@@ -76,6 +83,12 @@ export async function POST(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   try {
     const user = await verifyUser(req);
+
+    const contentTypeError = requireJsonContent(req);
+    if (contentTypeError) {
+      return NextResponse.json({ message: contentTypeError }, { status: 415 });
+    }
+
     const { type, ids } = await req.json();
 
     if (!type || !ids || !Array.isArray(ids) || ids.length === 0) {

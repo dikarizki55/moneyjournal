@@ -1,10 +1,17 @@
 import { verifyUser } from "@/lib/verifyuser";
 import prisma from "@/prisma";
 import { NextRequest, NextResponse } from "next/server";
+import { requireJsonContent } from "@/lib/validate-request";
 
 export async function POST(req: NextRequest) {
   try {
     const user = await verifyUser(req);
+
+    const contentTypeError = requireJsonContent(req);
+    if (contentTypeError) {
+      return NextResponse.json({ message: contentTypeError }, { status: 415 });
+    }
+
     const { outcomeId, amount, date, paymentSourceId } = await req.json();
 
     if (!outcomeId || !amount) {
@@ -49,9 +56,7 @@ export async function POST(req: NextRequest) {
       message: "Transaction created successfully",
       transaction,
     });
-  } catch (error: unknown) {
-    const message =
-      error instanceof Error ? error.message : "Internal Server Error";
-    return NextResponse.json({ message }, { status: 500 });
+  } catch {
+    return NextResponse.json({ message: "Internal Server Error" }, { status: 500 });
   }
 }
