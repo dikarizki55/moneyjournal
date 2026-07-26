@@ -9,6 +9,11 @@ export async function GET(req: NextRequest) {
 
     const deletedTransactions = await prisma.transaction.findMany({
       where: { user_id: user.id, deleted_at: { not: null } },
+      include: {
+        category: { select: { id: true, name: true, icon: true, color: true } },
+        paymentSource: { select: { id: true, name: true, icon: true } },
+        wallet: { select: { id: true, title: true, icon: true } },
+      },
       orderBy: { deleted_at: "desc" },
     });
 
@@ -117,14 +122,26 @@ export async function DELETE(req: NextRequest) {
         where: { user_id: user.id, id: { in: ids }, deleted_at: { not: null } },
       });
     } else if (type === "wallet") {
+      await prisma.transaction.updateMany({
+        where: { wallet_id: { in: ids }, user_id: user.id },
+        data: { wallet_id: null },
+      });
       await prisma.wallet.deleteMany({
         where: { user_id: user.id, id: { in: ids }, deleted_at: { not: null } },
       });
     } else if (type === "payment_source") {
+      await prisma.transaction.updateMany({
+        where: { payment_source_id: { in: ids }, user_id: user.id },
+        data: { payment_source_id: null },
+      });
       await prisma.paymentSource.deleteMany({
         where: { user_id: user.id, id: { in: ids }, deleted_at: { not: null } },
       });
     } else if (type === "category") {
+      await prisma.transaction.updateMany({
+        where: { category_id: { in: ids }, user_id: user.id },
+        data: { category_id: null },
+      });
       await prisma.category.deleteMany({
         where: { user_id: user.id, id: { in: ids }, deleted_at: { not: null } },
       });

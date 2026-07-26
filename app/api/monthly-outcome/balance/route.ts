@@ -146,6 +146,17 @@ export async function GET(req: NextRequest) {
       ORDER BY ps.name ASC
     `;
 
+    const activePsIds = new Set(paymentSources.map((ps) => ps.id));
+    let orphanedAmount = 0;
+    for (const tx of [...allGlobalTx, ...allWalletTx]) {
+      if (!tx.payment_source_id || !activePsIds.has(tx.payment_source_id)) {
+        orphanedAmount += tx.type === "income" ? Number(tx.amount) : -Number(tx.amount);
+      }
+    }
+    const paymentSourceTotals = orphanedAmount !== 0
+      ? [...paymentSourceTotalsRaw, { uuid: "orphaned", paymentSource: "Other", icon: null, amount: orphanedAmount }]
+      : paymentSourceTotalsRaw;
+
     return NextResponse.json({
       success: true,
       global: {
@@ -158,7 +169,7 @@ export async function GET(req: NextRequest) {
       },
       containers: containerWallets,
       totalNetWorth: globalBalance + totalContainerBalance,
-      paymentSourceTotals: paymentSourceTotalsRaw,
+      paymentSourceTotals,
     });
   } catch (error) {
     console.log(error);

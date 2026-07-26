@@ -135,20 +135,64 @@ export async function DELETE(req: NextRequest) {
     const user = await verifyUser(req);
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
+    const migrateTo = searchParams.get("migrateTo");
 
     if (!id) {
       return NextResponse.json({ message: "Missing ID" }, { status: 400 });
     }
 
+    const existing = await prisma.wallet.findFirst({
+      where: { id, user_id: user.id, deleted_at: null },
+    });
+    if (!existing) {
+      return NextResponse.json({ message: "Wallet not found" }, { status: 404 });
+    }
+
+    const usageCount = await prisma.transaction.count({
+      where: { wallet_id: id, user_id: user.id, deleted_at: null },
+    });
+
+    if (!migrateTo) {
+      if (usageCount > 0) {
+        return NextResponse.json({
+          success: false,
+          requiresMigration: true,
+          count: usageCount,
+          message: `${usageCount} transaction(s) still use this wallet`,
+        });
+      }
+
+      await prisma.wallet.update({
+        where: { id },
+        data: { deleted_at: new Date() },
+      });
+      return NextResponse.json({ success: true, message: "Successfully deleted" });
+    }
+
+    const dest = await prisma.wallet.findFirst({
+      where: { id: migrateTo, user_id: user.id, deleted_at: null },
+    });
+    if (!dest) {
+      return NextResponse.json(
+        { message: "Destination wallet not found" },
+        { status: 404 },
+      );
+    }
+
+    await prisma.transaction.updateMany({
+      where: { wallet_id: id, user_id: user.id },
+      data: { wallet_id: migrateTo },
+    });
+
     await prisma.wallet.update({
-      where: {
-        id: id,
-        user_id: user.id,
-      },
+      where: { id },
       data: { deleted_at: new Date() },
     });
 
-    return NextResponse.json({ message: "Successfully deleted" });
+    return NextResponse.json({
+      success: true,
+      message: "Migrated and deleted successfully",
+    });
   } catch {
     return NextResponse.json(
       { message: "Internal Server Error" },

@@ -2,12 +2,15 @@ import { columns } from "./columns";
 import { DataTable } from "./data-table";
 import { DrawerDialog } from "./dialog";
 import { Button } from "@/components/ui/button";
-import { CreditCard } from "lucide-react";
+import { CreditCard, Tags } from "lucide-react";
 import PaginationComponent from "./paginationComponent";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { DashboardDateFilter } from "../DashboardDateFilter";
 import { CategoryFilter } from "./category-filter";
+import { WalletFilter } from "./wallet-filter";
+import { HideTransferToggle } from "./hide-transfer-toggle";
+import { ActiveFiltersBar } from "@/components/transaction/active-filters";
 import { verifyUserServer } from "@/lib/verifyuser";
 import { Prisma } from "@prisma/client";
 import prisma from "@/prisma";
@@ -29,15 +32,26 @@ const Page = async ({
   const sortBy = ((await searchParams).sortBy as string) ?? "date";
   const hideTransferToSavings =
     ((await searchParams).hideTransferToSavings as string) !== "false";
-  const walletId = ((await searchParams).walletId as string) ?? "";
+  const walletIdsParam = ((await searchParams).walletIds as string) ?? "";
+  const filterWalletIds = walletIdsParam ? walletIdsParam.split(",") : [];
+
+  const user = await verifyUserServer();
+
+  const wallets = await prisma.wallet.findMany({
+    where: { user_id: user.id, deleted_at: null },
+    select: { id: true, title: true, icon: true },
+  });
+
+  const categories = await prisma.category.findMany({
+    where: { user_id: user.id, deleted_at: null },
+    select: { id: true, name: true, icon: true, color: true },
+  });
 
   const limit = 25;
   const offset = (page - 1) * limit;
 
   const getQuery = async () => {
     try {
-      const user = await verifyUserServer();
-
       const filterCategoryIds = categoryIdsParam
         ? (categoryIdsParam as string).split(",")
         : [];
@@ -47,9 +61,7 @@ const Page = async ({
         deleted_at: null,
         ...(searchQuery
           ? {
-              OR: [
-                { title: { contains: searchQuery, mode: "insensitive" } },
-              ],
+              OR: [{ title: { contains: searchQuery, mode: "insensitive" } }],
             }
           : {}),
         ...(from || to
@@ -66,7 +78,11 @@ const Page = async ({
             }
           : {}),
         ...(hideTransferToSavings ? { transferPairId: null } : {}),
-        ...(walletId ? { wallet_id: walletId } : {}),
+        ...(filterWalletIds.length > 0
+          ? {
+              wallet_id: { in: filterWalletIds },
+            }
+          : {}),
       };
 
       const transaction = async () => {
@@ -87,8 +103,8 @@ const Page = async ({
           if (hideTransferToSavings) {
             dynamicClauses = Prisma.sql`${dynamicClauses} AND "transfer_pair_id" IS NULL`;
           }
-          if (walletId) {
-            dynamicClauses = Prisma.sql`${dynamicClauses} AND "wallet_id" = ${walletId}::uuid`;
+          if (filterWalletIds.length > 0) {
+            dynamicClauses = Prisma.sql`${dynamicClauses} AND "wallet_id" = ANY(${filterWalletIds})`;
           }
 
           return await prisma.$queryRaw`
@@ -117,7 +133,9 @@ const Page = async ({
             skip: offset || 0,
             take: limit || 25,
             include: {
-              category: { select: { id: true, name: true, icon: true, color: true } },
+              category: {
+                select: { id: true, name: true, icon: true, color: true },
+              },
               paymentSource: { select: { id: true, name: true, icon: true } },
               wallet: { select: { id: true, title: true, icon: true } },
             },
@@ -154,33 +172,46 @@ const Page = async ({
     <div className="p-6">
       <header className=" text-4xl font-bold mx-6 mb-3">Transaction</header>
       <div className="container mx-auto pt-10 pb-15">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-          <div className="flex items-center gap-2">
+        <div className="flex flex-col md:flex-row md:items-center justify-center lg:justify-between gap-4 mb-2">
+          <div className="flex items-center gap-2 flex-wrap justify-center lg:justify-start">
             <DrawerDialog
               customButton={<Button variant={"outline"}>Create</Button>}
               title="Create Transaction"
               description="Make new transaction data"
               apiLink={"/api/transaction"}
+              preloadedData={{ categories, wallets }}
             />
             <Link href={"/dashboard/payment-source"}>
-              <Button variant="outline" size="sm" className="gap-1">
+              <Button variant="outline" size="sm" className="gap-1 h-9 px-4">
                 <CreditCard size={14} />
                 Sources
               </Button>
             </Link>
-            <Link href={"/dashboard/transaction/json"}>
-              <Button className=" cursor-pointer">add with json</Button>
+            <Link href={"/dashboard/category"}>
+              <Button variant="outline" size="sm" className="gap-1 h-9 px-4">
+                <Tags size={14} />
+                Category
+              </Button>
             </Link>
+            {/* <Link href={"/dashboard/transaction/json"}>
+              <Button className=" cursor-pointer">add with json</Button>
+            </Link> */}
+            <DashboardDateFilter showSearch />
           </div>
 
-          <div className="flex flex-col md:flex-row items-center gap-4">
-            <DashboardDateFilter showSearch />
-            <CategoryFilter />
+          <div className="flex justify-center md:justify-end md:flex-row items-center gap-2">
+            <CategoryFilter categories={categories} />
+            <WalletFilter wallets={wallets} />
           </div>
+        </div>
+        <div className=" flex flex-col gap-2 lg:flex-row lg:justify-between w-full items-center px-1 mb-6 mt-3">
+          <HideTransferToggle />
+
+          <ActiveFiltersBar wallets={wallets} categories={categories} />
         </div>
 
         <div className="lg:hidden flex flex-col gap-5">
-          <MobileTransactionList data={data} />
+          <MobileTransactionList data={data} categories={categories} wallets={wallets} />
         </div>
         <div className="hidden lg:block">
           <DataTable columns={columns} data={data} />

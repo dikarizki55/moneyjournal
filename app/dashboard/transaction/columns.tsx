@@ -1,7 +1,7 @@
 "use client";
 
 import { ColumnDef } from "@tanstack/react-table";
-import { ArrowUpDown, MoreHorizontal, Pencil, Trash, Wallet } from "lucide-react";
+import { ArrowUpDown, MoreHorizontal, Pencil, Trash } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -14,7 +14,16 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-import { DrawerDialog } from "./dialog";
+import { ProfileForm, FormInput } from "./dialog";
+import { useMediaQuery } from "@/hooks/use-media-query";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { FullscreenDialog } from "@/components/ui/fullscreen-dialog";
 import { useEffect, useState } from "react";
 import {
   AlertDialog,
@@ -29,7 +38,7 @@ import {
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Checkbox } from "@/components/ui/checkbox";
-import { DynamicIcon, isValidIcon } from "@/components/ui/icon-picker";
+import { CategoryCell, PaymentSourceCell, WalletCell } from "@/components/transaction/transaction-cells";
 
 interface TransactionRow {
   id: string;
@@ -48,45 +57,6 @@ interface TransactionRow {
   category?: { id: string; name: string; icon?: string | null; color?: string | null } | null;
   paymentSource?: { id: string; name: string; icon?: string | null } | null;
   wallet?: { id: string; title: string; icon?: string | null } | null;
-}
-
-function CategoryCell({ category }: { category: TransactionRow["category"] }) {
-  if (!category) return <span className="text-muted-foreground text-xs">—</span>;
-  return (
-    <div className="flex items-center gap-1.5">
-      {category.icon && isValidIcon(category.icon) ? (
-        <div
-          className="w-5 h-5 flex items-center justify-center rounded text-xs"
-          style={{
-            backgroundColor: category.color ? `${category.color}20` : "hsl(var(--primary) / 0.1)",
-            color: category.color || "hsl(var(--primary))",
-          }}
-        >
-          <DynamicIcon name={category.icon} className="h-3 w-3" />
-        </div>
-      ) : null}
-      <span>{category.name}</span>
-    </div>
-  );
-}
-
-function PaymentSourceCell({ paymentSource }: { paymentSource: TransactionRow["paymentSource"] }) {
-  if (!paymentSource) return <span className="text-muted-foreground text-xs">—</span>;
-  return (
-    <span className="text-xs font-medium">
-      {paymentSource.icon || ""} {paymentSource.name}
-    </span>
-  );
-}
-
-function WalletCell({ wallet }: { wallet: TransactionRow["wallet"] }) {
-  if (!wallet) return null;
-  return (
-    <span className="inline-flex items-center gap-1 text-xs bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 px-1.5 py-0.5 rounded">
-      <Wallet className="h-3 w-3" />
-      {wallet.title}
-    </span>
-  );
 }
 
 function CategoryHeader() {
@@ -328,78 +298,119 @@ function NumberCell({ index }: { index: number }) {
 
 function ActionCell({ rawData }: { rawData: TransactionRow }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editData, setEditData] = useState<FormInput | null>(null);
+  const isDesktop = useMediaQuery("(min-width: 768px)");
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="h-8 w-8 p-0">
-          <span className="sr-only">Open menu</span>
-          <MoreHorizontal className="h-4 w-4" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-        <DrawerDialog
-          customButton={
-            <DropdownMenuItem
-              onSelect={(e) => e.preventDefault()}
-              className="gap-0"
-            >
-              <Pencil className="mr-2 h-4 w-4" />
-              Edit
-            </DropdownMenuItem>
-          }
-          initialData={{
-            title: rawData.title,
-            type: rawData.type,
-            categoryId: rawData.category_id || "",
-            amount: Number(rawData.amount),
-            notes: rawData.notes || "",
-            date: String(rawData.date) || "",
-            transferPairId: rawData.transferPairId || null,
-            paymentSourceId: rawData.payment_source_id || null,
-            walletId: rawData.wallet_id || null,
-          }}
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" className="h-8 w-8 p-0">
+            <span className="sr-only">Open menu</span>
+            <MoreHorizontal className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuLabel>Actions</DropdownMenuLabel>
+          <DropdownMenuItem
+            className="gap-0"
+            onSelect={(e) => e.preventDefault()}
+            onClick={() => {
+              setEditData({
+                title: rawData.title,
+                type: rawData.type,
+                categoryId: rawData.category_id || "",
+                amount: Number(rawData.amount),
+                notes: rawData.notes || "",
+                date: String(rawData.date) || "",
+                transferPairId: rawData.transferPairId || null,
+                paymentSourceId: rawData.payment_source_id || null,
+                walletId: rawData.wallet_id || null,
+              });
+              setEditOpen(true);
+            }}
+          >
+            <Pencil className="mr-2 h-4 w-4" />
+            Edit
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            className="group text-destructive focus:bg-destructive focus:text-white gap-0"
+            onSelect={(e) => e.preventDefault()}
+            onClick={() => setIsOpen(true)}
+          >
+            <Trash className="mr-2 h-4 w-4 group-focus:text-white" />
+            Delete
+          </DropdownMenuItem>
+          <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  {rawData.transferPairId
+                    ? "This is a linked transfer. Deleting it will also delete its paired transaction."
+                    : "This will move this transaction to the recycle bin. You can restore it later."}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={async () => {
+                    await fetch(`/api/transaction/${rawData.id}`, {
+                      method: "DELETE",
+                      headers: { "Content-Type": "application/json" },
+                      credentials: "include",
+                    });
+
+                    window.location.reload();
+                  }}
+                >
+                  Continue
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      {isDesktop ? (
+        <Dialog
+          open={editOpen}
+          onOpenChange={setEditOpen}
+        >
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>Edit Transaction</DialogTitle>
+              <DialogDescription>Edit transaction data</DialogDescription>
+            </DialogHeader>
+            {editData && (
+              <ProfileForm
+                key={rawData.id}
+                setOpen={setEditOpen}
+                className="px-4"
+                initialData={editData}
+                apiLink={`/api/transaction/${rawData.id}`}
+              />
+            )}
+          </DialogContent>
+        </Dialog>
+      ) : (
+        <FullscreenDialog
+          open={editOpen}
+          onOpenChange={setEditOpen}
           title="Edit Transaction"
           description="Edit transaction data"
-          apiLink={`/api/transaction/${rawData.id}`}
-        />
-        <DropdownMenuItem
-          className="group text-destructive focus:bg-destructive focus:text-white gap-0"
-          onSelect={(e) => e.preventDefault()}
-          onClick={() => setIsOpen(true)}
         >
-          <Trash className="mr-2 h-4 w-4 group-focus:text-white" />
-          Delete
-        </DropdownMenuItem>
-        <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-              <AlertDialogDescription>
-                {rawData.transferPairId
-                  ? "This is a linked transfer. Deleting it will also delete its paired transaction."
-                  : "This will move this transaction to the recycle bin. You can restore it later."}
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={async () => {
-                  await fetch(`/api/transaction/${rawData.id}`, {
-                    method: "DELETE",
-                    headers: { "Content-Type": "application/json" },
-                    credentials: "include",
-                  });
-
-                  window.location.reload();
-                }}
-              >
-                Continue
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      </DropdownMenuContent>
-    </DropdownMenu>
+          {editData && (
+            <ProfileForm
+              key={rawData.id}
+              setOpen={setEditOpen}
+              className=""
+              initialData={editData}
+              apiLink={`/api/transaction/${rawData.id}`}
+            />
+          )}
+        </FullscreenDialog>
+      )}
+    </>
   );
 }

@@ -7,6 +7,16 @@ import { Card, CardContent, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ResponsiveDialog } from "@/components/ui/responsive-dialog";
+import { FullscreenDialog } from "@/components/ui/fullscreen-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { useMediaQuery } from "@/hooks/use-media-query";
+import WalletSelect from "@/components/ui/wallet-select";
 import {
   Plus,
   Trash2,
@@ -30,6 +40,8 @@ import IconPicker, {
   isValidIcon,
 } from "@/components/ui/icon-picker";
 import PaymentSourceCombobox from "@/components/ui/payment-source-combobox";
+import CategorySelect from "@/components/ui/category-select";
+import CategoryFormFields from "@/components/category/category-form";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -70,16 +82,20 @@ interface MonthlyOutcome {
 export default function WalletPage() {
   const [outcomes, setOutcomes] = useState<MonthlyOutcome[]>([]);
   const [globalBalance, setGlobalBalance] = useState(0);
-  const [globalPaymentSourceBalances, setGlobalPaymentSourceBalances] = useState<
-    Record<string, { name: string; balance: number }>
-  >({});
+  const [globalPaymentSourceBalances, setGlobalPaymentSourceBalances] =
+    useState<Record<string, { name: string; balance: number }>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [paymentSources, setPaymentSources] = useState<
     { id: string; name: string; icon?: string | null }[]
   >([]);
   const [paymentSourceTotals, setPaymentSourceTotals] = useState<
-    { uuid: string; paymentSource: string; amount: number; icon: string | null }[]
+    {
+      uuid: string;
+      paymentSource: string;
+      amount: number;
+      icon: string | null;
+    }[]
   >([]);
   const [containerSourceBalances, setContainerSourceBalances] = useState<
     Record<string, Record<string, PaymentSourceBalance>>
@@ -115,6 +131,15 @@ export default function WalletPage() {
     new Date().toISOString().split("T")[0],
   );
   const [withdrawNotes, setWithdrawNotes] = useState("");
+  const [withdrawCategoryId, setWithdrawCategoryId] = useState("");
+  const [categoryList, setCategoryList] = useState<
+    { id: string; name: string; icon?: string | null; color?: string | null }[]
+  >([]);
+  const [quickCatAddOpen, setQuickCatAddOpen] = useState(false);
+  const [quickCatName, setQuickCatName] = useState("");
+  const [quickCatIcon, setQuickCatIcon] = useState("");
+  const [quickCatColor, setQuickCatColor] = useState("");
+  const [quickCatSubmitting, setQuickCatSubmitting] = useState(false);
   const [transferDialog, setTransferDialog] = useState<{
     open: boolean;
     source: MonthlyOutcome | null;
@@ -122,7 +147,8 @@ export default function WalletPage() {
   const [transferDestId, setTransferDestId] = useState("");
   const [transferAmount, setTransferAmount] = useState(0);
   const [transferPaymentSourceId, setTransferPaymentSourceId] = useState("");
-  const [transferDestPaymentSourceId, setTransferDestPaymentSourceId] = useState("");
+  const [transferDestPaymentSourceId, setTransferDestPaymentSourceId] =
+    useState("");
 
   const [reallocateDialog, setReallocateDialog] = useState<{
     open: boolean;
@@ -142,6 +168,25 @@ export default function WalletPage() {
   }>({ open: false, outcome: null });
   const [migratePaymentSourceId, setMigratePaymentSourceId] = useState("");
   const [isMigrating, setIsMigrating] = useState(false);
+
+  const [deleteItem, setDeleteItem] = useState<MonthlyOutcome | null>(null);
+  const [deleteUsageCount, setDeleteUsageCount] = useState(0);
+  const [deleteMigrateDestId, setDeleteMigrateDestId] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const isDesktop = useMediaQuery("(min-width: 768px)");
+
+  const handleWithdrawDialogClose = (open: boolean) => {
+    if (!open) {
+      setWithdrawDialog({ open: false, outcome: null });
+      setWithdrawAmount(0);
+      setWithdrawTitle("");
+      setWithdrawPaymentSourceId("");
+      setWithdrawDate(new Date().toISOString().split("T")[0]);
+      setWithdrawNotes("");
+      setWithdrawCategoryId("");
+    }
+  };
 
   const fetchOutcomes = async () => {
     setIsLoading(true);
@@ -185,6 +230,16 @@ export default function WalletPage() {
     }
   };
 
+  const fetchCategories = async () => {
+    try {
+      const res = await fetch("/api/category");
+      const json = await res.json();
+      if (json.success) setCategoryList(json.data);
+    } catch {
+      // ignore
+    }
+  };
+
   const fetchBalance = async () => {
     try {
       const res = await fetch("/api/monthly-outcome/balance");
@@ -216,9 +271,8 @@ export default function WalletPage() {
     fetchOutcomes();
     fetchBalance();
     fetchPaymentSources();
+    fetchCategories();
   }, []);
-
-
 
   const handleAddOutcome = async () => {
     if (!newOutcome.title || !newOutcome.amount) {
@@ -286,23 +340,69 @@ export default function WalletPage() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (
-      !confirm("Move this wallet to the recycle bin? You can restore it later.")
-    )
-      return;
+  const handleDeleteClick = (outcome: MonthlyOutcome) => {
+    setDeleteItem(outcome);
+    setDeleteUsageCount(0);
+    setDeleteMigrateDestId("");
+  };
 
+  const handleDeleteConfirm = async () => {
+    if (!deleteItem) return;
+    setIsDeleting(true);
     try {
-      const res = await fetch(`/api/monthly-outcome?id=${id}`, {
+      const res = await fetch(`/api/monthly-outcome?id=${deleteItem.id}`, {
         method: "DELETE",
       });
-      if (res.ok) {
+      const json = await res.json();
+      if (json.requiresMigration) {
+        setDeleteUsageCount(json.count);
+      } else if (json.success) {
         toast.success("Deleted successfully");
+        setDeleteItem(null);
         fetchOutcomes();
+      } else {
+        toast.error(json.message || "Failed to delete");
+        setDeleteItem(null);
       }
     } catch {
-      toast.error("Failed to delete");
+      toast.error("An error occurred");
+      setDeleteItem(null);
+    } finally {
+      setIsDeleting(false);
     }
+  };
+
+  const handleDeleteMigrate = async () => {
+    if (!deleteItem || !deleteMigrateDestId) {
+      toast.error("Select a destination wallet");
+      return;
+    }
+    setIsDeleting(true);
+    try {
+      const res = await fetch(
+        `/api/monthly-outcome?id=${deleteItem.id}&migrateTo=${deleteMigrateDestId}`,
+        { method: "DELETE" },
+      );
+      const json = await res.json();
+      if (json.success) {
+        toast.success("Migrated and deleted successfully");
+        setDeleteItem(null);
+        setDeleteMigrateDestId("");
+        fetchOutcomes();
+      } else {
+        toast.error(json.message || "Failed to delete");
+      }
+    } catch {
+      toast.error("An error occurred");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleDeleteClose = () => {
+    setDeleteItem(null);
+    setDeleteUsageCount(0);
+    setDeleteMigrateDestId("");
   };
 
   const handleFund = async () => {
@@ -359,6 +459,7 @@ export default function WalletPage() {
           paymentSourceId: withdrawPaymentSourceId || undefined,
           date: withdrawDate || undefined,
           notes: withdrawNotes || undefined,
+          categoryId: withdrawCategoryId || undefined,
         }),
       });
 
@@ -370,6 +471,7 @@ export default function WalletPage() {
         setWithdrawAmount(0);
         setWithdrawTitle("");
         setWithdrawPaymentSourceId("");
+        setWithdrawCategoryId("");
         fetchOutcomes();
       } else {
         const error = await res.json();
@@ -502,6 +604,132 @@ export default function WalletPage() {
     }
   };
 
+  const withdrawFormContent = () => (
+    <div className="space-y-4 py-4">
+      {(() => {
+        const walletSources =
+          containerSourceBalances[withdrawDialog.outcome?.id || ""] || {};
+        return (
+          <div className="flex flex-wrap gap-3 p-3 bg-muted rounded-lg text-sm">
+            {paymentSources.map((ps) => {
+              const bal = walletSources[ps.id]?.balance;
+              return (
+                <span key={ps.id} className="text-xs flex items-center gap-1">
+                  {ps.icon && isValidIcon(ps.icon) ? (
+                    <DynamicIcon
+                      name={ps.icon}
+                      className="h-3 w-3 text-muted-foreground"
+                    />
+                  ) : null}
+                  <span className="text-muted-foreground">{ps.name}:</span>{" "}
+                  <span
+                    className={
+                      bal !== undefined && bal < 0
+                        ? "text-destructive"
+                        : "text-green-600"
+                    }
+                  >
+                    {formatRupiah(String(bal ?? 0))}
+                  </span>
+                </span>
+              );
+            })}
+          </div>
+        );
+      })()}
+      <div className="space-y-2">
+        <Label>Title (optional)</Label>
+        <Input
+          placeholder="e.g. Groceries"
+          value={withdrawTitle}
+          onChange={(e) => setWithdrawTitle(e.target.value)}
+        />
+      </div>
+      <div className="space-y-2">
+        <Label>Category</Label>
+        <CategorySelect
+          value={withdrawCategoryId}
+          onChange={setWithdrawCategoryId}
+          categories={categoryList}
+          onQuickAdd={() => {
+            setQuickCatAddOpen(true);
+            setQuickCatName("");
+            setQuickCatIcon("");
+            setQuickCatColor("");
+          }}
+        />
+      </div>
+      <div className="space-y-2">
+        <Label>Payment Source</Label>
+        <PaymentSourceCombobox
+          value={withdrawPaymentSourceId}
+          onChange={setWithdrawPaymentSourceId}
+          sources={(() => {
+            const walletSources =
+              containerSourceBalances[withdrawDialog.outcome?.id || ""] || {};
+            return paymentSources.map((ps) => ({
+              ...ps,
+              balance: walletSources[ps.id]?.balance,
+            }));
+          })()}
+          onQuickAdd={() => {
+            setQuickAddOpen(true);
+            setQuickAddName("");
+            setQuickAddTarget("withdraw");
+          }}
+        />
+      </div>
+      <div className="space-y-2">
+        <Label>Date</Label>
+        <Input
+          type="date"
+          value={withdrawDate}
+          onChange={(e) => setWithdrawDate(e.target.value)}
+        />
+      </div>
+      <div className="space-y-2">
+        <Label>Notes</Label>
+        <Input
+          type="text"
+          placeholder="Add notes..."
+          value={withdrawNotes}
+          onChange={(e) => setWithdrawNotes(e.target.value)}
+        />
+      </div>
+      <div className="space-y-2">
+        <Label>Amount to withdraw</Label>
+        <RupiahInput
+          value={withdrawAmount}
+          onChange={(val) => setWithdrawAmount(val || 0)}
+          max={
+            withdrawPaymentSourceId
+              ? (containerSourceBalances[withdrawDialog.outcome?.id || ""]?.[
+                  withdrawPaymentSourceId
+                ]?.balance ?? 0)
+              : undefined
+          }
+        />
+      </div>
+      <Button
+        onClick={handleWithdraw}
+        className="w-full"
+        disabled={
+          isSubmitting ||
+          !withdrawCategoryId ||
+          withdrawAmount <= 0 ||
+          (withdrawPaymentSourceId
+            ? withdrawAmount >
+              (containerSourceBalances[withdrawDialog.outcome?.id || ""]?.[
+                withdrawPaymentSourceId
+              ]?.balance ?? 0)
+            : false)
+        }
+      >
+        {isSubmitting ? <Loader2 className="animate-spin" /> : "Withdraw"}
+      </Button>
+    </div>
+  );
+
   return (
     <div className="p-6 space-y-6 w-full mx-auto">
       {paymentSourceTotals.length > 0 && (
@@ -528,7 +756,7 @@ export default function WalletPage() {
         </div>
       )}
 
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col gap-3 items-start lg:justify-between lg:items-start w-full">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Wallets</h1>
           <p className="text-muted-foreground">
@@ -541,6 +769,12 @@ export default function WalletPage() {
             <Button variant="outline" size="sm" className="gap-1">
               <CreditCard size={14} />
               Sources
+            </Button>
+          </Link>
+          <Link href="/dashboard/category">
+            <Button variant="outline" size="sm" className="gap-1">
+              <CreditCard size={14} />
+              Category
             </Button>
           </Link>
           <ResponsiveDialog
@@ -678,10 +912,15 @@ export default function WalletPage() {
               return (
                 <span key={ps.id} className="text-xs flex items-center gap-1">
                   {ps.icon && isValidIcon(ps.icon) ? (
-                    <DynamicIcon name={ps.icon} className="h-3 w-3 text-muted-foreground" />
+                    <DynamicIcon
+                      name={ps.icon}
+                      className="h-3 w-3 text-muted-foreground"
+                    />
                   ) : null}
                   <span className="text-muted-foreground">{ps.name}:</span>{" "}
-                  <span className={bal < 0 ? "text-destructive" : "text-green-600"}>
+                  <span
+                    className={bal < 0 ? "text-destructive" : "text-green-600"}
+                  >
                     {formatRupiah(String(bal))}
                   </span>
                 </span>
@@ -712,7 +951,11 @@ export default function WalletPage() {
               onChange={(val) => setFundAmount(val || 0)}
               max={
                 fundPaymentSourceId
-                  ? Math.max(0, globalPaymentSourceBalances[fundPaymentSourceId]?.balance ?? 0)
+                  ? Math.max(
+                      0,
+                      globalPaymentSourceBalances[fundPaymentSourceId]
+                        ?.balance ?? 0,
+                    )
                   : Math.max(0, globalBalance)
               }
             />
@@ -721,13 +964,22 @@ export default function WalletPage() {
             This will move money from your global balance to this wallet.
           </p>
           {fundPaymentSourceId
-            ? fundAmount > (globalPaymentSourceBalances[fundPaymentSourceId]?.balance ?? 0) && (
+            ? fundAmount >
+                (globalPaymentSourceBalances[fundPaymentSourceId]?.balance ??
+                  0) && (
                 <p className="text-sm text-destructive font-medium">
                   Insufficient balance in this source. Available:{" "}
-                  {formatRupiah(String(globalPaymentSourceBalances[fundPaymentSourceId]?.balance ?? 0))}.
+                  {formatRupiah(
+                    String(
+                      globalPaymentSourceBalances[fundPaymentSourceId]
+                        ?.balance ?? 0,
+                    ),
+                  )}
+                  .
                 </p>
               )
-            : fundAmount > globalBalance && globalBalance > 0 && (
+            : fundAmount > globalBalance &&
+              globalBalance > 0 && (
                 <p className="text-sm text-destructive font-medium">
                   Insufficient balance. You can fund up to{" "}
                   {formatRupiah(String(globalBalance))}.
@@ -746,7 +998,9 @@ export default function WalletPage() {
               isSubmitting ||
               fundAmount <= 0 ||
               (fundPaymentSourceId
-                ? fundAmount > (globalPaymentSourceBalances[fundPaymentSourceId]?.balance ?? 0)
+                ? fundAmount >
+                  (globalPaymentSourceBalances[fundPaymentSourceId]?.balance ??
+                    0)
                 : fundAmount > globalBalance)
             }
           >
@@ -759,133 +1013,93 @@ export default function WalletPage() {
         </div>
       </ResponsiveDialog>
 
+      {isDesktop ? (
+        <Dialog
+          open={withdrawDialog.open}
+          onOpenChange={handleWithdrawDialogClose}
+        >
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>
+                Pay from {withdrawDialog.outcome?.title || ""}
+              </DialogTitle>
+              <DialogDescription>
+                Pay something with this wallet.
+              </DialogDescription>
+            </DialogHeader>
+            {withdrawFormContent()}
+          </DialogContent>
+        </Dialog>
+      ) : (
+        <FullscreenDialog
+          open={withdrawDialog.open}
+          onOpenChange={handleWithdrawDialogClose}
+          title={`Pay from ${withdrawDialog.outcome?.title || ""}`}
+          description="Pay something with this wallet."
+        >
+          {withdrawFormContent()}
+        </FullscreenDialog>
+      )}
+
       <ResponsiveDialog
-        open={withdrawDialog.open}
-        onOpenChange={(open) => {
-          if (!open) {
-            setWithdrawDialog({ open: false, outcome: null });
-            setWithdrawAmount(0);
-            setWithdrawTitle("");
-            setWithdrawPaymentSourceId("");
-            setWithdrawDate(new Date().toISOString().split("T")[0]);
-            setWithdrawNotes("");
-          }
-        }}
-        title={`Withdraw from ${withdrawDialog.outcome?.title || ""}`}
-        description="Withdraw money from this wallet back to your global funds."
+        open={quickCatAddOpen}
+        onOpenChange={setQuickCatAddOpen}
+        title="Add Category"
+        description="Create a new transaction category."
       >
-        <div className="space-y-4 py-4">
-          {(() => {
-            const walletSources =
-              containerSourceBalances[withdrawDialog.outcome?.id || ""] || {};
-            return (
-              <div className="flex flex-wrap gap-3 p-3 bg-muted rounded-lg text-sm">
-                {paymentSources.map((ps) => {
-                  const bal = walletSources[ps.id]?.balance;
-                  return (
-                    <span
-                      key={ps.id}
-                      className="text-xs flex items-center gap-1"
-                    >
-                      {ps.icon && isValidIcon(ps.icon) ? (
-                        <DynamicIcon
-                          name={ps.icon}
-                          className="h-3 w-3 text-muted-foreground"
-                        />
-                      ) : null}
-                      <span className="text-muted-foreground">{ps.name}:</span>{" "}
-                      <span
-                        className={
-                          bal !== undefined && bal < 0
-                            ? "text-destructive"
-                            : "text-green-600"
-                        }
-                      >
-                        {formatRupiah(String(bal ?? 0))}
-                      </span>
-                    </span>
-                  );
-                })}
-              </div>
-            );
-          })()}
-          <div className="space-y-2">
-            <Label>Title (optional)</Label>
-            <Input
-              placeholder="e.g. Groceries"
-              value={withdrawTitle}
-              onChange={(e) => setWithdrawTitle(e.target.value)}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>Payment Source</Label>
-            <PaymentSourceCombobox
-              value={withdrawPaymentSourceId}
-              onChange={setWithdrawPaymentSourceId}
-              sources={(() => {
-                const walletSources =
-                  containerSourceBalances[withdrawDialog.outcome?.id || ""] ||
-                  {};
-                return paymentSources.map((ps) => ({
-                  ...ps,
-                  balance: walletSources[ps.id]?.balance,
-                }));
-              })()}
-              onQuickAdd={() => {
-                setQuickAddOpen(true);
-                setQuickAddName("");
-                setQuickAddTarget("withdraw");
-              }}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>Date</Label>
-            <Input
-              type="date"
-              value={withdrawDate}
-              onChange={(e) => setWithdrawDate(e.target.value)}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>Notes (optional)</Label>
-            <textarea
-              placeholder="Add notes..."
-              className="flex min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-              value={withdrawNotes}
-              onChange={(e) => setWithdrawNotes(e.target.value)}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>Amount to withdraw</Label>
-            <RupiahInput
-              value={withdrawAmount}
-              onChange={(val) => setWithdrawAmount(val || 0)}
-              max={
-                withdrawPaymentSourceId
-                  ? (containerSourceBalances[
-                      withdrawDialog.outcome?.id || ""
-                    ]?.[withdrawPaymentSourceId]?.balance ?? 0)
-                  : undefined
-              }
-            />
-          </div>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!quickCatName.trim()) return;
+            setQuickCatSubmitting(true);
+            fetch("/api/category", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                name: quickCatName.trim(),
+                icon: quickCatIcon,
+                color: quickCatColor,
+              }),
+            })
+              .then((res) => res.json())
+              .then((json) => {
+                if (json.success) {
+                  setCategoryList((prev) => [...prev, json.data]);
+                  setWithdrawCategoryId(json.data.id);
+                  setQuickCatAddOpen(false);
+                  setQuickCatName("");
+                  setQuickCatIcon("");
+                  setQuickCatColor("");
+                }
+              })
+              .finally(() => setQuickCatSubmitting(false));
+          }}
+          className="space-y-4 py-4"
+        >
+          <CategoryFormFields
+            values={{
+              name: quickCatName,
+              icon: quickCatIcon,
+              color: quickCatColor,
+            }}
+            onChange={(vals) => {
+              setQuickCatName(vals.name);
+              setQuickCatIcon(vals.icon);
+              setQuickCatColor(vals.color);
+            }}
+          />
           <Button
-            onClick={handleWithdraw}
+            type="submit"
             className="w-full"
-            disabled={
-              isSubmitting ||
-              withdrawAmount <= 0 ||
-              (withdrawPaymentSourceId
-                ? withdrawAmount >
-                  (containerSourceBalances[
-                    withdrawDialog.outcome?.id || ""
-                  ]?.[withdrawPaymentSourceId]?.balance ?? 0)
-                : false)
-            }
+            disabled={quickCatSubmitting}
           >
-            {isSubmitting ? <Loader2 className="animate-spin" /> : "Withdraw"}
+            {quickCatSubmitting ? (
+              <Loader2 className="animate-spin" />
+            ) : (
+              "Save Category"
+            )}
           </Button>
-        </div>
+        </form>
       </ResponsiveDialog>
 
       <ResponsiveDialog
@@ -983,7 +1197,8 @@ export default function WalletPage() {
                 value={transferDestPaymentSourceId}
                 onChange={setTransferDestPaymentSourceId}
                 sources={(() => {
-                  const destSources = containerSourceBalances[transferDestId] || {};
+                  const destSources =
+                    containerSourceBalances[transferDestId] || {};
                   return paymentSources.map((ps) => ({
                     ...ps,
                     balance: destSources[ps.id]?.balance,
@@ -1000,9 +1215,9 @@ export default function WalletPage() {
               onChange={(val) => setTransferAmount(val || 0)}
               max={
                 transferPaymentSourceId
-                  ? (containerSourceBalances[
-                      transferDialog.source?.id || ""
-                    ]?.[transferPaymentSourceId]?.balance ?? 0)
+                  ? (containerSourceBalances[transferDialog.source?.id || ""]?.[
+                      transferPaymentSourceId
+                    ]?.balance ?? 0)
                   : undefined
               }
             />
@@ -1016,9 +1231,9 @@ export default function WalletPage() {
                 Insufficient balance in this source. Max transfer:{" "}
                 {formatRupiah(
                   String(
-                    containerSourceBalances[
-                      transferDialog.source?.id || ""
-                    ]?.[transferPaymentSourceId]?.balance ?? 0,
+                    containerSourceBalances[transferDialog.source?.id || ""]?.[
+                      transferPaymentSourceId
+                    ]?.balance ?? 0,
                   ),
                 )}
               </p>
@@ -1032,9 +1247,9 @@ export default function WalletPage() {
               !transferDestId ||
               (transferPaymentSourceId
                 ? transferAmount >
-                  (containerSourceBalances[
-                    transferDialog.source?.id || ""
-                  ]?.[transferPaymentSourceId]?.balance ?? 0)
+                  (containerSourceBalances[transferDialog.source?.id || ""]?.[
+                    transferPaymentSourceId
+                  ]?.balance ?? 0)
                 : false)
             }
           >
@@ -1195,10 +1410,13 @@ export default function WalletPage() {
             <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
             <div>
               <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
-                {containerUnassignedCounts[migrateDialog.outcome?.id || ""] || 0} unassigned transaction(s)
+                {containerUnassignedCounts[migrateDialog.outcome?.id || ""] ||
+                  0}{" "}
+                unassigned transaction(s)
               </p>
               <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
-                These are old transactions without a payment source. Choose where to assign them.
+                These are old transactions without a payment source. Choose
+                where to assign them.
               </p>
             </div>
           </div>
@@ -1297,7 +1515,6 @@ export default function WalletPage() {
                           {outcome.title}
                         </CardTitle>
                       </div>
-
                     </div>
                     <div className="flex items-center gap-2">
                       <Button
@@ -1314,7 +1531,7 @@ export default function WalletPage() {
                         variant="ghost"
                         size="icon"
                         className="text-destructive hover:bg-destructive/10"
-                        onClick={() => handleDelete(outcome.id)}
+                        onClick={() => handleDeleteClick(outcome)}
                       >
                         <Trash2 size={18} />
                       </Button>
@@ -1426,7 +1643,8 @@ export default function WalletPage() {
                       <div className="pt-2 border-t border-amber-200 dark:border-amber-800">
                         <div className="flex items-center justify-between">
                           <span className="text-xs text-amber-700 dark:text-amber-300">
-                            ⚠ {containerUnassignedCounts[outcome.id]} transaction(s) without a source
+                            ⚠ {containerUnassignedCounts[outcome.id]}{" "}
+                            transaction(s) without a source
                           </span>
                           <Button
                             variant="outline"
@@ -1468,7 +1686,7 @@ export default function WalletPage() {
                         }}
                       >
                         <TrendingDown className="w-4 h-4 mr-1" />
-                        Withdraw
+                        Pay
                       </Button>
                       <Button
                         variant="outline"
@@ -1494,7 +1712,9 @@ export default function WalletPage() {
                           ).find(([, b]) => b.balance > 0);
                           setReallocateDialog({ open: true, outcome });
                           setReallocateFrom(
-                            firstWithBalance?.[0] || paymentSources[0]?.id || "",
+                            firstWithBalance?.[0] ||
+                              paymentSources[0]?.id ||
+                              "",
                           );
                           setReallocateTo("");
                           setReallocateAmount(0);
@@ -1504,7 +1724,7 @@ export default function WalletPage() {
                         Move
                       </Button>
                       <Link
-                        href={`/dashboard/transaction`}
+                        href={`/dashboard/transaction?walletIds=${outcome.id}`}
                       >
                         <Button variant="outline" size="sm">
                           <List className="w-4 h-4 mr-1" />
@@ -1519,6 +1739,88 @@ export default function WalletPage() {
           })}
         </div>
       )}
+
+      <AlertDialog
+        open={!!deleteItem && deleteUsageCount === 0}
+        onOpenChange={(open) => {
+          if (!open) handleDeleteClose();
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete wallet?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This wallet will be moved to the recycle bin. You can restore it
+              later.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                handleDeleteConfirm();
+              }}
+              disabled={isDeleting}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              {isDeleting ? <Loader2 className="animate-spin" /> : "Continue"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <ResponsiveDialog
+        open={!!deleteItem && deleteUsageCount > 0}
+        onOpenChange={(open) => {
+          if (!open) handleDeleteClose();
+        }}
+        title={`Delete ${deleteItem?.title || ""}`}
+        description="Migrate transactions to another wallet before deleting."
+      >
+        <div className="space-y-4 py-4">
+          <div className="flex items-start gap-3 p-3 bg-amber-50 dark:bg-amber-950 rounded-lg border border-amber-200 dark:border-amber-800">
+            <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
+            <div>
+              <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+                {deleteUsageCount} transaction
+                {deleteUsageCount !== 1 ? "s" : ""} still use this wallet
+              </p>
+              <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
+                Migrate all transactions to another wallet before deleting.
+              </p>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">
+              Migrate transactions to
+            </label>
+            <WalletSelect
+              value={deleteMigrateDestId}
+              onChange={(id) => setDeleteMigrateDestId(id || "")}
+              wallets={outcomes
+                .filter((w) => w.id !== deleteItem?.id)
+                .map((w) => ({ id: w.id, title: w.title, icon: w.icon }))}
+              placeholder="Select wallet..."
+            />
+          </div>
+          <Button
+            onClick={handleDeleteMigrate}
+            className="w-full gap-2"
+            disabled={isDeleting || !deleteMigrateDestId}
+            variant="destructive"
+          >
+            {isDeleting ? (
+              <Loader2 className="animate-spin" />
+            ) : (
+              <>
+                <Trash2 className="h-4 w-4" />
+                Migrate & Delete
+              </>
+            )}
+          </Button>
+        </div>
+      </ResponsiveDialog>
 
       <AlertDialog open={quickAddOpen} onOpenChange={setQuickAddOpen}>
         <AlertDialogContent>
@@ -1535,20 +1837,20 @@ export default function WalletPage() {
                 }),
               })
                 .then((res) => res.json())
-                  .then((json) => {
-                    if (json.success) {
-                      setPaymentSources((prev) => [...prev, json.data]);
-                      const newId = json.data.id;
-                      if (quickAddTarget === "fund")
-                        setFundPaymentSourceId(newId);
-                      else if (quickAddTarget === "withdraw")
-                        setWithdrawPaymentSourceId(newId);
-                      else if (quickAddTarget === "transfer")
-                        setTransferPaymentSourceId(newId);
-                      setQuickAddOpen(false);
-                      setQuickAddName("");
-                    }
-                  });
+                .then((json) => {
+                  if (json.success) {
+                    setPaymentSources((prev) => [...prev, json.data]);
+                    const newId = json.data.id;
+                    if (quickAddTarget === "fund")
+                      setFundPaymentSourceId(newId);
+                    else if (quickAddTarget === "withdraw")
+                      setWithdrawPaymentSourceId(newId);
+                    else if (quickAddTarget === "transfer")
+                      setTransferPaymentSourceId(newId);
+                    setQuickAddOpen(false);
+                    setQuickAddName("");
+                  }
+                });
             }}
           >
             <AlertDialogHeader>

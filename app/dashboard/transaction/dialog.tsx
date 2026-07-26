@@ -14,33 +14,32 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
-  Drawer,
-  DrawerClose,
-  DrawerContent,
-  DrawerDescription,
-  DrawerFooter,
-  DrawerHeader,
-  DrawerTitle,
-  DrawerTrigger,
-} from "@/components/ui/drawer";
+  FullscreenDialog,
+} from "@/components/ui/fullscreen-dialog";
+// import {
+//   Drawer,
+//   DrawerClose,
+//   DrawerContent,
+//   DrawerDescription,
+//   DrawerFooter,
+//   DrawerHeader,
+//   DrawerTitle,
+//   DrawerTrigger,
+// } from "@/components/ui/drawer";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dispatch, SetStateAction, useEffect } from "react";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Loader2 } from "lucide-react";
+import { TypeToggle } from "@/components/transaction/type-toggle";
 import RupiahInput, { formatRupiah } from "../RupiahInput";
 import PaymentSourceCombobox from "@/components/ui/payment-source-combobox";
 import CategorySelect from "@/components/ui/category-select";
 import WalletSelect from "@/components/ui/wallet-select";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+  ResponsiveDialog,
+} from "@/components/ui/responsive-dialog";
+import CategoryFormFields from "@/components/category/category-form";
+import PaymentSourceFormFields from "@/components/payment-source/payment-source-form";
 
 type DrawerDialogProps = {
   customButton: React.ReactNode;
@@ -48,11 +47,12 @@ type DrawerDialogProps = {
   description: string;
   initialData?: FormInput;
   apiLink: string;
+  preloadedData?: PreloadedData;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
 };
 
-type FormInput = {
+export type FormInput = {
   title: string;
   type: "income" | "outcome";
   categoryId: string;
@@ -64,12 +64,18 @@ type FormInput = {
   walletId: string | null;
 };
 
+export type PreloadedData = {
+  categories?: { id: string; name: string; icon?: string | null; color?: string | null }[];
+  wallets?: { id: string; title: string; icon?: string | null }[];
+};
+
 export function DrawerDialog({
   customButton,
   title,
   description,
   initialData,
   apiLink,
+  preloadedData,
   open: externalOpen,
   onOpenChange: externalOnOpenChange,
 }: DrawerDialogProps) {
@@ -97,6 +103,7 @@ export function DrawerDialog({
             className="px-4"
             initialData={initialData}
             apiLink={apiLink}
+            preloadedData={preloadedData}
           />
         </DialogContent>
       </Dialog>
@@ -104,40 +111,35 @@ export function DrawerDialog({
   }
 
   return (
-    <Drawer open={open} onOpenChange={setOpen} repositionInputs={false}>
-      <DrawerTrigger asChild>
-        {customButton}
-      </DrawerTrigger>
-      <DrawerContent>
-        <DrawerHeader className="text-left">
-          <DrawerTitle>{title}</DrawerTitle>
-          <DrawerDescription>{description}</DrawerDescription>
-        </DrawerHeader>
-        <ProfileForm
-          setOpen={setOpen}
-          className="px-4"
-          initialData={initialData}
-          apiLink={apiLink}
-        />
-        <DrawerFooter className="pt-2">
-          <DrawerClose asChild>
-            <Button variant="outline">Cancel</Button>
-          </DrawerClose>
-        </DrawerFooter>
-      </DrawerContent>
-    </Drawer>
+    <FullscreenDialog
+      open={open}
+      onOpenChange={setOpen}
+      title={title}
+      description={description}
+      trigger={customButton}
+    >
+      <ProfileForm
+        setOpen={setOpen}
+        className=""
+        initialData={initialData}
+        apiLink={apiLink}
+        preloadedData={preloadedData}
+      />
+    </FullscreenDialog>
   );
 }
 
-function ProfileForm({
+export function ProfileForm({
   className,
   apiLink,
   setOpen,
   initialData,
+  preloadedData,
 }: React.ComponentProps<"form"> & {
   apiLink: string;
   setOpen: Dispatch<SetStateAction<boolean>>;
   initialData: FormInput | undefined;
+  preloadedData?: PreloadedData;
 }) {
   const [form, setForm] = React.useState<FormInput>({
     title: initialData?.title || "",
@@ -171,10 +173,10 @@ function ProfileForm({
 
   const [categoryList, setCategoryList] = React.useState<
     { id: string; name: string; icon?: string | null; color?: string | null }[]
-  >([]);
+  >(preloadedData?.categories || []);
   const [walletList, setWalletList] = React.useState<
     { id: string; title: string; icon?: string | null }[]
-  >([]);
+  >(preloadedData?.wallets || []);
   const [globalBalance, setGlobalBalance] = React.useState(0);
   const [walletBalances, setWalletBalances] = React.useState<
     Map<string, number>
@@ -182,33 +184,51 @@ function ProfileForm({
   const [paymentSources, setPaymentSources] = React.useState<
     { id: string; name: string; icon?: string | null }[]
   >([]);
+  const [globalPaymentSourceBalances, setGlobalPaymentSourceBalances] = React.useState<
+    Record<string, { name: string; balance: number }>
+  >({});
+  const [containerPaymentSourceBalances, setContainerPaymentSourceBalances] = React.useState<
+    Record<string, Record<string, { name: string; balance: number }>>
+  >({});
   const [quickAddOpen, setQuickAddOpen] = React.useState(false);
   const [quickAddName, setQuickAddName] = React.useState("");
+  const [quickAddIcon, setQuickAddIcon] = React.useState("");
+  const [quickAddSubmitting, setQuickAddSubmitting] = React.useState(false);
   const [quickCatAddOpen, setQuickCatAddOpen] = React.useState(false);
   const [quickCatName, setQuickCatName] = React.useState("");
+  const [quickCatIcon, setQuickCatIcon] = React.useState("");
+  const [quickCatColor, setQuickCatColor] = React.useState("");
+  const [quickCatSubmitting, setQuickCatSubmitting] = React.useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         const [categoryRes, walletRes, balanceRes, paymentSourceRes] = await Promise.all([
-          fetch("/api/category", { credentials: "include" }),
-          fetch("/api/monthly-outcome", { credentials: "include" }),
+          categoryList.length === 0
+            ? fetch("/api/category", { credentials: "include" })
+            : undefined,
+          walletList.length === 0
+            ? fetch("/api/monthly-outcome", { credentials: "include" })
+            : undefined,
           fetch("/api/monthly-outcome/balance", { credentials: "include" }),
           fetch("/api/payment-source", { credentials: "include" }),
         ]);
 
-        const categoryData = await categoryRes.json();
-        const walletData = await walletRes.json();
+        if (categoryRes) {
+          const categoryData = await categoryRes.json();
+          if (categoryData.success) {
+            setCategoryList(categoryData.data);
+          }
+        }
+
+        if (walletRes) {
+          const walletData = await walletRes.json();
+          if (Array.isArray(walletData)) {
+            setWalletList(walletData.map((w: any) => ({ id: w.id, title: w.title, icon: w.icon })));
+          }
+        }
+
         const balanceData = await balanceRes.json();
-
-        if (categoryData.success) {
-          setCategoryList(categoryData.data);
-        }
-
-        if (Array.isArray(walletData)) {
-          setWalletList(walletData.map((w: any) => ({ id: w.id, title: w.title, icon: w.icon })));
-        }
-
         if (balanceData.success) {
           const balMap = new Map<string, number>();
           balanceData.containers?.forEach(
@@ -218,6 +238,18 @@ function ProfileForm({
           );
           setWalletBalances(balMap);
           setGlobalBalance(balanceData.global?.balance ?? 0);
+
+          if (balanceData.global?.paymentSourceBalances) {
+            setGlobalPaymentSourceBalances(balanceData.global.paymentSourceBalances);
+          }
+
+          const containerPsBal: Record<string, Record<string, { name: string; balance: number }>> = {};
+          balanceData.containers?.forEach((c: any) => {
+            if (c.id && c.paymentSourceBalances) {
+              containerPsBal[c.id] = c.paymentSourceBalances;
+            }
+          });
+          setContainerPaymentSourceBalances(containerPsBal);
         }
 
         const paymentSourceJson = await paymentSourceRes.json();
@@ -317,31 +349,25 @@ function ProfileForm({
           <div className="flex gap-3">
             <div className="grid gap-3">
               <Label htmlFor="type">Type</Label>
-              <Tabs
-                value={form?.type}
+              <TypeToggle
+                value={form.type}
                 onValueChange={(value) => {
                   if (form.transferPairId) return;
                   setForm((prev) => {
-                    const newType = value as FormInput["type"];
-                    if (newType === "outcome") {
+                    if (value === "outcome") {
                       const newBalance = isWalletTransaction
                         ? walletBalance
                         : globalBalance;
                       const newEffective = newBalance + editBuffer;
                       if ((prev.amount ?? 0) > newEffective) {
-                        return { ...prev, type: newType, amount: newEffective || null };
+                        return { ...prev, type: value, amount: newEffective || null };
                       }
                     }
-                    return { ...prev, type: newType };
+                    return { ...prev, type: value };
                   });
                 }}
-                className="w-full"
-              >
-                <TabsList>
-                  <TabsTrigger value="income">Income</TabsTrigger>
-                  <TabsTrigger value="outcome">Outcome</TabsTrigger>
-                </TabsList>
-              </Tabs>
+                disabled={!!form.transferPairId}
+              />
             </div>
 
             <div className="grid gap-3 w-full">
@@ -368,6 +394,8 @@ function ProfileForm({
               onQuickAdd={() => {
                 setQuickCatAddOpen(true);
                 setQuickCatName("");
+                setQuickCatIcon("");
+                setQuickCatColor("");
               }}
             />
           </div>
@@ -409,10 +437,16 @@ function ProfileForm({
                   paymentSourceId: id || null,
                 }))
               }
-              sources={paymentSources}
+              sources={paymentSources.map((ps) => ({
+                ...ps,
+                balance: form.walletId
+                  ? (containerPaymentSourceBalances[form.walletId]?.[ps.id]?.balance ?? 0)
+                  : (globalPaymentSourceBalances[ps.id]?.balance ?? 0),
+              }))}
               onQuickAdd={() => {
                 setQuickAddOpen(true);
                 setQuickAddName("");
+                setQuickAddIcon("");
               }}
             />
             {!form.paymentSourceId && (
@@ -447,15 +481,21 @@ function ProfileForm({
       </Button>
     </form>
 
-    <AlertDialog open={quickAddOpen} onOpenChange={setQuickAddOpen}>
-      <AlertDialogContent>
-        <form onSubmit={(e) => {
+    <ResponsiveDialog
+      open={quickAddOpen}
+      onOpenChange={setQuickAddOpen}
+      title="Add Payment Source"
+      description="Create a new payment source (e.g. BCA, Cash, GoPay)."
+    >
+      <form
+        onSubmit={(e) => {
           e.preventDefault();
           if (!quickAddName.trim()) return;
+          setQuickAddSubmitting(true);
           fetch("/api/payment-source", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ name: quickAddName.trim() }),
+            body: JSON.stringify({ name: quickAddName.trim(), icon: quickAddIcon }),
           })
             .then((res) => res.json())
             .then((json) => {
@@ -464,38 +504,41 @@ function ProfileForm({
                 setForm((prev) => ({ ...prev, paymentSourceId: json.data.id }));
                 setQuickAddOpen(false);
                 setQuickAddName("");
+                setQuickAddIcon("");
               }
-            });
-        }}>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Add Payment Source</AlertDialogTitle>
-            <AlertDialogDescription>Create a new payment source (e.g. BCA, Cash, GoPay).</AlertDialogDescription>
-          </AlertDialogHeader>
-          <div className="py-4">
-            <Input
-              placeholder="Source name"
-              value={quickAddName}
-              onChange={(e) => setQuickAddName(e.target.value)}
-              autoFocus
-            />
-          </div>
-          <AlertDialogFooter>
-            <AlertDialogCancel type="button">Cancel</AlertDialogCancel>
-            <AlertDialogAction type="submit">Create</AlertDialogAction>
-          </AlertDialogFooter>
-        </form>
-      </AlertDialogContent>
-    </AlertDialog>
+            })
+            .finally(() => setQuickAddSubmitting(false));
+        }}
+        className="space-y-4 py-4"
+      >
+        <PaymentSourceFormFields
+          values={{ name: quickAddName, icon: quickAddIcon }}
+          onChange={(vals) => {
+            setQuickAddName(vals.name);
+            setQuickAddIcon(vals.icon);
+          }}
+        />
+        <Button type="submit" className="w-full" disabled={quickAddSubmitting}>
+          {quickAddSubmitting ? <Loader2 className="animate-spin" /> : "Save Source"}
+        </Button>
+      </form>
+    </ResponsiveDialog>
 
-    <AlertDialog open={quickCatAddOpen} onOpenChange={setQuickCatAddOpen}>
-      <AlertDialogContent>
-        <form onSubmit={(e) => {
+    <ResponsiveDialog
+      open={quickCatAddOpen}
+      onOpenChange={setQuickCatAddOpen}
+      title="Add Category"
+      description="Create a new transaction category."
+    >
+      <form
+        onSubmit={(e) => {
           e.preventDefault();
           if (!quickCatName.trim()) return;
+          setQuickCatSubmitting(true);
           fetch("/api/category", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ name: quickCatName.trim() }),
+            body: JSON.stringify({ name: quickCatName.trim(), icon: quickCatIcon, color: quickCatColor }),
           })
             .then((res) => res.json())
             .then((json) => {
@@ -504,28 +547,27 @@ function ProfileForm({
                 setForm((prev) => ({ ...prev, categoryId: json.data.id }));
                 setQuickCatAddOpen(false);
                 setQuickCatName("");
+                setQuickCatIcon("");
+                setQuickCatColor("");
               }
-            });
-        }}>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Add Category</AlertDialogTitle>
-            <AlertDialogDescription>Create a new category (e.g. Food & Drinks, Gasoline).</AlertDialogDescription>
-          </AlertDialogHeader>
-          <div className="py-4">
-            <Input
-              placeholder="Category name"
-              value={quickCatName}
-              onChange={(e) => setQuickCatName(e.target.value)}
-              autoFocus
-            />
-          </div>
-          <AlertDialogFooter>
-            <AlertDialogCancel type="button">Cancel</AlertDialogCancel>
-            <AlertDialogAction type="submit">Create</AlertDialogAction>
-          </AlertDialogFooter>
-        </form>
-      </AlertDialogContent>
-    </AlertDialog>
+            })
+            .finally(() => setQuickCatSubmitting(false));
+        }}
+        className="space-y-4 py-4"
+      >
+        <CategoryFormFields
+          values={{ name: quickCatName, icon: quickCatIcon, color: quickCatColor }}
+          onChange={(vals) => {
+            setQuickCatName(vals.name);
+            setQuickCatIcon(vals.icon);
+            setQuickCatColor(vals.color);
+          }}
+        />
+        <Button type="submit" className="w-full" disabled={quickCatSubmitting}>
+          {quickCatSubmitting ? <Loader2 className="animate-spin" /> : "Save Category"}
+        </Button>
+      </form>
+    </ResponsiveDialog>
     </>
   );
 }

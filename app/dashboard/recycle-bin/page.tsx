@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -24,21 +24,36 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Trash2, RotateCcw, Loader2, ArchiveX } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { DynamicIcon, isValidIcon } from "@/components/ui/icon-picker";
+import { isValidIcon } from "@/components/ui/icon-picker";
 import { toast } from "sonner";
 import { formatRupiah } from "../RupiahInput";
 import TransactionCard from "@/components/transaction/transactionCard";
+import {
+  CategoryCell,
+  PaymentSourceCell,
+  WalletCell,
+  WalletIconDisplay,
+  PaymentSourceIconDisplay,
+} from "@/components/transaction/transaction-cells";
 
 interface DeletedTransaction {
   id: string;
   title: string;
   amount: number;
-  category: string | null;
   type: "income" | "outcome";
   date: string | null;
+  deleted_at: string;
+  category_id?: string | null;
   payment_source_id?: string | null;
   wallet_id?: string | null;
-  deleted_at: string;
+  category?: {
+    id: string;
+    name: string;
+    icon?: string | null;
+    color?: string | null;
+  } | null;
+  paymentSource?: { id: string; name: string; icon?: string | null } | null;
+  wallet?: { id: string; title: string; icon?: string | null } | null;
 }
 
 interface DeletedWallet {
@@ -67,9 +82,7 @@ interface DeletedCategory {
 
 export default function RecycleBinPage() {
   const [transactions, setTransactions] = useState<DeletedTransaction[]>([]);
-  const [deletedWallets, setDeletedWallets] = useState<
-    DeletedWallet[]
-  >([]);
+  const [deletedWallets, setDeletedWallets] = useState<DeletedWallet[]>([]);
   const [paymentSources, setPaymentSources] = useState<DeletedPaymentSource[]>(
     [],
   );
@@ -89,36 +102,6 @@ export default function RecycleBinPage() {
     null,
   );
   const [activeTab, setActiveTab] = useState("transactions");
-  const [categoryIconMap, setCategoryIconMap] = useState<Map<string, string>>(
-    new Map(),
-  );
-
-  useEffect(() => {
-    fetch("/api/wallet/icons", { credentials: "include" })
-      .then((res) => res.json())
-      .then((json) => {
-        if (json.success) {
-          const map = new Map<string, string>();
-          json.data.forEach((w: { category: string; icon: string | null }) => {
-            if (w.icon && w.category) {
-              map.set(w.category.toLowerCase(), w.icon);
-            }
-          });
-          setCategoryIconMap(map);
-        }
-      });
-  }, []);
-
-  const resolveIcon = useCallback(
-    (category: string | null, title: string): string => {
-      if (category) {
-        const icon = categoryIconMap.get(category.toLowerCase());
-        if (icon) return icon;
-      }
-      return title.charAt(0).toUpperCase();
-    },
-    [categoryIconMap],
-  );
 
   const fetchDeleted = async () => {
     setIsLoading(true);
@@ -275,17 +258,19 @@ export default function RecycleBinPage() {
   };
 
   const executeAction = () => {
-    const typeMap: Record<string, "transaction" | "wallet" | "payment_source" | "category"> =
-      {
-        transactions: "transaction",
-        wallets: "wallet",
-        "payment-sources": "payment_source",
-        categories: "category",
-      };
+    const typeMap: Record<
+      string,
+      "transaction" | "wallet" | "payment_source" | "category"
+    > = {
+      transactions: "transaction",
+      "wallets": "wallet",
+      "payment-sources": "payment_source",
+      categories: "category",
+    };
     const type = typeMap[activeTab];
     const idsMap: Record<string, Set<string>> = {
       transactions: selectedTx,
-      wallets: selectedMo,
+      "wallets": selectedMo,
       "payment-sources": selectedPs,
       categories: selectedCat,
     };
@@ -298,7 +283,7 @@ export default function RecycleBinPage() {
   const hasSelection =
     activeTab === "transactions"
       ? selectedTx.size > 0
-      : activeTab === "monthly-outcomes"
+      : activeTab === "wallets"
         ? selectedMo.size > 0
         : activeTab === "payment-sources"
           ? selectedPs.size > 0
@@ -322,7 +307,7 @@ export default function RecycleBinPage() {
             <TabsTrigger value="transactions">
               Transactions ({transactions.length})
             </TabsTrigger>
-            <TabsTrigger value="monthly-outcomes">
+            <TabsTrigger value="wallets">
               Wallets ({deletedWallets.length})
             </TabsTrigger>
             <TabsTrigger value="payment-sources">
@@ -345,7 +330,7 @@ export default function RecycleBinPage() {
                 Restore (
                 {activeTab === "transactions"
                   ? selectedTx.size
-                  : activeTab === "monthly-outcomes"
+                  : activeTab === "wallets"
                     ? selectedMo.size
                     : activeTab === "payment-sources"
                       ? selectedPs.size
@@ -362,7 +347,7 @@ export default function RecycleBinPage() {
                 Delete Forever (
                 {activeTab === "transactions"
                   ? selectedTx.size
-                  : activeTab === "monthly-outcomes"
+                  : activeTab === "wallets"
                     ? selectedMo.size
                     : activeTab === "payment-sources"
                       ? selectedPs.size
@@ -482,10 +467,14 @@ export default function RecycleBinPage() {
                 {transactions.map((tx) => (
                   <TransactionCard
                     key={tx.id}
-                    icon={resolveIcon(tx.category, tx.title)}
+                    icon={
+                      tx.category?.icon && isValidIcon(tx.category.icon)
+                        ? tx.category.icon
+                        : tx.title.charAt(0).toUpperCase()
+                    }
                     title={tx.title}
                     notes=""
-                    category={tx.category || "Uncategorized"}
+                    category={tx.category?.name || "Uncategorized"}
                     amount={
                       tx.type === "outcome"
                         ? -Number(tx.amount)
@@ -529,6 +518,7 @@ export default function RecycleBinPage() {
                       <TableHead>Title</TableHead>
                       <TableHead>Type</TableHead>
                       <TableHead>Category</TableHead>
+                      <TableHead>Source</TableHead>
                       <TableHead className="text-right">Amount</TableHead>
                       <TableHead>Deleted At</TableHead>
                     </TableRow>
@@ -543,7 +533,10 @@ export default function RecycleBinPage() {
                           />
                         </TableCell>
                         <TableCell className="font-medium">
-                          {tx.title}
+                          <div className="flex items-center gap-2">
+                            <span>{tx.title}</span>
+                            <WalletCell wallet={tx.wallet} />
+                          </div>
                         </TableCell>
                         <TableCell>
                           <span
@@ -552,7 +545,12 @@ export default function RecycleBinPage() {
                             {tx.type}
                           </span>
                         </TableCell>
-                        <TableCell>{tx.category}</TableCell>
+                        <TableCell>
+                          <CategoryCell category={tx.category} />
+                        </TableCell>
+                        <TableCell>
+                          <PaymentSourceCell paymentSource={tx.paymentSource} />
+                        </TableCell>
                         <TableCell
                           className={`text-right font-medium ${tx.type === "income" ? "text-green-600" : "text-destructive"}`}
                         >
@@ -577,7 +575,7 @@ export default function RecycleBinPage() {
           )}
         </TabsContent>
 
-        <TabsContent value="monthly-outcomes">
+        <TabsContent value="wallets">
           {isLoading ? (
             <div className="space-y-4">
               <div className="lg:hidden space-y-3">
@@ -684,7 +682,7 @@ export default function RecycleBinPage() {
                   </div>
                 )}
                 {deletedWallets.map((mo) => (
-                    <TransactionCard
+                  <TransactionCard
                     key={mo.id}
                     icon={mo.icon || mo.title.charAt(0).toUpperCase()}
                     title={mo.title}
@@ -724,7 +722,7 @@ export default function RecycleBinPage() {
                         />
                       </TableHead>
                       <TableHead>Title</TableHead>
-                      <TableHead className="text-right">Amount</TableHead>
+                      <TableHead className="text-right">Budget</TableHead>
                       <TableHead>Deleted At</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -738,7 +736,10 @@ export default function RecycleBinPage() {
                           />
                         </TableCell>
                         <TableCell className="font-medium">
-                          {mo.title}
+                          <div className="flex items-center gap-2">
+                            <WalletIconDisplay icon={mo.icon} title={mo.title} />
+                            <span>{mo.title}</span>
+                          </div>
                         </TableCell>
                         <TableCell className="text-right font-medium">
                           {formatRupiah(Number(mo.amount).toString())}
@@ -921,7 +922,20 @@ export default function RecycleBinPage() {
                             onCheckedChange={() => toggleSelectPs(ps.id)}
                           />
                         </TableCell>
-                        <TableCell className="font-medium">{ps.name}</TableCell>
+                        <TableCell className="font-medium">
+                          <div className="flex items-center gap-2">
+                            <PaymentSourceIconDisplay
+                              icon={ps.icon}
+                              name={ps.name}
+                            />
+                            <span>{ps.name}</span>
+                            {ps.default && (
+                              <span className="text-xs text-muted-foreground">
+                                Default
+                              </span>
+                            )}
+                          </div>
+                        </TableCell>
                         <TableCell>{ps.default ? "Yes" : "No"}</TableCell>
                         <TableCell className="text-muted-foreground text-sm">
                           {new Date(ps.deleted_at).toLocaleDateString("id-ID", {
@@ -946,7 +960,10 @@ export default function RecycleBinPage() {
             <div className="space-y-4">
               <div className="lg:hidden space-y-3">
                 {[1, 2, 3].map((i) => (
-                  <div key={i} className="flex items-center gap-3 p-4 border rounded-lg">
+                  <div
+                    key={i}
+                    className="flex items-center gap-3 p-4 border rounded-lg"
+                  >
                     <Skeleton className="h-10 w-10 rounded-full" />
                     <div className="flex-1 space-y-2">
                       <Skeleton className="h-4 w-40" />
@@ -989,7 +1006,9 @@ export default function RecycleBinPage() {
                         size="sm"
                         variant="outline"
                         onClick={() =>
-                          setSelectedCat(new Set(deletedCategories.map((c) => c.id)))
+                          setSelectedCat(
+                            new Set(deletedCategories.map((c) => c.id)),
+                          )
                         }
                       >
                         Select All
@@ -1023,7 +1042,8 @@ export default function RecycleBinPage() {
                       className="gap-1"
                       onClick={() => confirmAction("restore")}
                     >
-                      <RotateCcw className="h-4 w-4" /> Restore ({selectedCat.size})
+                      <RotateCcw className="h-4 w-4" /> Restore (
+                      {selectedCat.size})
                     </Button>
                     <Button
                       size="sm"
@@ -1031,14 +1051,19 @@ export default function RecycleBinPage() {
                       className="gap-1"
                       onClick={() => confirmAction("permanent")}
                     >
-                      <Trash2 className="h-4 w-4" /> Delete Forever ({selectedCat.size})
+                      <Trash2 className="h-4 w-4" /> Delete Forever (
+                      {selectedCat.size})
                     </Button>
                   </div>
                 )}
                 {deletedCategories.map((cat) => (
                   <TransactionCard
                     key={cat.id}
-                    icon={cat.icon && isValidIcon(cat.icon) ? cat.icon : cat.name.charAt(0).toUpperCase()}
+                    icon={
+                      cat.icon && isValidIcon(cat.icon)
+                        ? cat.icon
+                        : cat.name.charAt(0).toUpperCase()
+                    }
                     title={cat.name}
                     notes=""
                     category={cat.name}
@@ -1055,7 +1080,8 @@ export default function RecycleBinPage() {
                       },
                       {
                         label: "Delete Forever",
-                        onClick: () => handlePermanentDelete("category", [cat.id]),
+                        onClick: () =>
+                          handlePermanentDelete("category", [cat.id]),
                       },
                     ]}
                   />
@@ -1088,31 +1114,19 @@ export default function RecycleBinPage() {
                           />
                         </TableCell>
                         <TableCell className="font-medium">
-                          <div className="flex items-center gap-2">
-                            <div
-                              className="w-6 h-6 flex items-center justify-center rounded text-xs shrink-0"
-                              style={{
-                                backgroundColor: cat.color ? `${cat.color}20` : "hsl(var(--primary) / 0.1)",
-                                color: cat.color || "hsl(var(--primary))",
-                              }}
-                            >
-                              {isValidIcon(cat.icon) ? (
-                                <DynamicIcon name={cat.icon!} className="h-3.5 w-3.5" />
-                              ) : (
-                                <span>{cat.name.charAt(0).toUpperCase()}</span>
-                              )}
-                            </div>
-                            {cat.name}
-                          </div>
+                          <CategoryCell category={cat} />
                         </TableCell>
                         <TableCell className="text-muted-foreground text-sm">
-                          {new Date(cat.deleted_at).toLocaleDateString("id-ID", {
-                            day: "numeric",
-                            month: "short",
-                            year: "numeric",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
+                          {new Date(cat.deleted_at).toLocaleDateString(
+                            "id-ID",
+                            {
+                              day: "numeric",
+                              month: "short",
+                              year: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            },
+                          )}
                         </TableCell>
                       </TableRow>
                     ))}

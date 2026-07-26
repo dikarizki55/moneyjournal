@@ -8,7 +8,7 @@ const items = [
   { title: "Home", url: "/dashboard", icon: Home },
   { title: "Transaction", url: "/dashboard/transaction", icon: Banknote },
   { title: "Wallets", url: "/dashboard/wallet", icon: Repeat },
-  { title: "Categories", url: "/dashboard/category", icon: Tags },
+  // { title: "Categories", url: "/dashboard/category", icon: Tags },
   { title: "Recycle Bin", url: "/dashboard/recycle-bin", icon: ArchiveX },
   { title: "Account", url: "/dashboard/account", icon: User },
 ];
@@ -17,9 +17,7 @@ export function MobileBottomBar() {
   const pathname = usePathname();
 
   return (
-    <nav
-      className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-background border-t pt-2 flex items-start justify-around h-20 safe-area-bottom"
-    >
+    <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-background border-t pt-2 flex items-start justify-around h-20 safe-area-bottom">
       {items.map((item) => {
         const isActive = pathname === item.url;
         return (

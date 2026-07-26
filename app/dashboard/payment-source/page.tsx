@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Table,
@@ -23,25 +22,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import IconPicker, {
-  DynamicIcon,
-  isValidIcon,
-} from "@/components/ui/icon-picker";
-import {
-  Plus,
-  Pencil,
-  Trash2,
-  Loader2,
-  CreditCard,
-  ArchiveX,
-  Star,
-  AlertTriangle,
-} from "lucide-react";
+import { DynamicIcon, isValidIcon } from "@/components/ui/icon-picker";
+import { Plus, Pencil, Trash2, Loader2, CreditCard, ArchiveX, Star, AlertTriangle } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatRupiah } from "../RupiahInput";
 import { toast } from "sonner";
 import TransactionCard from "@/components/transaction/transactionCard";
 import PaymentSourceCombobox from "@/components/ui/payment-source-combobox";
+import PaymentSourceFormFields from "@/components/payment-source/payment-source-form";
 
 interface PaymentSourceItem {
   id: string;
@@ -65,10 +53,6 @@ export default function PaymentSourcePage() {
   );
   const [newName, setNewName] = useState("");
   const [newIcon, setNewIcon] = useState("");
-  const [unassignedCount, setUnassignedCount] = useState(0);
-  const [migrateSourceId, setMigrateSourceId] = useState("");
-  const [isMigrating, setIsMigrating] = useState(false);
-  const [migrateDone, setMigrateDone] = useState(false);
   const [sourceBalances, setSourceBalances] = useState<Record<string, number>>(
     {},
   );
@@ -81,7 +65,6 @@ export default function PaymentSourcePage() {
       const res = await fetch("/api/monthly-outcome/balance");
       const json = await res.json();
       if (json.success) {
-        setUnassignedCount(json.unassignedTransactionCount ?? 0);
         const balMap: Record<string, number> = {};
         if (Array.isArray(json.paymentSourceTotals)) {
           for (const item of json.paymentSourceTotals) {
@@ -231,33 +214,6 @@ export default function PaymentSourcePage() {
     }
   };
 
-  const handleMigrate = async () => {
-    if (!migrateSourceId) {
-      toast.error("Select a payment source");
-      return;
-    }
-    setIsMigrating(true);
-    try {
-      const res = await fetch("/api/payment-source/migrate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ paymentSourceId: migrateSourceId }),
-      });
-      const json = await res.json();
-      if (json.success) {
-        toast.success(json.message);
-        setUnassignedCount(0);
-        setMigrateDone(true);
-      } else {
-        toast.error(json.message || "Migration failed");
-      }
-    } catch {
-      toast.error("An error occurred");
-    } finally {
-      setIsMigrating(false);
-    }
-  };
-
   const handleSetDefault = async (source: PaymentSourceItem) => {
     setIsSubmitting(true);
     try {
@@ -291,44 +247,6 @@ export default function PaymentSourcePage() {
           Manage how you pay — cash, bank accounts, e-wallets, and more.
         </p>
       </div>
-
-      {/* {unassignedCount > 0 && !migrateDone && (
-        <div className="mb-6 p-4 border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950 rounded-lg">
-          <div className="flex items-start gap-3">
-            <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
-                {unassignedCount} transaction(s) without a payment source
-              </p>
-              <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
-                These transactions won't be counted in any payment source balance.
-                Assign them to a source below.
-              </p>
-              <div className="flex items-center gap-2 mt-3">
-                <div className="flex-1">
-                  <PaymentSourceCombobox
-                    value={migrateSourceId}
-                    onChange={setMigrateSourceId}
-                    sources={sources}
-                  />
-                </div>
-                <Button
-                  size="sm"
-                  onClick={handleMigrate}
-                  disabled={isMigrating || !migrateSourceId}
-                  className="gap-1"
-                >
-                  {isMigrating ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    "Migrate"
-                  )}
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )} */}
 
       <div className="flex justify-end mb-6">
         <Button
@@ -403,7 +321,7 @@ export default function PaymentSourcePage() {
                 amount={sourceBalances[source.id] ?? 0}
                 defaultBadge={source.default}
                 onClick={() => openEdit(source)}
-                swipeActions={[
+                swipeActions={source.default ? [] : [
                   {
                     label: "Delete",
                     onClick: () => {
@@ -426,6 +344,7 @@ export default function PaymentSourcePage() {
                   <TableHead className="w-10">No</TableHead>
                   <TableHead className="w-12">Icon</TableHead>
                   <TableHead>Name</TableHead>
+                  <TableHead className="text-right">Balance</TableHead>
                   <TableHead>Created</TableHead>
                   <TableHead className="w-30">Actions</TableHead>
                 </TableRow>
@@ -454,6 +373,9 @@ export default function PaymentSourcePage() {
                         </span>
                       )}
                     </TableCell>
+                    <TableCell className={`text-right font-medium ${(sourceBalances[source.id] ?? 0) < 0 ? "text-destructive" : "text-green-700"}`}>
+                      {formatRupiah(String(Math.abs(sourceBalances[source.id] ?? 0)))}
+                    </TableCell>
                     <TableCell className="text-muted-foreground text-sm">
                       {new Date(source.created_at).toLocaleDateString("id-ID", {
                         day: "numeric",
@@ -479,11 +401,12 @@ export default function PaymentSourcePage() {
                         >
                           <Pencil className="h-4 w-4" />
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-destructive hover:bg-destructive/10"
-                          onClick={() => {
+                        {!source.default && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-destructive hover:bg-destructive/10"
+                            onClick={() => {
                             if ((sourceBalances[source.id] ?? 0) !== 0) {
                               setDeleteMigrateSource(source);
                               setDeleteMigrateDestId("");
@@ -494,6 +417,7 @@ export default function PaymentSourcePage() {
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -516,20 +440,13 @@ export default function PaymentSourcePage() {
           }}
           className="space-y-4 py-4"
         >
-          <div className="space-y-2">
-            <Label htmlFor="psName">Name</Label>
-            <Input
-              id="psName"
-              placeholder="e.g. BCA Bank, Cash, GoPay"
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              autoFocus
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>Icon</Label>
-            <IconPicker value={newIcon} onChange={setNewIcon} />
-          </div>
+          <PaymentSourceFormFields
+            values={{ name: newName, icon: newIcon }}
+            onChange={(vals) => {
+              setNewName(vals.name);
+              setNewIcon(vals.icon);
+            }}
+          />
           <Button type="submit" className="w-full" disabled={isSubmitting}>
             {isSubmitting ? (
               <Loader2 className="animate-spin" />
@@ -555,20 +472,13 @@ export default function PaymentSourcePage() {
           }}
           className="space-y-4 py-4"
         >
-          <div className="space-y-2">
-            <Label htmlFor="psEditName">Name</Label>
-            <Input
-              id="psEditName"
-              placeholder="e.g. BCA Bank"
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              autoFocus
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>Icon (optional)</Label>
-            <IconPicker value={newIcon} onChange={setNewIcon} />
-          </div>
+          <PaymentSourceFormFields
+            values={{ name: newName, icon: newIcon }}
+            onChange={(vals) => {
+              setNewName(vals.name);
+              setNewIcon(vals.icon);
+            }}
+          />
           {editingSource && !editingSource.default && (
             <Button
               type="button"

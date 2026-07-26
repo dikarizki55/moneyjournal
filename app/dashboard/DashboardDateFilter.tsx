@@ -60,7 +60,7 @@ export function DashboardDateFilter({
   }, [searchParams]);
 
   const [searchText, setSearchText] = React.useState(
-    searchParams.get("q") ?? ""
+    searchParams.get("q") ?? "",
   );
   const debouncedSearch = useDebounce(searchText, 500);
   const searchTextRef = React.useRef(searchText);
@@ -70,7 +70,10 @@ export function DashboardDateFilter({
   // Sync searchText from URL only for external navigation (browser back/forward)
   React.useEffect(() => {
     const qParam = searchParams.get("q") ?? "";
-    if (lastPushedSearch.current !== qParam && qParam !== searchTextRef.current) {
+    if (
+      lastPushedSearch.current !== qParam &&
+      qParam !== searchTextRef.current
+    ) {
       setSearchText(qParam);
       lastPushedSearch.current = qParam;
     }
@@ -165,7 +168,7 @@ export function DashboardDateFilter({
   };
 
   const setShortcut = (
-    type: "this-month" | "last-month" | "this-year" | "all"
+    type: "this-month" | "last-month" | "this-year" | "all",
   ) => {
     const now = new Date();
     let range: DateRange | undefined;
@@ -191,62 +194,15 @@ export function DashboardDateFilter({
   };
 
   return (
-    <div
-      className={cn("flex flex-col xl:flex-row gap-2 items-center", className)}
-    >
+    <div className={cn("flex lg:flex-row gap-2 items-center", className)}>
       {showSearch && (
         <Input
           placeholder="Search..."
           value={searchText}
           onChange={(e) => setSearchText(e.target.value)}
-          className="w-full md:w-[300px] h-10"
+          className="w-full lg:w-[250px] h-10"
         />
       )}
-      <div className="flex bg-muted rounded-lg p-1 gap-1">
-        <Button
-          variant={!fromParam ? "secondary" : "ghost"}
-          size="sm"
-          onClick={() => setShortcut("all")}
-          className="text-xs h-8"
-        >
-          All Time
-        </Button>
-        <Button
-          variant={
-            searchParams.get("from") ===
-            format(startOfMonth(new Date()), "yyyy-MM-dd")
-              ? "secondary"
-              : "ghost"
-          }
-          size="sm"
-          onClick={() => setShortcut("this-month")}
-          className="text-xs h-8"
-        >
-          This Month
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setShortcut("last-month")}
-          className="text-xs h-8"
-        >
-          Last Month
-        </Button>
-        <Button
-          variant={
-            searchParams.get("from") ===
-            format(startOfYear(new Date()), "yyyy-MM-dd")
-              ? "secondary"
-              : "ghost"
-          }
-          size="sm"
-          onClick={() => setShortcut("this-year")}
-          className="text-xs h-8"
-        >
-          This Year
-        </Button>
-      </div>
-
       <div className="grid gap-2">
         <Popover>
           <PopoverTrigger asChild>
@@ -254,8 +210,8 @@ export function DashboardDateFilter({
               id="date"
               variant={"outline"}
               className={cn(
-                "w-[260px] justify-start text-left font-normal h-10",
-                !date && "text-muted-foreground"
+                "w-[200px] justify-start text-left font-normal h-10",
+                !date && "text-muted-foreground",
               )}
             >
               <CalendarIcon className="mr-2 h-4 w-4" />
@@ -275,6 +231,50 @@ export function DashboardDateFilter({
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="end">
+            <div className="flex bg-muted rounded-lg p-1 gap-1 m-3">
+              <Button
+                variant={!fromParam ? "secondary" : "ghost"}
+                size="sm"
+                onClick={() => setShortcut("all")}
+                className="text-xs h-8"
+              >
+                All Time
+              </Button>
+              <Button
+                variant={
+                  searchParams.get("from") ===
+                  format(startOfMonth(new Date()), "yyyy-MM-dd")
+                    ? "secondary"
+                    : "ghost"
+                }
+                size="sm"
+                onClick={() => setShortcut("this-month")}
+                className="text-xs h-8"
+              >
+                This Month
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShortcut("last-month")}
+                className="text-xs h-8"
+              >
+                Last Month
+              </Button>
+              <Button
+                variant={
+                  searchParams.get("from") ===
+                  format(startOfYear(new Date()), "yyyy-MM-dd")
+                    ? "secondary"
+                    : "ghost"
+                }
+                size="sm"
+                onClick={() => setShortcut("this-year")}
+                className="text-xs h-8"
+              >
+                This Year
+              </Button>
+            </div>
             <Calendar
               initialFocus
               mode="range"

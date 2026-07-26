@@ -35,8 +35,12 @@ type SerializedTransaction = Omit<
 
 export default function MobileTransactionList({
   data,
+  categories,
+  wallets,
 }: {
   data: SerializedTransaction[];
+  categories?: { id: string; name: string; icon?: string | null; color?: string | null }[];
+  wallets?: { id: string; title: string; icon?: string | null }[];
 }) {
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -44,6 +48,7 @@ export default function MobileTransactionList({
     new Map(),
   );
   const [batchDeleteConfirm, setBatchDeleteConfirm] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const [editItem, setEditItem] = useState<SerializedTransaction | null>(null);
 
   useEffect(() => {
@@ -190,38 +195,35 @@ export default function MobileTransactionList({
         </AlertDialogContent>
       </AlertDialog>
 
-      {editItem && (
-        <DrawerDialog
-          customButton={<span />}
-          open={true}
-          onOpenChange={(open) => {
-            if (!open) setEditItem(null);
-          }}
-          initialData={{
-            title: editItem.title,
-            type: editItem.type,
-            categoryId: editItem.category_id || "",
-            amount: Number(editItem.amount),
-            notes: editItem.notes || "",
-            date: editItem.date || "",
-            transferPairId:
-              "transferPairId" in editItem
-                ? (editItem as any).transferPairId || null
-                : null,
-            paymentSourceId:
-              "payment_source_id" in editItem
-                ? (editItem as any).payment_source_id || null
-                : null,
-            walletId:
-              "wallet_id" in editItem
-                ? (editItem as any).wallet_id || null
-                : null,
-          }}
-          title="Edit Transaction"
-          description="Edit transaction data"
-          apiLink={`/api/transaction/${editItem.id}`}
-        />
-      )}
+      <DrawerDialog
+        key={editItem?.id || "none"}
+        customButton={<span className="hidden" />}
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        initialData={editItem ? {
+          title: editItem.title,
+          type: editItem.type,
+          categoryId: editItem.category_id || "",
+          amount: Number(editItem.amount),
+          notes: editItem.notes || "",
+          date: editItem.date || "",
+          transferPairId:
+            "transferPairId" in editItem
+              ? (editItem as any).transferPairId || null
+              : null,
+          paymentSourceId:
+            "payment_source_id" in editItem
+              ? (editItem as any).payment_source_id || null
+              : null,
+          walletId:
+            "wallet_id" in editItem
+              ? (editItem as any).wallet_id || null
+              : null,
+        } : undefined}
+        title="Edit Transaction"
+        description="Edit transaction data"
+        apiLink={editItem ? `/api/transaction/${editItem.id}` : ""}
+      />
 
       {data.map((item) => (
         <TransactionCard
@@ -245,6 +247,7 @@ export default function MobileTransactionList({
               toggleSelect(item.id);
             } else {
               setEditItem(item);
+              setEditOpen(true);
             }
           }}
           onDelete={async () => {

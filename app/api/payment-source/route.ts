@@ -145,6 +145,17 @@ export async function DELETE(req: NextRequest) {
       );
     }
 
+    if (existing.default) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "Cannot delete the default payment source. Set another source as default first.",
+        },
+        { status: 400 },
+      );
+    }
+
     if (migrateTo) {
       const dest = await prisma.paymentSource.findFirst({
         where: { id: migrateTo, user_id: user.id, deleted_at: null },

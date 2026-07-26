@@ -2,8 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Plus,
   Trash2,
@@ -16,7 +14,7 @@ import {
   ResponsiveDialog,
 } from "@/components/ui/responsive-dialog";
 import { DynamicIcon, isValidIcon } from "@/components/ui/icon-picker";
-import IconPicker from "@/components/ui/icon-picker";
+import CategoryFormFields from "@/components/category/category-form";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -36,11 +34,6 @@ interface Category {
   color: string | null;
   created_at: string;
 }
-
-const COLOR_OPTIONS = [
-  "#ef4444", "#f97316", "#eab308", "#22c55e", "#14b8a6",
-  "#3b82f6", "#6366f1", "#a855f7", "#ec4899", "#78716c",
-];
 
 export default function CategoryPage() {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -220,52 +213,10 @@ export default function CategoryPage() {
             onSubmit={(e) => { e.preventDefault(); handleCreate(); }}
             className="space-y-4 py-4"
           >
-            <div className="space-y-2">
-              <Label>Name</Label>
-              <Input
-                placeholder="e.g. Food & Drinks"
-                value={newCategory.name}
-                onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Icon</Label>
-              <IconPicker
-                value={newCategory.icon}
-                onChange={(icon) => setNewCategory({ ...newCategory, icon })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Color</Label>
-              <div className="flex flex-wrap gap-2">
-                {COLOR_OPTIONS.map((color) => (
-                  <button
-                    key={color}
-                    type="button"
-                    onClick={() => setNewCategory({ ...newCategory, color })}
-                    className={`w-8 h-8 rounded-full border-2 transition-all ${
-                      newCategory.color === color
-                        ? "border-foreground scale-110"
-                        : "border-transparent"
-                    }`}
-                    style={{ backgroundColor: color }}
-                  />
-                ))}
-                {newCategory.color && !COLOR_OPTIONS.includes(newCategory.color) && (
-                  <div className="flex items-center gap-2">
-                    <div
-                      className="w-8 h-8 rounded-full border-2 border-foreground"
-                      style={{ backgroundColor: newCategory.color }}
-                    />
-                    <Input
-                      className="w-24 h-8 text-xs"
-                      value={newCategory.color}
-                      onChange={(e) => setNewCategory({ ...newCategory, color: e.target.value })}
-                    />
-                  </div>
-                )}
-              </div>
-            </div>
+            <CategoryFormFields
+              values={newCategory}
+              onChange={setNewCategory}
+            />
             <Button type="submit" className="w-full" disabled={isSubmitting}>
               {isSubmitting ? <Loader2 className="animate-spin" /> : "Save Category"}
             </Button>
@@ -283,48 +234,17 @@ export default function CategoryPage() {
           onSubmit={(e) => { e.preventDefault(); handleUpdate(); }}
           className="space-y-4 py-4"
         >
-          <div className="space-y-2">
-            <Label>Name</Label>
-            <Input
-              placeholder="e.g. Food & Drinks"
-              value={editingCategory?.name || ""}
-              onChange={(e) =>
-                editingCategory &&
-                setEditingCategory({ ...editingCategory, name: e.target.value })
-              }
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>Icon</Label>
-            <IconPicker
-              value={editingCategory?.icon || ""}
-              onChange={(icon) =>
-                editingCategory &&
-                setEditingCategory({ ...editingCategory, icon })
-              }
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>Color</Label>
-            <div className="flex flex-wrap gap-2">
-              {COLOR_OPTIONS.map((color) => (
-                <button
-                  key={color}
-                  type="button"
-                  onClick={() =>
-                    editingCategory &&
-                    setEditingCategory({ ...editingCategory, color })
-                  }
-                  className={`w-8 h-8 rounded-full border-2 transition-all ${
-                    editingCategory?.color === color
-                      ? "border-foreground scale-110"
-                      : "border-transparent"
-                  }`}
-                  style={{ backgroundColor: color }}
-                />
-              ))}
-            </div>
-          </div>
+          <CategoryFormFields
+            values={{
+              name: editingCategory?.name || "",
+              icon: editingCategory?.icon || "",
+              color: editingCategory?.color || "",
+            }}
+            onChange={(vals) =>
+              editingCategory &&
+              setEditingCategory({ ...editingCategory, ...vals })
+            }
+          />
           <Button type="submit" className="w-full" disabled={isSubmitting}>
             {isSubmitting ? <Loader2 className="animate-spin" /> : "Update Category"}
           </Button>
