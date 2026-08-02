@@ -41,14 +41,16 @@ const Page = () => {
       }),
     });
 
-    if (!res.ok) {
+    if (res.ok) {
       alert("User Registered");
-    } else {
-      signIn("credentials", {
+      await signIn("credentials", {
         redirectTo: "/dashboard",
         email: form.email,
         password: form.password,
       });
+    } else {
+      const data = await res.json();
+      alert(data.message || "Failed to register");
     }
   };
 
@@ -89,6 +91,7 @@ const Page = () => {
                 <Input
                   id="password"
                   type="password"
+                  minLength={6}
                   required
                   onChange={handleOnChange}
                 />
