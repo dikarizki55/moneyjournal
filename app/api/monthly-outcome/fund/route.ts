@@ -78,11 +78,6 @@ export async function POST(req: NextRequest) {
 
     const pairId = `pair_${crypto.randomUUID()}`;
 
-    const systemCategory = await prisma.category.findFirst({
-      where: { user_id: user.id },
-      orderBy: { created_at: "asc" },
-    });
-
     const [incomeTx, outcomeTx] = await prisma.$transaction([
       prisma.transaction.create({
         data: {
@@ -95,7 +90,7 @@ export async function POST(req: NextRequest) {
           notes: `Funded to ${wallet.title} wallet`,
           payment_source_id: paymentSourceId,
           wallet_id: walletId,
-          category_id: systemCategory?.id || "",
+          category_id: null,
         },
       }),
       prisma.transaction.create({
@@ -109,7 +104,7 @@ export async function POST(req: NextRequest) {
           notes: `Transferred to ${wallet.title} wallet`,
           payment_source_id: paymentSourceId,
           wallet_id: null,
-          category_id: systemCategory?.id || "",
+          category_id: null,
         },
       }),
     ]);

@@ -12,26 +12,38 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: contentTypeError }, { status: 415 });
     }
 
-    const { sourceWalletId, destinationWalletId, amount, date, paymentSourceId, destinationPaymentSourceId } = await req.json();
+    const {
+      sourceWalletId,
+      destinationWalletId,
+      amount,
+      date,
+      paymentSourceId,
+      destinationPaymentSourceId,
+    } = await req.json();
 
-    if (!sourceWalletId || !destinationWalletId || !amount || Number(amount) <= 0) {
+    if (
+      !sourceWalletId ||
+      !destinationWalletId ||
+      !amount ||
+      Number(amount) <= 0
+    ) {
       return NextResponse.json(
         { message: "Missing required fields or invalid amount" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     if (sourceWalletId === destinationWalletId) {
       return NextResponse.json(
         { message: "Source and destination wallets must be different" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     if (!paymentSourceId) {
       return NextResponse.json(
         { message: "Payment source is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -47,14 +59,14 @@ export async function POST(req: NextRequest) {
     if (!sourceWallet) {
       return NextResponse.json(
         { message: "Source wallet not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
     if (!destWallet) {
       return NextResponse.json(
         { message: "Destination wallet not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -72,24 +84,22 @@ export async function POST(req: NextRequest) {
       const sid = tx.payment_source_id;
       if (!sid) continue;
       if (!sourceBalances[sid]) sourceBalances[sid] = 0;
-      sourceBalances[sid] += tx.type === "income" ? Number(tx.amount) : -Number(tx.amount);
+      sourceBalances[sid] +=
+        tx.type === "income" ? Number(tx.amount) : -Number(tx.amount);
     }
 
     const availableBalance = sourceBalances[paymentSourceId] ?? 0;
 
     if (Number(amount) > availableBalance) {
       return NextResponse.json(
-        { message: `Insufficient balance in ${sourceWallet.title} for this payment source. Available: Rp ${availableBalance.toLocaleString()}` },
-        { status: 400 }
+        {
+          message: `Insufficient balance in ${sourceWallet.title} for this payment source. Available: Rp ${availableBalance.toLocaleString()}`,
+        },
+        { status: 400 },
       );
     }
 
     const pairId = `pair_${crypto.randomUUID()}`;
-
-    const systemCategory = await prisma.category.findFirst({
-      where: { user_id: user.id },
-      orderBy: { created_at: "asc" },
-    });
 
     const [outcomeTx, incomeTx] = await prisma.$transaction([
       prisma.transaction.create({
@@ -100,10 +110,10 @@ export async function POST(req: NextRequest) {
           type: "outcome",
           transferPairId: pairId,
           date: date ? new Date(date) : new Date(),
-          notes: `Transferred to ${destWallet.title} wallet`,
+          notes: `Transferred from ${sourceWallet.title} to ${destWallet.title} wallet`,
           payment_source_id: paymentSourceId,
           wallet_id: sourceWalletId,
-          category_id: systemCategory?.id || "",
+          category_id: null,
         },
       }),
       prisma.transaction.create({
@@ -114,10 +124,10 @@ export async function POST(req: NextRequest) {
           type: "income",
           transferPairId: pairId,
           date: date ? new Date(date) : new Date(),
-          notes: `Transferred from ${sourceWallet.title} wallet`,
+          notes: `Transferred from ${sourceWallet.title} to ${destWallet.title} wallet`,
           payment_source_id: destinationPaymentSourceId || paymentSourceId,
           wallet_id: destinationWalletId,
-          category_id: systemCategory?.id || "",
+          category_id: null,
         },
       }),
     ]);

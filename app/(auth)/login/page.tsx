@@ -45,7 +45,7 @@ const Login = () => {
 
     if (res?.error) {
       setIsLoading(false);
-      setError(error);
+      setError(res.error);
     } else {
       router.push("/dashboard");
     }
@@ -60,7 +60,7 @@ const Login = () => {
     });
 
     if (res?.error) {
-      setError(error);
+      setError(res.error);
       setIsLoading(false);
     } else {
       router.push("/dashboard");

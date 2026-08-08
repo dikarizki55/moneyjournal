@@ -24,9 +24,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (!body.password || body.password.length < 8) {
+    if (!body.password || body.password.length < 6) {
       return NextResponse.json(
-        { message: "Password must be at least 8 characters" },
+        { message: "Password must be at least 6 characters" },
         { status: 400 }
       );
     }
