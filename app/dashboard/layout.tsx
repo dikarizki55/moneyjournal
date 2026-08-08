@@ -4,6 +4,7 @@ import { MobileBottomBar } from "@/components/sidebar/mobile-bottom-bar";
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { SessionProvider } from "next-auth/react";
+import Link from "next/link";
 
 export default async function Layout({
   children,
@@ -26,6 +27,12 @@ export default async function Layout({
           <MobileBottomBar />
         </SidebarProvider>
       </SessionProvider>
+      <Link
+        href={"/dashboard-new"}
+        className=" fixed bottom-5 right-5 bg-white text-black rounded-full w-15 h-15 font-bold flex items-center justify-center"
+      >
+        New-UI
+      </Link>
     </div>
   );
 }

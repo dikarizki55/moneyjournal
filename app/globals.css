@@ -41,6 +41,13 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+
+  /* for new ui */
+  --color-new-background: var(--new-background);
+  --color-new-foreground: var(--new-foreground);
+  --color-new-muted-foreground: var(--new-muted-foreground);
+  --color-new-muted-background: var(--new-muted-background);
+  --color-new-primary: var(--new-primary);
 }
 
 :root {
@@ -76,6 +83,13 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+
+  /* for new ui */
+  --new-background: #fafbfc;
+  --new-foreground: #000000;
+  --new-muted-foreground: #656975;
+  --new-muted-background: #f0f0f2;
+  --new-primary: #1db252;
 }
 
 .dark {
