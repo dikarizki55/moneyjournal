@@ -48,6 +48,19 @@
   --color-new-muted-foreground: var(--new-muted-foreground);
   --color-new-muted-background: var(--new-muted-background);
   --color-new-primary: var(--new-primary);
+  --color-new-primary-background: var(--new-primary-background);
+  --color-new-accent-red: var(--new-accent-red);
+  --color-new-accent-red-background: var(--new-accent-red-background);
+  --color-new-accent-blue: var(--new-accent-blue);
+  --color-new-accent-blue-background: var(--new-accent-blue-background);
+  --color-new-accent-orange: var(--new-accent-orange);
+  --color-new-accent-orange-background: var(--new-accent-orange-background);
+
+  --shadow-soft: 0 0 10px 0 rgba(0, 0, 0, 0.1);
+
+  --background-image-new-primary-gradient-background: var(
+    --new-primary-gradient-background
+  );
 }
 
 :root {
@@ -90,6 +103,19 @@
   --new-muted-foreground: #656975;
   --new-muted-background: #f0f0f2;
   --new-primary: #1db252;
+  --new-primary-background: #d2fae2;
+  --new-accent-red: #f60e10;
+  --new-accent-red-background: #fde1e0;
+  --new-accent-blue: #3477f2;
+  --new-accent-blue-background: #e5eefe;
+  --new-accent-orange: #fe530b;
+  --new-accent-orange-background: #fef0e4;
+
+  --new-primary-gradient-background: linear-gradient(
+    225deg,
+    #1a4535 0%,
+    #06281d 52%
+  );
 }
 
 .dark {
