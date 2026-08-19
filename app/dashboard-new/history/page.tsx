@@ -1,7 +1,12 @@
 "use client";
-import DropdownMenu from "@/components/dashboard-new/DropdownMenu";
+import CategorySelector from "@/components/dashboard-new/history/CategorySelector";
+import DateSelector from "@/components/dashboard-new/history/DateSelector";
 import {
+  IconBag,
+  IconBankNote,
   IconCalendar,
+  IconCar,
+  IconChevronDown,
   IconChevronLeft,
   IconMagnifyGlass,
 } from "@/components/dashboard-new/Icon";
@@ -9,37 +14,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 export default function page() {
-  const [selectedDate, setDate] = useState("");
-
-  const dateInputRef = useRef<HTMLInputElement>(null);
-
-  const handleOpenPicker = () => {
-    const el = dateInputRef.current;
-
-    if (!el) return;
-
-    el.showPicker();
-  };
-
-  const formatMonthDisplay = (YYYYmm: string) => {
-    if (!YYYYmm) return "";
-
-    const [year, month] = YYYYmm.split("-");
-    const date = new Date(Number(year), Number(month) - 1, 1);
-
-    const formatted = new Intl.DateTimeFormat("en-US", {
-      month: "short",
-      year: "numeric",
-    });
-
-    return formatted.format(date);
-  };
-
-  useEffect(() => {
-    const today = new Date();
-    const currentMonth = today.toLocaleDateString("sv-SE").substring(0, 7);
-    setDate(currentMonth);
-  }, []);
+  const [selectedCategory, setCategory] = useState<string[] | null>(null);
 
   return (
     <div className=" px-6 pb-26">
@@ -61,19 +36,52 @@ export default function page() {
         </div>
       </header>
       <div className=" flex gap-2">
-        <DropdownMenu
-          action={handleOpenPicker}
-          title={formatMonthDisplay(selectedDate)}
+        {/* <div className="relative">
+          <div className="text-xs bg-new-muted-background rounded-full py-2 px-4 flex items-center gap-2">
+            {selectedDate ? formatMonthDisplay(selectedDate) : "All"}{" "}
+            <IconChevronDown className=" w-2 h-2" />
+          </div>
+          <input
+            value={selectedDate}
+            onChange={(e) => setDate(e.target.value)}
+            type="month"
+            name=""
+            id=""
+            className=" opacity-0 bg-red-500 h-full absolute top-0 w-5/6 cursor-pointer"
+          />
+        </div> */}
+        <DateSelector />
+        <CategorySelector
+          action={(item) => {
+            setCategory(item);
+          }}
+          list={[
+            {
+              id: "abcd",
+              icon: IconCar,
+              iconColorTailwind:
+                " text-new-accent-blue bg-new-accent-blue-background",
+              title: "Bensin",
+            },
+            {
+              id: "bcd",
+              icon: IconBag,
+              iconColorTailwind:
+                " text-new-accent-orange bg-new-accent-orange-background",
+              title: "Shopping",
+            },
+            {
+              id: "efg",
+              icon: IconBankNote,
+              iconColorTailwind:
+                " text-new-accent-red bg-new-accent-red-background",
+              title: "Uang",
+            },
+          ]}
         />
-        <input
-          ref={dateInputRef}
-          value={selectedDate}
-          onChange={(e) => setDate(e.target.value)}
-          type="month"
-          name=""
-          id=""
-          className=" sr-only"
-        />
+      </div>
+      <div className=" font-bold">
+        {selectedCategory?.map((item) => item + ", ")}
       </div>
     </div>
   );
