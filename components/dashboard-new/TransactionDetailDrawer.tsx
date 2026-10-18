@@ -3,7 +3,7 @@
 import Sheet from "@/components/dashboard-new/Sheet";
 import { formatRupiah, formatRupiahPlain } from "@/lib/api";
 import { colorToClasses, resolveIcon } from "@/lib/icon-map";
-import { formatDayLabel, formatTime } from "@/lib/dashboard-new-mappers";
+import { formatDayLabel } from "@/lib/dashboard-new-mappers";
 import type { TransactionItem } from "@/lib/dashboard-new-types";
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useMemo, useState } from "react";
@@ -14,7 +14,6 @@ import {
   IconCheckmark,
   IconPlus,
   IconPencil,
-  IconChevronLeft,
 } from "@/components/dashboard-new/Icon";
 import {
   useCategories,
@@ -134,25 +133,12 @@ function Row({
 
 function FieldEditorHeader({
   title,
-  onCancel,
-  onSave,
-  isSaving,
-  disabled,
 }: {
   title: string;
-  onCancel: () => void;
-  onSave: () => void;
-  isSaving: boolean;
-  disabled: boolean;
 }) {
   return (
     <div className="flex items-center justify-between px-5 py-4 border-b border-new-muted-foreground/10">
-      <IconChevronLeft
-        className="w-6 h-6 text-new-primary cursor-pointer"
-        onClick={onCancel}
-      />
       <h2 className="text-lg font-semibold">{title}</h2>
-      <div className="w-6" />
     </div>
   );
 }
@@ -358,6 +344,21 @@ export default function TransactionDetailDrawer({
     setMode("edit");
   };
 
+  // Escape key handler for field editor and edit modes
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        if (mode === "field-editor") {
+          handleFieldCancel();
+        } else if (mode === "edit") {
+          handleEditCancel();
+        }
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [mode, handleFieldCancel, handleEditCancel]);
+
   const setField = <K extends keyof WizardData>(
     key: K,
     value: WizardData[K],
@@ -449,13 +450,7 @@ export default function TransactionDetailDrawer({
 
   const renderTypeEditor = () => (
     <div className="flex flex-col h-full">
-      <FieldEditorHeader
-        title="Transaction Type"
-        onCancel={handleFieldCancel}
-        onSave={handleFieldSave}
-        isSaving={isSaving}
-        disabled={false}
-      />
+      <FieldEditorHeader title="Transaction Type" />
       <div className="flex-1 px-5 py-8 grid grid-cols-2 gap-3">
         {(["outcome", "income"] as const).map((t) => (
           <motion.button
@@ -474,18 +469,18 @@ export default function TransactionDetailDrawer({
           </motion.button>
         ))}
       </div>
+      <FieldEditorFooter
+        onCancel={handleFieldCancel}
+        onSave={handleFieldSave}
+        isSaving={isSaving}
+        disabled={false}
+      />
     </div>
   );
 
   const renderAmountEditor = () => (
     <div className="flex flex-col h-full">
-      <FieldEditorHeader
-        title="Amount"
-        onCancel={handleFieldCancel}
-        onSave={handleFieldSave}
-        isSaving={isSaving}
-        disabled={formData.amount <= 0}
-      />
+      <FieldEditorHeader title="Amount" />
       <div className="flex-1 px-5 py-8 flex items-center justify-center">
         <div className="w-full flex items-baseline gap-1">
           <span className="text-2xl font-semibold text-new-muted-foreground">
@@ -523,13 +518,7 @@ export default function TransactionDetailDrawer({
 
   const renderTitleEditor = () => (
     <div className="flex flex-col h-full">
-      <FieldEditorHeader
-        title="Title"
-        onCancel={handleFieldCancel}
-        onSave={handleFieldSave}
-        isSaving={isSaving}
-        disabled={!formData.title.trim()}
-      />
+      <FieldEditorHeader title="Title" />
       <div className="flex-1 px-5 py-8">
         <input
           autoFocus
@@ -555,13 +544,7 @@ export default function TransactionDetailDrawer({
 
   const renderCategoryEditor = () => (
     <div className="flex flex-col h-full">
-      <FieldEditorHeader
-        title="Category"
-        onCancel={handleFieldCancel}
-        onSave={handleFieldSave}
-        isSaving={isSaving}
-        disabled={!formData.categoryId}
-      />
+      <FieldEditorHeader title="Category" />
       <div className="flex-1 px-5 pb-8 overflow-y-auto">
         {categoriesLoading ? (
           <div className="flex items-center justify-center py-8">
@@ -597,13 +580,7 @@ export default function TransactionDetailDrawer({
 
   const renderSourceEditor = () => (
     <div className="flex flex-col h-full">
-      <FieldEditorHeader
-        title="Payment Source"
-        onCancel={handleFieldCancel}
-        onSave={handleFieldSave}
-        isSaving={isSaving}
-        disabled={!formData.paymentSourceId}
-      />
+      <FieldEditorHeader title="Payment Source" />
       <div className="flex-1 px-5 pb-8 overflow-y-auto">
         {walletsLoading || sourcesLoading ? (
           <div className="flex items-center justify-center py-8">
@@ -643,13 +620,7 @@ export default function TransactionDetailDrawer({
 
   const renderWalletEditor = () => (
     <div className="flex flex-col h-full">
-      <FieldEditorHeader
-        title="Wallet"
-        onCancel={handleFieldCancel}
-        onSave={handleFieldSave}
-        isSaving={isSaving}
-        disabled={false}
-      />
+      <FieldEditorHeader title="Wallet" />
       <div className="flex-1 px-5 pb-8 overflow-y-auto">
         {walletsLoading ? (
           <div className="flex items-center justify-center py-8">
@@ -676,13 +647,7 @@ export default function TransactionDetailDrawer({
 
   const renderDateEditor = () => (
     <div className="flex flex-col h-full">
-      <FieldEditorHeader
-        title="Date"
-        onCancel={handleFieldCancel}
-        onSave={handleFieldSave}
-        isSaving={isSaving}
-        disabled={!formData.date}
-      />
+      <FieldEditorHeader title="Date" />
       <div className="flex-1 px-5 py-8">
         <input
           type="date"
@@ -707,13 +672,7 @@ export default function TransactionDetailDrawer({
 
   const renderNotesEditor = () => (
     <div className="flex flex-col h-full">
-      <FieldEditorHeader
-        title="Notes"
-        onCancel={handleFieldCancel}
-        onSave={handleFieldSave}
-        isSaving={isSaving}
-        disabled={false}
-      />
+      <FieldEditorHeader title="Notes" />
       <div className="flex-1 px-5 py-8">
         <textarea
           autoFocus
@@ -799,30 +758,16 @@ export default function TransactionDetailDrawer({
           <hr className="bg-new-muted-foreground opacity-10 mx-auto w-[85%]" />
           <Row
             label="Date"
-            value={`${formatDayLabel(transaction.date)} \u2022 ${formatTime(transaction.date)}`}
+            value={formatDayLabel(transaction.date)}
             icon={IconCalendar}
             iconClass="bg-new-muted-background text-new-muted-foreground"
           />
-          {transaction.created_at && (
-            <>
-              <hr className="bg-new-muted-foreground opacity-10 mx-auto w-[85%]" />
-              <Row
-                label="Recorded"
-                value={`${formatDayLabel(transaction.created_at)} \u2022 ${formatTime(transaction.created_at)}`}
-              />
-            </>
-          )}
-          {transaction.notes && (
-            <>
-              <hr className="bg-new-muted-foreground opacity-10 mx-auto w-[85%]" />
-              <div className="px-5 py-4">
-                <p className="text-sm text-new-muted-foreground mb-1">Notes</p>
-                <p className="text-sm font-medium whitespace-pre-wrap">
-                  {transaction.notes}
-                </p>
-              </div>
-            </>
-          )}
+          <hr className="bg-new-muted-foreground opacity-10 mx-auto w-[85%]" />
+          <Row
+            label="Notes"
+            value={transaction.notes ? transaction.notes : "Add notes"}
+            showPencil={false}
+          />
         </div>
 
         <AnimatePresence mode="wait">
@@ -980,11 +925,7 @@ export default function TransactionDetailDrawer({
           <hr className="bg-new-muted-foreground opacity-10 mx-auto w-[85%]" />
           <Row
             label="Date"
-            value={
-              formData.date
-                ? `${formatDayLabel(formData.date)} \u2022 ${formatTime(formData.date + "T00:00:00")}`
-                : "No date"
-            }
+            value={formData.date ? formatDayLabel(formData.date) : "No date"}
             icon={IconCalendar}
             iconClass="bg-new-muted-background text-new-muted-foreground"
             showPencil={true}
@@ -1065,17 +1006,23 @@ export default function TransactionDetailDrawer({
     }
   };
 
+  const handleSheetClose = () => {
+    if (mode === "view") {
+      setConfirmDelete(false);
+      onClose();
+    } else if (mode === "edit") {
+      handleEditCancel();
+    } else if (mode === "field-editor") {
+      handleFieldCancel();
+    }
+  };
+
   return (
     <Sheet
       open={open}
-      onClose={() => {
-        setMode("view");
-        setConfirmDelete(false);
-        onClose();
-      }}
+      onClose={handleSheetClose}
       title={mode === "view" ? "Details" : "Edit"}
-      closeLabel={mode === "view" ? "Close" : undefined}
-      showClose={mode === "view"}
+      showClose={true}
     >
       <AnimatePresence mode="wait">
         {!transaction ? null : mode === "view" ? (
