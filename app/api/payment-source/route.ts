@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: contentTypeError }, { status: 415 });
     }
 
-    const { name, icon } = await req.json();
+    const { name, icon, walletId } = await req.json();
 
     if (!name || !name.trim()) {
       return NextResponse.json(
@@ -63,7 +63,11 @@ export async function POST(req: NextRequest) {
         name: name.trim(),
         icon: icon || null,
         default: existingCount === 0,
+        ...(walletId && {
+          wallets: { connect: { id: walletId } },
+        }),
       },
+      include: { wallets: true },
     });
 
     return NextResponse.json({ success: true, data: source });

@@ -1,10 +1,12 @@
 "use client";
 
-import SingleSelectDrawer, {
-  type SingleSelectItem,
-} from "@/components/dashboard-new/SingleSelectDrawer";
 import Sheet from "@/components/dashboard-new/Sheet";
-import { IconCalendar, IconWallet } from "@/components/dashboard-new/Icon";
+import {
+  IconCalendar,
+  IconWallet,
+  IconCheckmark,
+  IconPlus,
+} from "@/components/dashboard-new/Icon";
 import { formatRupiah, formatRupiahPlain } from "@/lib/api";
 import { colorToClasses, resolveIcon } from "@/lib/icon-map";
 import type { TransactionItem } from "@/lib/dashboard-new-types";
@@ -17,13 +19,22 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
+type SelectItem = {
+  id: string;
+  label: string;
+  sublabel?: string | null;
+  icon?: React.ComponentType<{ className?: string }> | null;
+  iconColorTailwind?: string;
+  rightLabel?: string | null;
+};
+
 export const WIZARD_STEPS = [
   "type",
   "amount",
   "title",
   "category",
-  "source",
   "wallet",
+  "source",
   "date",
   "notes",
   "review",
@@ -79,7 +90,9 @@ export function wizardDataFromTransaction(tx: TransactionItem): WizardData {
     categoryId: tx.category_id ?? null,
     paymentSourceId: tx.payment_source_id ?? null,
     walletId: tx.wallet_id ?? null,
-    date: tx.date ? new Date(tx.date).toISOString().split("T")[0] : todayString(),
+    date: tx.date
+      ? new Date(tx.date).toISOString().split("T")[0]
+      : todayString(),
     notes: tx.notes ?? "",
   };
 }
@@ -92,6 +105,8 @@ export function stepIsValid(step: WizardStep, data: WizardData) {
       return data.title.trim().length > 0;
     case "category":
       return !!data.categoryId;
+    case "wallet":
+      return !!data.walletId;
     case "source":
       return !!data.paymentSourceId;
     default:
@@ -115,17 +130,107 @@ function Progress({ step }: { step: WizardStep }) {
   );
 }
 
+export function InlineSelector({
+  items,
+  value,
+  onChange,
+  emptyMessage = "Nothing available",
+  onCreate,
+  createLabel = "Add new",
+  allowDeselect = false,
+}: {
+  items: SelectItem[];
+  value: string | null;
+  onChange: (id: string | null) => void;
+  emptyMessage?: string;
+  onCreate?: () => void;
+  createLabel?: string;
+  allowDeselect?: boolean;
+}) {
+  return (
+    <div className="w-full flex flex-col gap-2">
+      {items.map((item, idx) => {
+        const isActive = item.id === value;
+        return (
+          <motion.button
+            key={item.id}
+            whileTap={{ scale: 0.98 }}
+            transition={{ duration: 0.1 }}
+            className="flex justify-between items-center px-4 py-4 w-full text-left bg-new-background rounded-[16px] shadow-soft"
+            onClick={() => onChange(allowDeselect && isActive ? null : item.id)}
+          >
+            <span className="flex gap-3 items-center min-w-0">
+              {item.icon && (
+                <span
+                  className={`w-10 h-10 rounded-full shrink-0 flex items-center justify-center ${
+                    item.iconColorTailwind ??
+                    "bg-new-muted-background text-new-muted-foreground"
+                  }`}
+                >
+                  <item.icon className="w-5 h-5" />
+                </span>
+              )}
+              <span className="min-w-0">
+                <span className="block truncate font-medium">{item.label}</span>
+                {item.sublabel && (
+                  <span className="block text-xs text-new-muted-foreground truncate">
+                    {item.sublabel}
+                  </span>
+                )}
+              </span>
+            </span>
+            <span className="shrink-0 flex items-center gap-3">
+              {item.rightLabel && (
+                <span className="text-xs font-semibold text-new-muted-foreground">
+                  {item.rightLabel}
+                </span>
+              )}
+              <span className="relative w-5 h-5">
+                <AnimatePresence mode="sync">
+                  <motion.span
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    exit={{ scale: 0 }}
+                    key={`${item.id}-${isActive ? "active" : "inactive"}`}
+                    className={`absolute text-new-background rounded-full w-5 h-5 ${
+                      isActive
+                        ? "bg-new-primary"
+                        : "bg-new-background border-new-muted-foreground border"
+                    } flex items-center justify-center`}
+                  >
+                    <IconCheckmark />
+                  </motion.span>
+                </AnimatePresence>
+              </span>
+            </span>
+          </motion.button>
+        );
+      })}
+      {items.length === 0 && !onCreate && (
+        <p className="text-sm text-new-muted-foreground text-center py-10">
+          {emptyMessage}
+        </p>
+      )}
+      {onCreate && (
+        <button
+          onClick={onCreate}
+          className="mx-auto mt-2 rounded-[14px] bg-new-primary-background text-new-primary font-semibold text-sm py-3 px-6 flex items-center justify-center gap-2"
+        >
+          <IconPlus className="w-4 h-4" />
+          {createLabel}
+        </button>
+      )}
+    </div>
+  );
+}
+
 export default function TransactionWizard({
-  mode,
   initial,
-  transactionId,
   onClose,
   onSaved,
   startStep = "type",
 }: {
-  mode: "create" | "edit";
   initial?: WizardData;
-  transactionId?: string;
   onClose: () => void;
   onSaved?: (tx: TransactionItem | null) => void;
   startStep?: WizardStep;
@@ -142,14 +247,35 @@ export default function TransactionWizard({
 
   const titleRef = useRef<HTMLInputElement>(null);
 
-  const { data: categories, refetch: refetchCategories } = useCategories();
-  const { data: paymentSources, refetch: refetchSources } = usePaymentSources();
-  const { data: wallets, refetch: refetchWallets } = useWallets();
+  const {
+    data: categories,
+    refetch: refetchCategories,
+    isLoading: categoriesLoading,
+  } = useCategories();
+  const {
+    data: paymentSources,
+    refetch: refetchSources,
+    isLoading: sourcesLoading,
+  } = usePaymentSources();
+  const {
+    data: wallets,
+    refetch: refetchWallets,
+    isLoading: walletsLoading,
+  } = useWallets();
 
   const set = <K extends keyof WizardData>(key: K, value: WizardData[K]) =>
     setData((prev) => ({ ...prev, [key]: value }));
 
-  // Autofocus the title input as soon as we land on that step
+  const isInitialMount = useRef(true);
+
+  useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+    set("paymentSourceId", null);
+  }, [data.walletId]);
+
   useEffect(() => {
     if (step !== "title") return;
     const t = setTimeout(() => titleRef.current?.focus(), 350);
@@ -173,6 +299,7 @@ export default function TransactionWizard({
       if (step === "amount") toast.error("Enter an amount greater than 0");
       if (step === "title") toast.error("Enter a title");
       if (step === "category") toast.error("Select a category");
+      if (step === "wallet") toast.error("Select a wallet");
       if (step === "source") toast.error("Select a payment source");
       return;
     }
@@ -203,12 +330,7 @@ export default function TransactionWizard({
         notes: data.notes.trim() || undefined,
       };
 
-      const url =
-        mode === "create"
-          ? "/api/transaction"
-          : `/api/transaction/${transactionId}`;
-
-      const res = await fetch(url, {
+      const res = await fetch("/api/transaction", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -230,9 +352,7 @@ export default function TransactionWizard({
           }
         : undefined;
 
-      toast.success(
-        mode === "create" ? "Transaction created" : "Transaction updated",
-      );
+      toast.success("Transaction created");
       refetchCategories();
       refetchSources();
       refetchWallets();
@@ -244,7 +364,7 @@ export default function TransactionWizard({
     }
   };
 
-  const categoryOptions: SingleSelectItem[] = useMemo(
+  const categoryOptions: SelectItem[] = useMemo(
     () =>
       categories.map((c) => ({
         id: c.id,
@@ -255,19 +375,61 @@ export default function TransactionWizard({
     [categories],
   );
 
-  const sourceOptions: SingleSelectItem[] = useMemo(
-    () =>
-      paymentSources.map((p) => ({
-        id: p.id,
-        label: p.name,
-        sublabel: p.default ? "Default" : null,
-        icon: resolveIcon(p.icon),
-        iconColorTailwind: "bg-new-primary-background text-new-primary",
-      })),
-    [paymentSources],
-  );
+  const selectedWallet = wallets.find((w) => w.id === data.walletId);
 
-  const walletOptions: SingleSelectItem[] = useMemo(
+  const sourceOptions: SelectItem[] = useMemo(() => {
+    const wallet =
+      selectedWallet ?? wallets.find((w) => w.id === data.walletId);
+    if (!wallet) return [];
+
+    const walletSources: SelectItem[] = wallet.paymentSources
+      .filter(
+        (ps): ps is {
+          id: string;
+          name: string;
+          icon: string | null;
+          amount: number;
+        } => ps.id != null,
+      )
+      .map((ps) => ({
+        id: ps.id,
+        label: ps.name,
+        icon: resolveIcon(ps.icon),
+        iconColorTailwind: "bg-new-primary-background text-new-primary",
+        rightLabel: formatRupiahPlain(ps.amount),
+      }));
+
+    if (data.paymentSourceId) {
+      const existingInWallet = walletSources.some(
+        (s) => s.id === data.paymentSourceId,
+      );
+      if (!existingInWallet) {
+        const globalSource = paymentSources.find(
+          (p) => p.id === data.paymentSourceId,
+        );
+        if (globalSource) {
+          walletSources.push({
+            id: globalSource.id,
+            label: globalSource.name,
+            icon: resolveIcon(globalSource.icon),
+            iconColorTailwind: "bg-new-primary-background text-new-primary",
+            rightLabel: "\u2014",
+            sublabel: "Not linked to this wallet",
+          });
+        }
+      }
+    }
+
+    return walletSources;
+  }, [
+    selectedWallet,
+    wallets,
+    data.walletId,
+    data.paymentSourceId,
+    paymentSources,
+  ]);
+
+  const walletOptions: SelectItem[] = useMemo(
     () =>
       wallets.map((w) => ({
         id: w.id,
@@ -280,8 +442,9 @@ export default function TransactionWizard({
   );
 
   const selectedCategory = categories.find((c) => c.id === data.categoryId);
-  const selectedSource = paymentSources.find((p) => p.id === data.paymentSourceId);
-  const selectedWallet = wallets.find((w) => w.id === data.walletId);
+  const selectedSource = paymentSources.find(
+    (p) => p.id === data.paymentSourceId,
+  );
 
   const submitQuickCreate = async () => {
     const name = quickName.trim();
@@ -297,7 +460,9 @@ export default function TransactionWizard({
           credentials: "include",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(
-            isCategory ? { name, color: "#1db252" } : { name },
+            isCategory
+              ? { name, color: "#1db252" }
+              : { name, walletId: data.walletId },
           ),
         },
       );
@@ -311,6 +476,7 @@ export default function TransactionWizard({
         set("categoryId", body.data.id);
       } else {
         refetchSources();
+        refetchWallets();
         set("paymentSourceId", body.data.id);
       }
 
@@ -335,7 +501,6 @@ export default function TransactionWizard({
 
   return (
     <div className="flex flex-col min-h-full">
-      {/* Header */}
       <div className="w-full pt-5 px-5">
         <div className="w-full py-2 flex justify-between items-center">
           <div className="w-16 text-left">
@@ -349,8 +514,13 @@ export default function TransactionWizard({
           <div className="text-sm font-semibold text-new-muted-foreground">
             {STEP_LABELS[step]}
           </div>
-          <div className="w-16 text-right text-sm text-new-muted-foreground">
-            {WIZARD_STEPS.indexOf(step) + 1}/{WIZARD_STEPS.length}
+          <div className="w-16 text-right">
+            <button
+              onClick={onClose}
+              className="text-new-primary text-sm"
+            >
+              Cancel
+            </button>
           </div>
         </div>
         <div className="mt-3">
@@ -358,7 +528,6 @@ export default function TransactionWizard({
         </div>
       </div>
 
-      {/* Body */}
       <div className="flex-1 px-5 pt-8 pb-4 overflow-y-auto">
         <AnimatePresence mode="wait" custom={direction}>
           <motion.div
@@ -372,7 +541,9 @@ export default function TransactionWizard({
           >
             {step === "type" && (
               <div className="flex flex-col gap-4">
-                <h2 className="text-xl font-bold">Is this income or outcome?</h2>
+                <h2 className="text-xl font-bold">
+                  Is this income or outcome?
+                </h2>
                 <div className="grid grid-cols-2 gap-3">
                   {(["outcome", "income"] as const).map((t) => (
                     <motion.button
@@ -405,7 +576,9 @@ export default function TransactionWizard({
                     type="text"
                     inputMode="numeric"
                     autoFocus
-                    value={data.amount > 0 ? formatRupiahPlain(data.amount) : ""}
+                    value={
+                      data.amount > 0 ? formatRupiahPlain(data.amount) : ""
+                    }
                     onChange={(e) => {
                       const digits = e.target.value.replace(/[^\d]/g, "");
                       set("amount", digits ? Number(digits) : 0);
@@ -434,14 +607,16 @@ export default function TransactionWizard({
             )}
 
             {step === "category" && (
-              <div className="flex flex-col items-center gap-6">
+              <div className="flex flex-col gap-4">
                 <h2 className="text-xl font-bold text-center">
                   Pick a category
                 </h2>
-                <div className="w-full flex justify-center">
-                  <SingleSelectDrawer
-                    title="Select category"
-                    inDrawerTitle="Category"
+                {categoriesLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="w-6 h-6 border-2 border-new-primary border-t-transparent rounded-full animate-spin" />
+                  </div>
+                ) : (
+                  <InlineSelector
                     items={categoryOptions}
                     value={data.categoryId}
                     onChange={(id) => set("categoryId", id)}
@@ -452,73 +627,53 @@ export default function TransactionWizard({
                     }}
                     createLabel="Add new category"
                   />
-                </div>
-                {selectedCategory && (
-                  <div
-                    className={`text-sm rounded-full px-4 py-2 flex items-center gap-2 ${colorToClasses(selectedCategory.color)}`}
-                  >
-                    {(() => {
-                      const Icon = resolveIcon(selectedCategory.icon);
-                      return <Icon className="w-4 h-4" />;
-                    })()}
-                    {selectedCategory.name}
-                  </div>
                 )}
               </div>
             )}
 
             {step === "source" && (
-              <div className="flex flex-col items-center gap-6">
+              <div className="flex flex-col gap-4">
                 <h2 className="text-xl font-bold text-center">
                   Pay from where?
                 </h2>
-                <div className="w-full flex justify-center">
-                  <SingleSelectDrawer
-                    title="Select source"
-                    inDrawerTitle="Payment Source"
+                {walletsLoading || sourcesLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="w-6 h-6 border-2 border-new-primary border-t-transparent rounded-full animate-spin" />
+                  </div>
+                ) : !selectedWallet ? (
+                  <p className="text-sm text-new-muted-foreground text-center py-8">
+                    Select a wallet first
+                  </p>
+                ) : (
+                  <InlineSelector
                     items={sourceOptions}
                     value={data.paymentSourceId}
                     onChange={(id) => set("paymentSourceId", id)}
-                    emptyMessage="No payment source yet"
+                    emptyMessage="No payment source in this wallet"
                     onCreate={() => {
                       setQuickName("");
                       setQuickCreate("source");
                     }}
                     createLabel="Add new payment source"
                   />
-                </div>
-                {selectedSource && (
-                  <div className="text-sm rounded-full px-4 py-2 bg-new-primary-background text-new-primary font-medium">
-                    {selectedSource.name}
-                  </div>
                 )}
               </div>
             )}
 
             {step === "wallet" && (
-              <div className="flex flex-col items-center gap-6">
-                <h2 className="text-xl font-bold text-center">
-                  Which wallet?
-                </h2>
-                <p className="text-sm text-new-muted-foreground text-center -mt-3">
-                  Optional. Group this under a wallet.
-                </p>
-                <div className="w-full flex justify-center">
-                  <SingleSelectDrawer
-                    title="No wallet"
-                    inDrawerTitle="Wallet"
+              <div className="flex flex-col gap-4">
+                <h2 className="text-xl font-bold text-center">Which wallet?</h2>
+                {walletsLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="w-6 h-6 border-2 border-new-primary border-t-transparent rounded-full animate-spin" />
+                  </div>
+                ) : (
+                  <InlineSelector
                     items={walletOptions}
                     value={data.walletId}
                     onChange={(id) => set("walletId", id)}
-                    allowDeselect
                     emptyMessage="No wallet yet"
                   />
-                </div>
-                {selectedWallet && (
-                  <div className="text-sm rounded-full px-4 py-2 bg-new-accent-blue-background text-new-accent-blue font-medium flex items-center gap-2">
-                    <IconWallet className="w-4 h-4" />
-                    {selectedWallet.title}
-                  </div>
                 )}
               </div>
             )}
@@ -575,7 +730,7 @@ export default function TransactionWizard({
                           selectedWallet?.title,
                         ]
                           .filter(Boolean)
-                          .join(" • ")}
+                          .join(" \u2022 ")}
                       </p>
                     </div>
                   </div>
@@ -606,7 +761,6 @@ export default function TransactionWizard({
         </AnimatePresence>
       </div>
 
-      {/* Footer */}
       <div className="px-5 pt-2 pb-8">
         <motion.button
           whileTap={{ scale: 0.97 }}
@@ -621,18 +775,17 @@ export default function TransactionWizard({
           {isSubmitting
             ? "Saving..."
             : isLast
-              ? mode === "create"
-                ? "Save Transaction"
-                : "Save Changes"
-              : "Next"}
+            ? "Save Transaction"
+            : "Next"}
         </motion.button>
       </div>
 
-      {/* Quick create for category / payment source */}
       <Sheet
         open={!!quickCreate}
         onClose={() => setQuickCreate(null)}
-        title={quickCreate === "category" ? "New category" : "New payment source"}
+        title={
+          quickCreate === "category" ? "New category" : "New payment source"
+        }
         closeLabel="Cancel"
         showClose={false}
       >

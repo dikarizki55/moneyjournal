@@ -9,7 +9,6 @@ export default function AddTransactionPage() {
   return (
     <div className="min-h-screen flex flex-col">
       <TransactionWizard
-        mode="create"
         onClose={() => router.push("/dashboard-new")}
         onSaved={() => router.push("/dashboard-new/history")}
       />
