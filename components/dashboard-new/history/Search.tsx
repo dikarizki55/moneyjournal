@@ -8,28 +8,36 @@ const variants: Variants = {
   animate: (onSearch: boolean) => ({
     width: onSearch ? "100%" : "20px",
     paddingRight: onSearch ? "15px" : "0px",
-    backgroundColor: onSearch ? "#f0f0f2" : "#ffffff",
+    backgroundColor: onSearch ? "var(--new-muted-background)" : "transparent",
   }),
 };
 
 export default function Search({
   setState,
+  value,
+  onValueChange,
 }: {
-  setState: React.Dispatch<React.SetStateAction<boolean>>;
+  setState?: React.Dispatch<React.SetStateAction<boolean>>;
+  value?: string;
+  onValueChange?: (value: string) => void;
 }) {
   const [onSearch, setOnSearch] = useState(false);
 
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(value ?? "");
 
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    setState(onSearch);
+    setState?.(onSearch);
 
     if (onSearch) {
       inputRef.current?.focus();
     }
   }, [onSearch]);
+
+  useEffect(() => {
+    setSearch(value ?? "");
+  }, [value]);
 
   return (
     <>
@@ -54,14 +62,26 @@ export default function Search({
             <motion.div className=" px-4 w-full">
               <input
                 ref={inputRef}
-                onChange={(e) => setSearch(e.currentTarget.value)}
+                onChange={(e) => {
+                  setSearch(e.currentTarget.value);
+                  onValueChange?.(e.currentTarget.value);
+                }}
                 value={search}
-                className=" w-full focus:outline-none"
+                className=" w-full focus:outline-none bg-transparent"
                 type="text"
+                placeholder="Search transaction..."
               />
             </motion.div>
           )}
-          <button onClick={() => setOnSearch(true)}>
+          <button
+            onClick={() => {
+              if (onSearch) {
+                setSearch("");
+                onValueChange?.("");
+              }
+              setOnSearch(!onSearch);
+            }}
+          >
             <IconMagnifyGlass className="w-5 h-5" />
           </button>
         </motion.div>

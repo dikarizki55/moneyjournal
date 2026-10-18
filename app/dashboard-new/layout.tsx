@@ -2,6 +2,7 @@ import { auth } from "@/auth";
 import Navbar from "@/components/dashboard-new/Navbar";
 import { Inter } from "next/font/google";
 import { redirect } from "next/navigation";
+import { SessionProvider } from "next-auth/react";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -17,12 +18,14 @@ export default async function DashboardNew({
 
   if (!session?.user) redirect("/login");
   return (
-    <div
-      className={`${inter.variable} bg-new-background text-new-foreground w-full min-h-screen`}
-      style={{ fontFamily: "var(--font-inter)" }}
-    >
-      <Navbar />
-      {children}
-    </div>
+    <SessionProvider session={session}>
+      <div
+        className={`${inter.variable} bg-new-background text-new-foreground w-full min-h-screen`}
+        style={{ fontFamily: "var(--font-inter)" }}
+      >
+        <Navbar />
+        {children}
+      </div>
+    </SessionProvider>
   );
 }

@@ -13,7 +13,6 @@ import {
 } from "./Icon";
 import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import TopAddTransaction from "./TopAddTransaction";
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -58,7 +57,6 @@ export default function Navbar() {
 
   return (
     <AnimatePresence mode="sync">
-      {pathname === "/dashboard-new/add" && <TopAddTransaction />}
       {pathname !== "/dashboard-new/add" && (
         <motion.div
           key="navbar"

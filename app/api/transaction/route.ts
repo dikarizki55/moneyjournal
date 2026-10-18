@@ -26,6 +26,11 @@ export async function GET(req: NextRequest) {
 
     const filterCategoryIds = categoryIdsStr ? categoryIdsStr.split(",") : [];
     const walletId = parseParams("walletId", "string") as string | undefined;
+    const typeParam = parseParams("type", "string") as string | undefined;
+    const type =
+      typeParam === "income" || typeParam === "outcome"
+        ? (typeParam as "income" | "outcome")
+        : undefined;
 
     const where: Prisma.transactionWhereInput = {
       user_id: user.id,
@@ -34,6 +39,7 @@ export async function GET(req: NextRequest) {
       ...(from || to ? { date: { ...(from ? { gte: new Date(from) } : {}), ...(to ? { lte: new Date(to) } : {}) } } : {}),
       ...(filterCategoryIds.length > 0 ? { category_id: { in: filterCategoryIds } } : {}),
       ...(walletId ? { wallet_id: walletId } : {}),
+      ...(type ? { type } : {}),
     };
 
     const transaction = async () => {
@@ -57,6 +63,9 @@ export async function GET(req: NextRequest) {
         }
         if (walletId) {
           dynamicClauses = Prisma.sql`${dynamicClauses} AND "wallet_id" = ${walletId}::uuid`;
+        }
+        if (type) {
+          dynamicClauses = Prisma.sql`${dynamicClauses} AND "type" = ${type}::"TransactionType"`;
         }
 
         return await prisma.$queryRaw`

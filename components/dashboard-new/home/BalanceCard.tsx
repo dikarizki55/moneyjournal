@@ -2,9 +2,26 @@
 import { useState } from "react";
 import { IconEye, IconEyeSlash } from "../Icon";
 import { AnimatePresence, motion } from "framer-motion";
+import { formatRupiah } from "@/lib/api";
 
-export default function BalanceCard() {
+export type BalanceCardData = {
+  netWorth: number;
+  income: number;
+  outcome: number;
+  incomeChange: number | null;
+  outcomeChange: number | null;
+  compareLabel: string;
+};
+
+export default function BalanceCard({
+  data,
+}: {
+  data: BalanceCardData;
+}) {
   const [visible, setVisible] = useState(false);
+
+  const { netWorth, income, outcome, incomeChange, outcomeChange, compareLabel } =
+    data;
 
   return (
     <div className=" w-full rounded-[20px] flex flex-col px-5 py-6 gap-2 shadow-soft bg-new-background">
@@ -39,34 +56,56 @@ export default function BalanceCard() {
             animate={{ y: 0 }}
             exit={{ y: 40 }}
             transition={{ duration: 0.3, ease: [0.5, 0, 0.1, 1] }}
-            className=" text-[34px] font-bold -mt-1 tracking-tight"
+            className=" text-[34px] font-bold -mt-1 tracking-tight whitespace-nowrap"
           >
-            {visible ? "Rp 1.512.500.000" : "* * * * *"}
+            {visible ? formatRupiah(netWorth) : "* * * * *"}
           </motion.h1>
         </AnimatePresence>
       </div>
-      {/* <span className=" text-new-primary font-semibold mt-2">
-        ↑ 12.5% this month
-      </span> */}
       <div className=" flex mt-2">
         <div className="  w-full h-full border-r border-r-new-muted-foreground/20 flex flex-col gap-2">
           <p className=" text-xs font-medium">Income</p>
           <h1 className=" text-[18px] tracking-tighter whitespace-nowrap text-new-primary font-bold">
-            Rp 15.000.000
+            {formatRupiah(income)}
           </h1>
           <p className=" text-xs font-medium text-new-muted-foreground">
-            <span className=" text-new-primary">↑ 12.5% </span>
-            vs Jul 2026
+            {incomeChange !== null ? (
+              <>
+                <span
+                  className={
+                    incomeChange >= 0 ? " text-new-primary" : " text-new-accent-red"
+                  }
+                >
+                  {incomeChange >= 0 ? "↑" : "↓"} {Math.abs(incomeChange).toFixed(1)}%{" "}
+                </span>
+                {compareLabel}
+              </>
+            ) : (
+              compareLabel
+            )}
           </p>
         </div>
         <div className="  w-full h-full pl-4 flex flex-col gap-2">
           <p className=" text-xs font-medium">Outcome</p>
           <h1 className=" text-[18px] tracking-tighter whitespace-nowrap text-new-accent-red font-bold">
-            Rp 5.000.000
+            {formatRupiah(outcome)}
           </h1>
           <p className=" text-xs font-medium text-new-muted-foreground">
-            <span className=" text-new-primary">↓ 10.0% </span>
-            vs Jul 2026
+            {outcomeChange !== null ? (
+              <>
+                <span
+                  className={
+                    outcomeChange >= 0 ? " text-new-primary" : " text-new-accent-red"
+                  }
+                >
+                  {outcomeChange >= 0 ? "↑" : "↓"}{" "}
+                  {Math.abs(outcomeChange).toFixed(1)}%{" "}
+                </span>
+                {compareLabel}
+              </>
+            ) : (
+              compareLabel
+            )}
           </p>
         </div>
       </div>

@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Drawer from "../Drawer";
 import { IconChevronLeft, IconChevronRight } from "../Icon";
 import {
   eachDayOfInterval,
+  endOfDay,
   endOfMonth,
   endOfWeek,
   isSameDay,
@@ -33,7 +34,13 @@ const zoomVariants: Variants = {
   }),
 };
 
-export default function DateSelector() {
+export default function DateSelector({
+  onChange,
+  initialRange,
+}: {
+  onChange?: (range: { from: Date; to: Date } | null) => void;
+  initialRange?: { from: Date; to: Date } | null;
+}) {
   const [startYear, setStartYear] = useState(0);
   const [endYear, setEndYear] = useState(0);
 
@@ -48,6 +55,9 @@ export default function DateSelector() {
   const [calendarList, setCalendarList] = useState<
     { date: Date; dayOfMonth: number; isCurrentMonth: boolean }[] | null
   >(null);
+
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
 
   const formatMonthDisplay = () => {
     if (!startDate) return "";
@@ -123,11 +133,25 @@ export default function DateSelector() {
   };
 
   useEffect(() => {
+    if (initialRange) {
+      setStartDate(initialRange.from);
+      setEndDate(initialRange.to);
+      setMonth(initialRange.from);
+      return;
+    }
     const today = new Date();
     setMonth(today);
     setStartDate(startOfMonth(today));
     setEndDate(endOfMonth(today));
   }, []);
+
+  useEffect(() => {
+    if (!startDate) return;
+    onChangeRef.current?.({
+      from: startDate,
+      to: endDate ?? endOfDay(startDate),
+    });
+  }, [startDate, endDate]);
 
   useEffect(() => {
     if (!selectMonth) return;
@@ -138,10 +162,6 @@ export default function DateSelector() {
     setStartYear(calcStartYear);
     setEndYear(calcStartYear + 9);
   }, [selectMonth]);
-
-  useEffect(() => {
-    console.log(direction);
-  }, [direction]);
 
   return (
     <Drawer
