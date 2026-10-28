@@ -15,6 +15,17 @@ export function formatTime(date: string | null): string {
   }).format(d);
 }
 
+export function formatDate(date: string | null): string {
+  if (!date) return "--/--/--";
+  const d = new Date(date);
+  if (isNaN(d.getTime())) return "--/--/--";
+  return new Intl.DateTimeFormat("id-ID", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "2-digit",
+  }).format(d);
+}
+
 export function formatDayLabel(date: string | null): string {
   if (!date) return "Unknown date";
   const d = new Date(date);
@@ -40,7 +51,7 @@ export function formatDayLabel(date: string | null): string {
 export function toListItem(tx: TransactionItem): TransactionListItem {
   const description: string[] = [
     tx.category?.name ?? "Uncategorized",
-    formatTime(tx.created_at ?? tx.date),
+    formatDate(tx.created_at ?? tx.date),
     tx.paymentSource?.name ?? tx.wallet?.title ?? "No source",
   ];
 

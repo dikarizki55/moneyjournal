@@ -14,7 +14,7 @@ export function EditorFooter({
   disabled = false,
 }: EditorFooterProps) {
   return (
-    <div className="flex gap-3 px-5 py-4 border-t border-new-muted-foreground/10">
+    <div className="flex gap-3 px-5 pb-10 py-4 border-t border-new-muted-foreground/10">
       <button
         onClick={onCancel}
         className="flex-1 rounded-full py-3.5 font-semibold text-sm bg-new-muted-background text-new-muted-foreground"

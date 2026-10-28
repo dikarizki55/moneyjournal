@@ -92,7 +92,11 @@ export function TransactionDetailView({
   };
 
   return (
-    <motion.div key={"transaction-detail-view"} layout="size" className="pb-10 flex-1 flex flex-col overflow-y-auto">
+    <motion.div
+      key={"transaction-detail-view"}
+      layout="size"
+      className="pb-10 flex-1 flex flex-col overflow-y-auto"
+    >
       <div className="px-5 pt-4 pb-6 text-center">
         <div className="flex justify-center mb-4">
           {category && (
@@ -233,7 +237,7 @@ export function TransactionDetailView({
             onClick={isEdit ? onCancelEdit : handleDeleteClick}
             disabled={confirmDelete && !isEdit}
           >
-            <AnimatePresence mode="wait">
+            <AnimatePresence mode="wait" initial={false}>
               {isEdit ? (
                 <motion.span
                   key="cancel"
@@ -270,7 +274,7 @@ export function TransactionDetailView({
             onClick={isEdit ? onSave : onEdit}
             disabled={isSaving}
           >
-            <AnimatePresence mode="wait">
+            <AnimatePresence mode="wait" initial={false}>
               {isEdit ? (
                 <motion.span
                   key={isSaving ? "saving" : "save"}

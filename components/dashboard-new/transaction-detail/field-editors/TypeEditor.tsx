@@ -22,12 +22,12 @@ export function TypeEditor({
   return (
     <motion.div layout="size" key={"type"} className="flex flex-col h-full">
       <EditorHeader title="Transaction Type" />
-      <div className="flex-1 px-5 py-8 grid grid-cols-2 gap-3">
+      <div className="flex-1 px-5 py-8 flex gap-5">
         {(["outcome", "income"] as const).map((t) => (
           <button
             key={t}
             onClick={() => onChange(t)}
-            className={`rounded-[20px] py-8 shadow-soft capitalize font-semibold transition-colors ${
+            className={`rounded-[20px] w-full py-8 shadow-soft capitalize font-semibold transition-colors h-20 flex items-center justify-center ${
               type === t
                 ? t === "income"
                   ? "bg-new-primary text-new-background"
