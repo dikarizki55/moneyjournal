@@ -50,13 +50,13 @@ export default function BalanceCard({ data }: { data: BalanceCardData }) {
           </AnimatePresence>
         </button>
       </div>
-      <div className="h-10 overflow-hidden w-full">
+      <div className="h-10 md:h-15 overflow-hidden w-full">
         <AnimatePresence mode="wait">
           <motion.h1
             key={String(visible)}
-            initial={{ y: -40 }}
+            initial={{ y: -48 }}
             animate={{ y: 0 }}
-            exit={{ y: 40 }}
+            exit={{ y: 48 }}
             transition={{ duration: 0.3, ease: [0.5, 0, 0.1, 1] }}
             className=" text-[34px] md:text-[48px] font-bold -mt-1 tracking-tight whitespace-nowrap"
           >

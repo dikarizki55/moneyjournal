@@ -3,16 +3,7 @@
 import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 
@@ -67,73 +58,88 @@ const Login = () => {
     }
   };
 
+  const inputStyle = {
+    WebkitBoxShadow: "0 0 0 30px var(--new-muted-background) inset",
+    WebkitTextFillColor: "var(--new-foreground)",
+  } as React.CSSProperties;
+
   if (isLoading)
     return (
       <div className="flex justify-center items-center h-screen">
-        <h1 className=" text-5xl font-bold">Loading...</h1>
+        <h1 className=" text-5xl font-bold text-new-foreground">Loading...</h1>
       </div>
     );
 
   return (
-    <div className=" w-full h-screen flex justify-center items-center flex-col gap-5">
-      <Card className=" w-full max-w-sm">
-        <CardHeader>
-          <CardTitle>Sign In</CardTitle>
-          <CardDescription>
+    <div className="w-full h-screen flex flex-col justify-center items-center px-6 py-12">
+      <div className="w-full max-w-sm bg-new-background shadow-soft rounded-[20px] border border-new-muted-background flex flex-col gap-6 p-6">
+        <div className="flex flex-col gap-2">
+          <h2 className="text-xl font-bold text-new-foreground">Sign In</h2>
+          <p className="text-sm text-new-muted-foreground">
             Enter your email below to login to your account
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit}>
-            <div className="flex flex-col gap-6">
-              <div className="grid gap-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="email@example.com"
-                  required
-                  onChange={handleOnChange}
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  required
-                  onChange={handleOnChange}
-                />
-              </div>
-              <button type="submit" className="hidden"></button>
+          </p>
+        </div>
+        <form onSubmit={handleSubmit}>
+          <div className="flex flex-col gap-6">
+            <div className="grid gap-2">
+              <Label htmlFor="email" className="text-new-foreground">
+                Email
+              </Label>
+              <input
+                id="email"
+                type="email"
+                placeholder="email@example.com"
+                required
+                onChange={handleOnChange}
+                style={inputStyle}
+                className="flex h-9 w-full rounded-md border border-new-muted-background bg-new-background px-3 py-1 text-sm text-new-foreground placeholder:text-new-muted-foreground focus-visible:border-new-primary focus-visible:ring-ring/50 focus-visible:ring-[3px] outline-none transition-[color,box-shadow]"
+              />
             </div>
-          </form>
-        </CardContent>
-        <CardFooter className=" flex flex-col gap-2">
+            <div className="grid gap-2">
+              <Label htmlFor="password" className="text-new-foreground">
+                Password
+              </Label>
+              <input
+                id="password"
+                type="password"
+                required
+                onChange={handleOnChange}
+                style={inputStyle}
+                className="flex h-9 w-full rounded-md border border-new-muted-background bg-new-background px-3 py-1 text-sm text-new-foreground placeholder:text-new-muted-foreground focus-visible:border-new-primary focus-visible:ring-ring/50 focus-visible:ring-[3px] outline-none transition-[color,box-shadow]"
+              />
+            </div>
+            <button type="submit" className="hidden"></button>
+          </div>
+        </form>
+        <div className="flex flex-col gap-2">
           <Button
             type="submit"
             onClick={handleSubmit}
-            className=" w-full cursor-pointer"
+            className="w-full cursor-pointer bg-new-primary text-new-background rounded-full py-3"
           >
             Sign In
           </Button>
           <Button
             onClick={() => signIn("google", { redirectTo: "/dashboard-new" })}
-            variant={"outline"}
-            className=" w-full cursor-pointer"
+            variant="outline"
+            className="w-full cursor-pointer border-new-muted-background text-new-foreground rounded-full py-3"
           >
             Login with Google
           </Button>
-          <div className="mt-4 text-center text-sm">
+          {error && <p className="text-xs text-new-accent-red">{error}</p>}
+          <div className="mt-4 text-center text-sm text-new-muted-foreground">
             Don&apos;t have an account?{" "}
-            <Link href={"/signup"} className="underline underline-offset-4">
+            <Link
+              href={"/signup"}
+              className="text-new-primary underline underline-offset-4"
+            >
               Sign up
             </Link>
           </div>
-        </CardFooter>
-      </Card>
+        </div>
+      </div>
       <Button
-        className=" mt-5 py-7 px-10 text-2xl cursor-pointer"
+        className="mt-8 py-4 px-8 text-xl cursor-pointer bg-new-background text-new-foreground border border-new-muted-background rounded-full hover:bg-new-muted-background"
         onClick={loginDemo}
       >
         use Demo Account

@@ -384,7 +384,9 @@ export default function TransactionWizard({
 
     const walletSources: SelectItem[] = wallet.paymentSources
       .filter(
-        (ps): ps is {
+        (
+          ps,
+        ): ps is {
           id: string;
           name: string;
           icon: string | null;
@@ -515,10 +517,7 @@ export default function TransactionWizard({
             {STEP_LABELS[step]}
           </div>
           <div className="w-16 text-right">
-            <button
-              onClick={onClose}
-              className="text-new-primary text-sm"
-            >
+            <button onClick={onClose} className="text-new-primary text-sm">
               Cancel
             </button>
           </div>
@@ -634,7 +633,7 @@ export default function TransactionWizard({
             {step === "source" && (
               <div className="flex flex-col gap-4">
                 <h2 className="text-xl font-bold text-center">
-                  Pay from where?
+                  Which Payment Source?
                 </h2>
                 {walletsLoading || sourcesLoading ? (
                   <div className="flex items-center justify-center py-8">
@@ -772,11 +771,7 @@ export default function TransactionWizard({
               : "bg-new-muted-background text-new-muted-foreground"
           }`}
         >
-          {isSubmitting
-            ? "Saving..."
-            : isLast
-            ? "Save Transaction"
-            : "Next"}
+          {isSubmitting ? "Saving..." : isLast ? "Save Transaction" : "Next"}
         </motion.button>
       </div>
 

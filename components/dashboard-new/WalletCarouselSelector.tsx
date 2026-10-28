@@ -213,7 +213,7 @@ export default function WalletCarouselSelector({
   ];
 
   return (
-    <div className={`${className} w-full h-43`}>
+    <div className={`${className} w-full h-43 relative`}>
       <div
         ref={scrollContainerRef}
         className="absolute w-full overflow-x-auto flex gap-4 py-3 -mt-1 px-6 left-0"

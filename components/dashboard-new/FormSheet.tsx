@@ -7,11 +7,36 @@ import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
 
 export type Field =
-  | { kind: "text"; key: string; label: string; placeholder?: string; required?: boolean }
-  | { kind: "number"; key: string; label: string; placeholder?: string; required?: boolean; prefix?: string }
-  | { kind: "textarea"; key: string; label: string; placeholder?: string; required?: boolean }
+  | {
+      kind: "text";
+      key: string;
+      label: string;
+      placeholder?: string;
+      required?: boolean;
+    }
+  | {
+      kind: "number";
+      key: string;
+      label: string;
+      placeholder?: string;
+      required?: boolean;
+      prefix?: string;
+    }
+  | {
+      kind: "textarea";
+      key: string;
+      label: string;
+      placeholder?: string;
+      required?: boolean;
+    }
   | { kind: "date"; key: string; label: string; required?: boolean }
-  | { kind: "select"; key: string; label: string; options: { id: string; label: string; color?: string }[]; required?: boolean }
+  | {
+      kind: "select";
+      key: string;
+      label: string;
+      options: { id: string; label: string; color?: string }[];
+      required?: boolean;
+    }
   | { kind: "icon"; key: string; label: string };
 
 const inputClass =
@@ -127,7 +152,7 @@ export default function FormSheet({
             type="date"
             value={values[field.key] ?? ""}
             onChange={(e) => set(field.key, e.target.value)}
-            className="text-sm bg-transparent border-none outline-none"
+            className="w-full text-sm bg-transparent border-none outline-none"
           />
         );
       case "select":
@@ -135,7 +160,7 @@ export default function FormSheet({
           <select
             value={values[field.key] ?? ""}
             onChange={(e) => set(field.key, e.target.value)}
-            className="text-sm bg-transparent border-none outline-none w-auto max-w-[60%] text-right"
+            className="w-full text-sm bg-transparent border-none outline-none text-right"
           >
             <option value="">Select...</option>
             {field.options.map((opt) => (
@@ -167,11 +192,11 @@ export default function FormSheet({
                 {idx !== 0 && (
                   <hr className="bg-new-muted-foreground opacity-10 mx-auto w-[85%]" />
                 )}
-                <div className="px-5 py-4 flex items-center justify-between gap-4">
-                  <span className="text-sm text-new-muted-foreground shrink-0">
+                <div className="px-5 py-3 flex flex-col gap-1">
+                  <span className="text-xs font-medium text-new-muted-foreground">
                     {field.label}
                   </span>
-                  <div className="min-w-0 flex items-center justify-end">
+                  <div className="w-full flex items-center justify-start">
                     {renderField(field)}
                   </div>
                 </div>

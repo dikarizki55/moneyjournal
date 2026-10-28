@@ -1,15 +1,6 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { signIn } from "next-auth/react";
 import Link from "next/link";
@@ -54,67 +45,85 @@ const Page = () => {
     }
   };
 
+  const inputStyle = {
+    WebkitBoxShadow: "0 0 0 30px var(--new-muted-background) inset",
+    WebkitTextFillColor: "var(--new-foreground)",
+  } as React.CSSProperties;
+
   return (
-    <div className=" w-full h-screen flex justify-center items-center">
-      <Card className=" w-full max-w-sm">
-        <CardHeader>
-          <CardTitle>Sign Up</CardTitle>
-          <CardDescription>
-            Enter your email below to login to your account
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit}>
-            <div className="flex flex-col gap-6">
-              <div className="grid gap-2">
-                <Label htmlFor="Name">Name</Label>
-                <Input
-                  id="name"
-                  type="text"
-                  placeholder="Your Name"
-                  required
-                  onChange={handleOnChange}
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="email@example.com"
-                  required
-                  onChange={handleOnChange}
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  minLength={6}
-                  required
-                  onChange={handleOnChange}
-                />
-              </div>
+    <div className="w-full h-screen flex justify-center items-center px-6 py-12">
+      <div className="w-full max-w-sm bg-new-background shadow-soft rounded-[20px] border border-new-muted-background flex flex-col gap-6 p-6">
+        <div className="flex flex-col gap-2">
+          <h2 className="text-xl font-bold text-new-foreground">Sign Up</h2>
+          <p className="text-sm text-new-muted-foreground">
+            Create your account to get started
+          </p>
+        </div>
+        <form onSubmit={handleSubmit}>
+          <div className="flex flex-col gap-6">
+            <div className="grid gap-2">
+              <Label htmlFor="name" className="text-new-foreground">
+                Name
+              </Label>
+              <input
+                id="name"
+                type="text"
+                placeholder="Your Name"
+                required
+                onChange={handleOnChange}
+                style={inputStyle}
+                className="flex h-9 w-full rounded-md border border-new-muted-background bg-new-background px-3 py-1 text-sm text-new-foreground placeholder:text-new-muted-foreground focus-visible:border-new-primary focus-visible:ring-ring/50 focus-visible:ring-[3px] outline-none transition-[color,box-shadow]"
+              />
             </div>
-          </form>
-        </CardContent>
-        <CardFooter className=" flex flex-col gap-2">
+            <div className="grid gap-2">
+              <Label htmlFor="email" className="text-new-foreground">
+                Email
+              </Label>
+              <input
+                id="email"
+                type="email"
+                placeholder="email@example.com"
+                required
+                onChange={handleOnChange}
+                style={inputStyle}
+                className="flex h-9 w-full rounded-md border border-new-muted-background bg-new-background px-3 py-1 text-sm text-new-foreground placeholder:text-new-muted-foreground focus-visible:border-new-primary focus-visible:ring-ring/50 focus-visible:ring-[3px] outline-none transition-[color,box-shadow]"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="password" className="text-new-foreground">
+                Password
+              </Label>
+              <input
+                id="password"
+                type="password"
+                minLength={6}
+                required
+                onChange={handleOnChange}
+                style={inputStyle}
+                className="flex h-9 w-full rounded-md border border-new-muted-background bg-new-background px-3 py-1 text-sm text-new-foreground placeholder:text-new-muted-foreground focus-visible:border-new-primary focus-visible:ring-ring/50 focus-visible:ring-[3px] outline-none transition-[color,box-shadow]"
+              />
+            </div>
+          </div>
+        </form>
+        <div className="flex flex-col gap-2">
           <Button
             type="submit"
             onClick={handleSubmit}
-            className=" w-full cursor-pointer"
+            className="w-full cursor-pointer bg-new-primary text-new-background rounded-full py-3"
           >
             Sign Up
           </Button>
-          <div className="mt-4 text-center text-sm">
+          <div className="mt-4 text-center text-sm text-new-muted-foreground">
             Have an account?{" "}
-            <Link href={"/login"} className="underline underline-offset-4">
+            <Link
+              href={"/login"}
+              className="text-new-primary underline underline-offset-4"
+            >
               Login
             </Link>
           </div>
-        </CardFooter>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 };
