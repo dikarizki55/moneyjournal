@@ -44,7 +44,7 @@ const Page = () => {
     if (res.ok) {
       alert("User Registered");
       await signIn("credentials", {
-        redirectTo: "/dashboard",
+        redirectTo: "/dashboard-new",
         email: form.email,
         password: form.password,
       });

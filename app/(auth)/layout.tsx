@@ -8,6 +8,6 @@ export default async function Layout({
 }) {
   const session = await auth();
 
-  if (session?.user) redirect("/dashboard");
+  if (session?.user) redirect("/dashboard-new");
   return <div>{children}</div>;
 }

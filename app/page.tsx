@@ -8,7 +8,7 @@ export default async function Home() {
   const session = await auth();
 
   if (session?.user) {
-    redirect("/dashboard");
+    redirect("/dashboard-new");
   } else {
     redirect("/login");
   }
@@ -25,7 +25,7 @@ export default async function Home() {
           <Link href="/signup" className=" w-full">
             <Button className=" w-full cursor-pointer">SignUp</Button>
           </Link>
-          <Link href="/dashboard" className=" w-full">
+          <Link href="/dashboard-new" className=" w-full">
             <Button className=" w-full cursor-pointer">Dashboard</Button>
           </Link>
         </CardContent>

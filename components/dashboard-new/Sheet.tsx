@@ -41,7 +41,7 @@ export default function Sheet({
           exit={{ backgroundColor: "rgba(0,0,0,0)" }}
           transition={{ duration: 0.5 }}
           onClick={onClose}
-          className="fixed inset-0 z-1000 flex items-center justify-center backdrop-blur-sm md:backdrop-blur-md"
+          className="fixed inset-0 z-1000 flex items-end md:items-center justify-center backdrop-blur-sm md:backdrop-blur-md"
         >
           <motion.div
             initial={{ y: "100%", opacity: 0, scale: 0.95 }}

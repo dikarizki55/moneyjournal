@@ -47,7 +47,7 @@ const Login = () => {
       setIsLoading(false);
       setError(res.error);
     } else {
-      router.push("/dashboard");
+      router.push("/dashboard-new");
     }
   };
 
@@ -63,7 +63,7 @@ const Login = () => {
       setError(res.error);
       setIsLoading(false);
     } else {
-      router.push("/dashboard");
+      router.push("/dashboard-new");
     }
   };
 
@@ -118,7 +118,7 @@ const Login = () => {
             Sign In
           </Button>
           <Button
-            onClick={() => signIn("google", { redirectTo: "/dashboard" })}
+            onClick={() => signIn("google", { redirectTo: "/dashboard-new" })}
             variant={"outline"}
             className=" w-full cursor-pointer"
           >

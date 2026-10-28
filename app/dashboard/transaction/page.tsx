@@ -161,7 +161,7 @@ const Page = async ({
       };
     } catch (error) {
       console.error(error);
-      redirect("/dashboard");
+      redirect("/dashboard-new");
     }
   };
   const resJson = await getQuery();
