@@ -63,11 +63,22 @@ export default function Sheet({
                     </button>
                   )}
                 </div>
-                {title && (
-                  <h1 className="font-bold text-lg truncate text-center">
-                    {title}
-                  </h1>
-                )}
+                <div className=" overflow-clip">
+                  {title && (
+                    <AnimatePresence mode="wait">
+                      <motion.h1
+                        key={title}
+                        initial={{ y: -50 }}
+                        animate={{ y: 0 }}
+                        exit={{ y: 50 }}
+                        transition={{ duration: 0.3, ease: [0.5, 0, 0.1, 1] }}
+                        className="font-bold text-lg truncate text-center"
+                      >
+                        {title}
+                      </motion.h1>
+                    </AnimatePresence>
+                  )}
+                </div>
                 <div className="w-20 flex justify-end">
                   <button
                     onClick={onClose}

@@ -51,6 +51,10 @@ export default function DateSelector({
   const [levelIdx, setLevelIdx] = useState<number>(0);
 
   const [direction, setDirection] = useState<"zoomIn" | "zoomOut">("zoomIn");
+  const [showAllTime, setShowAllTime] = useState(false);
+  const [activeFilter, setActiveFilter] = useState<
+    "today" | "week" | "month" | "3month" | "all" | null
+  >("month");
 
   const [calendarList, setCalendarList] = useState<
     { date: Date; dayOfMonth: number; isCurrentMonth: boolean }[] | null
@@ -130,6 +134,8 @@ export default function DateSelector({
     } else {
       setEndDate(selectedDate);
     }
+    setShowAllTime(false);
+    setActiveFilter(null);
   };
 
   useEffect(() => {
@@ -163,56 +169,84 @@ export default function DateSelector({
     setEndYear(calcStartYear + 9);
   }, [selectMonth]);
 
+  const buttonClasses = (active: boolean) => `px-3 py-2 rounded-full text-xs whitespace-nowrap ${
+    active
+      ? "bg-new-primary text-new-background font-semibold"
+      : "bg-new-muted-background text-new-muted-foreground font-medium"
+  }`;
+
   return (
     <Drawer
-      title={selectMonth ? formatMonthDisplay() : "All"}
+      title={
+        showAllTime ? "All time" : selectMonth ? formatMonthDisplay() : "All"
+      }
       inDrawerTitle="Select Date"
     >
       <div className=" w-full px-5">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-start overflow-x-auto gap-2">
           <button
-            className=" bg-new-muted-background px-3 py-2 rounded-full text-xs whitespace-nowrap"
+            className={buttonClasses(activeFilter === "today")}
             onClick={() => {
               setStartDate(new Date());
               setEndDate(null);
               setMonth(new Date());
+              setShowAllTime(false);
+              setActiveFilter("today");
             }}
           >
             Today
           </button>
           <button
-            className=" bg-new-muted-background px-3 py-2 rounded-full text-xs whitespace-nowrap"
+            className={buttonClasses(activeFilter === "week")}
             onClick={() => {
               const currentDate = new Date();
               setStartDate(startOfWeek(currentDate));
               setEndDate(endOfWeek(currentDate));
               setMonth(currentDate);
+              setShowAllTime(false);
+              setActiveFilter("week");
             }}
           >
             This Week
           </button>
           <button
-            className=" bg-new-muted-background px-3 py-2 rounded-full text-xs whitespace-nowrap"
+            className={buttonClasses(activeFilter === "month")}
             onClick={() => {
               const currentDate = new Date();
               setStartDate(startOfMonth(currentDate));
               setEndDate(endOfMonth(currentDate));
               setMonth(currentDate);
+              setShowAllTime(false);
+              setActiveFilter("month");
             }}
           >
             This Month
           </button>
           <button
-            className=" bg-new-muted-background px-3 py-2 rounded-full text-xs whitespace-nowrap"
+            className={buttonClasses(activeFilter === "3month")}
             onClick={() => {
               const currentDate = new Date();
               currentDate.setMonth(currentDate.getMonth() - 3);
               setStartDate(currentDate);
               setEndDate(new Date());
               setMonth(new Date());
+              setShowAllTime(false);
+              setActiveFilter("3month");
             }}
           >
             Last 3 Month
+          </button>
+          <button
+            className={buttonClasses(activeFilter === "all")}
+            onClick={() => {
+              setStartDate(null);
+              setEndDate(null);
+              setShowAllTime(true);
+              setActiveFilter("all");
+              onChangeRef.current?.(null);
+            }}
+          >
+            All time
           </button>
         </div>
         <div className=" flex gap-5 items-center justify-center w-full mt-8 font-bold">
