@@ -98,46 +98,77 @@ export default function CarouselCard({
     );
   }
 
-  return (
-    <div className=" w-full h-43">
+  const mobileCards = data.map((item, idx) => {
+    const card = (
       <div
-        ref={scrollContainerRef}
-        className=" absolute w-full overflow-x-auto flex gap-4 py-3 -mt-1 px-6 left-0"
+        key={idx}
+        className={`shadow-soft rounded-[14px] w-40 h-31 flex flex-col justify-between px-3 py-4 flex-none ${backgroundColor[idx % backgroundColor.length]}`}
       >
-        {data.map((item, idx) => {
-          const card = (
-            <div
-              className={`shadow-soft rounded-[14px] w-40 h-31 flex flex-col justify-between px-3 py-4 flex-none ${backgroundColor[idx % backgroundColor.length]}`}
-            >
-              <div>
-                <h1 className="text-sm font-bold tracking-tight">{item.title}</h1>
-                <p className="opacity-90 text-[10px]">{item.paymentSource}</p>
-              </div>
-              <h1 className=" font-semibold text-base tracking-tight">
-                {item.amount}
-              </h1>
-            </div>
-          );
-
-          return item.href ? (
-            <Link key={idx} href={item.href} className="flex-none">
-              {card}
-            </Link>
-          ) : (
-            <div key={idx} className="flex-none">
-              {card}
-            </div>
-          );
-        })}
+        <div>
+          <h1 className="text-sm font-bold tracking-tight">{item.title}</h1>
+          <p className="opacity-90 text-[10px]">{item.paymentSource}</p>
+        </div>
+        <h1 className=" font-semibold text-base tracking-tight">
+          {item.amount}
+        </h1>
       </div>
-      <div className="mt-39 flex gap-2 w-full items-center justify-center">
-        {data.map((_, idx) => (
-          <button
-            key={idx}
-            onClick={() => handleDotClick(idx)}
-            className={`w-2.5 h-2.5 rounded-full transition-all duration-300 bg-new-muted-foreground ${activeIdx === idx ? "opacity-100" : "opacity-20"}`}
-          ></button>
-        ))}
+    );
+
+    return item.href ? (
+      <Link key={idx} href={item.href} className="flex-none">
+        {card}
+      </Link>
+    ) : (
+      <div className="flex-none">{card}</div>
+    );
+  });
+
+  const desktopCards = data.map((item, idx) => {
+    const card = (
+      <div
+        className={`rounded-[20px] p-5 flex flex-col justify-between ${backgroundColor[idx % backgroundColor.length]}`}
+      >
+        <div>
+          <h1 className="text-sm font-bold tracking-tight">{item.title}</h1>
+          <p className="opacity-90 text-xs">{item.paymentSource}</p>
+        </div>
+        <h1 className=" font-semibold text-lg tracking-tight">{item.amount}</h1>
+      </div>
+    );
+
+    return item.href ? (
+      <Link key={idx} href={item.href}>
+        {card}
+      </Link>
+    ) : (
+      <div key={idx}>{card}</div>
+    );
+  });
+
+  return (
+    <div className=" w-full">
+      <div className=" h-43 md:hidden relative">
+        <div
+          ref={scrollContainerRef}
+          className=" w-full overflow-x-auto flex gap-4 py-3 -mt-1 px-6 left-0"
+        >
+          {mobileCards}
+        </div>
+        <div className=" mt-2 flex gap-2 w-full items-center justify-center">
+          {data.map((_, idx) => (
+            <button
+              key={idx}
+              onClick={() => handleDotClick(idx)}
+              className={`w-2.5 h-2.5 rounded-full transition-all duration-300 bg-new-muted-foreground ${activeIdx === idx ? "opacity-100" : "opacity-20"}`}
+            ></button>
+          ))}
+        </div>
+      </div>
+
+      <div className="hidden md:block pt-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          {desktopCards}
+        </div>
       </div>
     </div>
   );

@@ -11,7 +11,11 @@ import { Bell } from "lucide-react";
 import { useMemo } from "react";
 import { formatRupiah } from "@/lib/api";
 import { toListItems } from "@/lib/dashboard-new-mappers";
-import { useSummary, useTransactions, useWallets } from "@/hooks/use-dashboard-new";
+import {
+  useSummary,
+  useTransactions,
+  useWallets,
+} from "@/hooks/use-dashboard-new";
 import { useTransactionDrawer } from "@/hooks/use-transaction-drawer";
 import { useSession } from "next-auth/react";
 
@@ -52,8 +56,11 @@ export default function HomePage() {
   const { data: previousSummary } = useSummary(lastMonth.from, lastMonth.to);
 
   const { data: wallets, isLoading: walletsLoading } = useWallets();
-  const { data: recent, isLoading: txLoading, refetch: refetchTx } =
-    useTransactions({ limit: 6 }, []);
+  const {
+    data: recent,
+    isLoading: txLoading,
+    refetch: refetchTx,
+  } = useTransactions({ limit: 6 }, []);
 
   const drawer = useTransactionDrawer(recent, refetchTx);
 
@@ -93,13 +100,15 @@ export default function HomePage() {
   );
 
   const firstName =
-    session?.user?.name?.split(" ")[0] ?? session?.user?.email?.split("@")[0] ?? "-";
+    session?.user?.name?.split(" ")[0] ??
+    session?.user?.email?.split("@")[0] ??
+    "-";
 
   return (
     <div className=" bg-new-background text w-full px-6 pb-26">
-      <header className=" flex justify-between py-7 w-full">
-        <div className=" w-full flex gap-5">
-          <div className=" rounded-full w-14 h-14 bg-[#CDD6DF] flex items-center justify-center text-muted-foreground text-xl font-bold overflow-hidden shrink-0">
+      <header className=" flex justify-between py-7 w-full md:px-0 md:max-w-3xl  md:mx-auto">
+        <div className=" w-full flex items-start gap-6 md:gap-10">
+          <div className=" rounded-full w-14 h-14 md:w-16 md:h-16 bg-[#CDD6DF] flex items-center justify-center text-muted-foreground text-xl md:text-2xl font-bold overflow-hidden shrink-0">
             {session?.user?.image ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
@@ -113,17 +122,21 @@ export default function HomePage() {
           </div>
           <div className="flex flex-col">
             <h3 className="text-muted-foreground font-medium">{greeting()}</h3>
-            <h1 className=" text-3xl font-bold">{firstName}</h1>
+            <h1 className=" text-3xl md:text-4xl font-bold">{firstName}</h1>
           </div>
         </div>
-        <button className="mt-2" aria-label="Notifications">
+        <button className="mt-2 md:mt-0" aria-label="Notifications">
           <Bell />
         </button>
       </header>
 
       <BalanceCard data={balanceData} />
 
-      <TitleList className="mt-7" title="Wallets" link="/dashboard-new/wallet">
+      <TitleList
+        className="mt-7 md:mt-10 md:max-w-2xl mx-auto"
+        title="Wallets"
+        link="/dashboard-new/wallet"
+      >
         {walletsLoading ? (
           <div className=" w-full h-43 flex items-center justify-center">
             <div className="w-40 h-31 rounded-[14px] bg-new-muted-background animate-pulse" />
@@ -139,7 +152,7 @@ export default function HomePage() {
       </TitleList>
 
       <TitleList
-        className="mt-7"
+        className="mt-7 md:mt-10 md:max-w-2xl mx-auto"
         title={"Recent Transactions"}
         link="/dashboard-new/history"
       >
@@ -150,11 +163,13 @@ export default function HomePage() {
             </span>
           </div>
         ) : (
-          <TransactionList
-            data={toListItems(recent)}
-            emptyMessage="No transaction yet"
-            onSelect={drawer.open}
-          />
+          <div className="md:max-w-3xl mx-auto w-full">
+            <TransactionList
+              data={toListItems(recent)}
+              emptyMessage="No transaction yet"
+              onSelect={drawer.open}
+            />
+          </div>
         )}
       </TitleList>
 

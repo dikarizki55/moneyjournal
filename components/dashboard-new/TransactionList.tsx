@@ -33,7 +33,7 @@ export default function TransactionList({
   }
 
   return (
-    <div className="w-full shadow-soft bg-new-background rounded-[20px] overflow-hidden">
+    <div className="w-full shadow-soft bg-new-background rounded-[20px] overflow-hidden md:max-w-3xl md:mx-auto">
       {data.map((item, idx) => (
         <div key={item.id ?? idx}>
           {idx !== 0 && (
@@ -43,7 +43,7 @@ export default function TransactionList({
             whileTap={onSelect ? { scale: 0.98 } : undefined}
             transition={{ duration: 0.1 }}
             onClick={onSelect ? () => onSelect(item.id) : undefined}
-            className={`w-full text-left px-4 py-5 flex justify-between items-start relative ${
+            className={`w-full text-left px-4 py-5 md:px-8 md:py-6 flex justify-between items-start relative ${
               onSelect ? "cursor-pointer" : ""
             }`}
           >

@@ -131,7 +131,7 @@ export default function HistoryPage() {
   );
 
   return (
-    <div className=" px-6 pb-26">
+    <div className=" px-6 pb-26 md:max-w-3xl md:mx-auto">
       <header className=" w-full flex justify-between items-center py-7">
         <AnimatePresence>
           {!onSearch && (

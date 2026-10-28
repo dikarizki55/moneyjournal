@@ -205,7 +205,7 @@ export default function TransactionDetailDrawer({
       title={mode === "view" ? "Details" : "Edit"}
       showClose={true}
     >
-      <div className="h-[80vh] flex flex-col overflow-hidden">
+      <div className="h-[80vh] md:h-auto flex flex-col overflow-hidden">
         {mode === "field-editor" && editingField ? (
           <FieldEditorView
             editingField={editingField}

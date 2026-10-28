@@ -36,7 +36,7 @@ export default function CrudList({
   const [pendingDelete, setPendingDelete] = useState<CrudItem | null>(null);
 
   return (
-    <div className="px-6 pb-26">
+    <div className="px-6 pb-26 md:max-w-2xl md:mx-auto">
       <header className="w-full py-7 flex items-center justify-between">
         <h1 className="font-bold text-2xl">{title}</h1>
         {headerRight}

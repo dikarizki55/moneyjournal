@@ -37,19 +37,19 @@ export default function Sheet({
       {open && (
         <motion.div
           initial={{ backgroundColor: "rgba(0,0,0,0)" }}
-          animate={{ backgroundColor: "rgba(0,0,0,0.1)" }}
+          animate={{ backgroundColor: "rgba(0,0,0,0.4)" }}
           exit={{ backgroundColor: "rgba(0,0,0,0)" }}
           transition={{ duration: 0.5 }}
           onClick={onClose}
-          className="fixed inset-0 z-1000 flex items-end"
+          className="fixed inset-0 z-1000 flex items-center justify-center backdrop-blur-sm md:backdrop-blur-md"
         >
           <motion.div
-            initial={{ y: "100%" }}
-            animate={{ y: 0 }}
-            exit={{ y: "100%" }}
+            initial={{ y: "100%", opacity: 0, scale: 0.95 }}
+            animate={{ y: 0, opacity: 1, scale: 1 }}
+            exit={{ y: "100%", opacity: 0, scale: 0.95 }}
             transition={{ duration: 0.4, ease: [0.5, 0, 0.1, 1] }}
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-h-[90vh] bg-new-background rounded-t-[20px] overflow-y-auto"
+            className="w-full max-h-[90vh] bg-new-background rounded-t-[20px] overflow-y-auto md:rounded-[24px] md:max-w-lg md:w-full md:max-h-[85vh] md:shadow-2xl"
           >
             {(title || showClose) && (
               <div className="w-full py-5 px-5 flex justify-between items-center gap-4 sticky top-0 bg-new-background z-10">

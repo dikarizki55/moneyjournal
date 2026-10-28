@@ -24,7 +24,7 @@ export default async function DashboardNew({
         style={{ fontFamily: "var(--font-inter)" }}
       >
         <Navbar />
-        {children}
+        <main className="w-full md:pl-24 md:w-full">{children}</main>
       </div>
     </SessionProvider>
   );

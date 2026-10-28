@@ -64,9 +64,9 @@ function WalletPageContent() {
     [wallets],
   );
 
-  if (!walletsLoading && wallets.length === 0) {
+    if (!walletsLoading && wallets.length === 0) {
     return (
-      <div className=" px-6 pb-26">
+      <div className=" px-6 pb-26 md:max-w-2xl md:mx-auto">
         <header className=" w-full py-7">
           <Link
             href="/dashboard-new"
@@ -96,7 +96,7 @@ function WalletPageContent() {
   }
 
   return (
-    <div className=" px-6 pb-26">
+    <div className=" px-6 pb-26 md:max-w-2xl md:mx-auto">
       <header className=" w-full py-7 flex items-center justify-between gap-3">
         <Link
           href="/dashboard-new"
@@ -213,9 +213,9 @@ export default function WalletPage() {
   return (
     <Suspense
       fallback={
-        <div className=" px-6 pb-26">
-          <div className=" w-full h-12 animate-pulse bg-new-muted-background rounded-xl my-7" />
-        </div>
+      <div className=" px-6 pb-26 md:max-w-2xl md:mx-auto">
+        <div className=" w-full h-12 animate-pulse bg-new-muted-background rounded-xl my-7" />
+      </div>
       }
     >
       <WalletPageContent />

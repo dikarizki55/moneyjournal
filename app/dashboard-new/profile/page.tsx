@@ -16,9 +16,9 @@ export default function ProfilePage() {
   const user = session?.user;
 
   return (
-    <div className=" px-6 pb-26">
+    <div className=" px-6 pb-26 md:max-w-2xl md:mx-auto">
       <header className=" w-full py-7">
-        <h1 className=" font-bold text-2xl">Profile</h1>
+        <h1 className=" font-bold text-2xl md:text-3xl">Profile</h1>
       </header>
 
       <div className=" w-full rounded-[20px] shadow-soft bg-new-background px-5 py-6 flex items-center gap-4">
