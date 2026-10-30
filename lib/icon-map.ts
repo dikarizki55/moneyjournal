@@ -7,10 +7,44 @@ import {
   IconCar,
   IconCreditCard,
   IconForkKnive,
+  IconHouse,
+  IconPlus,
   IconWallet,
 } from "@/components/dashboard-new/Icon";
 
 export type NewIconComponent = React.ComponentType<{ className?: string }>;
+
+export type IconPreset = {
+  id: string;
+  label: string;
+  component: NewIconComponent;
+};
+
+export type ColorPreset = {
+  id: string;
+  label: string;
+  color: string;
+};
+
+export const ICON_PRESETS: IconPreset[] = [
+  { id: "wallet", label: "Wallet", component: IconWallet },
+  { id: "house", label: "House", component: IconHouse },
+  { id: "plus", label: "Plus", component: IconPlus },
+  { id: "car", label: "Car", component: IconCar },
+  { id: "credit-card", label: "Card", component: IconCreditCard },
+  { id: "banknote", label: "Money", component: IconBankNote },
+  { id: "bag", label: "Bag", component: IconBag },
+  { id: "calendar", label: "Calendar", component: IconCalendar },
+];
+
+export const COLOR_PRESETS: ColorPreset[] = [
+  { id: "#1db252", label: "Green", color: "#1db252" },
+  { id: "#3477f2", label: "Blue", color: "#3477f2" },
+  { id: "#f60e10", label: "Red", color: "#f60e10" },
+  { id: "#fe530b", label: "Orange", color: "#fe530b" },
+  { id: "#8b5cf6", label: "Purple", color: "#8b5cf6" },
+  { id: "#0ea5e9", label: "Cyan", color: "#0ea5e9" },
+];
 
 /**
  * Maps lucide icon slugs (as stored in `category.icon` / `paymentSource.icon`)

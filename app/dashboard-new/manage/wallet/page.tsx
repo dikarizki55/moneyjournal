@@ -3,7 +3,7 @@
 import CrudList, { type CrudItem } from "@/components/dashboard-new/CrudList";
 import FormSheet, { type Field } from "@/components/dashboard-new/FormSheet";
 import { formatRupiah } from "@/lib/api";
-import { resolveIcon } from "@/lib/icon-map";
+import { resolveIcon, colorToClasses, COLOR_PRESETS } from "@/lib/icon-map";
 import { useWallets } from "@/hooks/use-dashboard-new";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -14,6 +14,13 @@ export default function WalletCrudPage() {
 
   const fields: Field[] = [
     { kind: "text", key: "title", label: "Name", required: true },
+    { kind: "icon", key: "icon", label: "Icon" },
+    {
+      kind: "select",
+      key: "color",
+      label: "Color",
+      options: COLOR_PRESETS,
+    },
     {
       kind: "number",
       key: "amount",
@@ -35,6 +42,8 @@ export default function WalletCrudPage() {
         ...(editing?.id ? { id: editing.id } : {}),
         title,
         amount: Number(values.amount || 0),
+        icon: values.icon || null,
+        color: values.color || COLOR_PRESETS[0].id,
       }),
     });
 
@@ -68,7 +77,7 @@ export default function WalletCrudPage() {
   const items: CrudItem[] = wallets.map((w) => ({
     id: w.id,
     icon: resolveIcon(w.icon),
-    iconColorTailwind: "bg-new-accent-blue-background text-new-accent-blue",
+    iconColorTailwind: colorToClasses(w.color),
     title: w.title,
     subtitle:
       w.paymentSources.length > 0
@@ -109,8 +118,12 @@ export default function WalletCrudPage() {
                 amount: String(
                   wallets.find((w) => w.id === editing.id)?.amount ?? 0,
                 ),
+                icon: wallets.find((w) => w.id === editing.id)?.icon ?? "",
+                color:
+                  wallets.find((w) => w.id === editing.id)?.color ??
+                  COLOR_PRESETS[0].id,
               }
-            : undefined
+            : { color: COLOR_PRESETS[0].id }
         }
         onSubmit={handleSave}
         submitLabel={editing?.id ? "Save changes" : "Create wallet"}

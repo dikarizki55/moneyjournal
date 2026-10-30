@@ -28,6 +28,7 @@ export type PaymentSourceItem = {
   id: string;
   name: string;
   icon: string | null;
+  color: string | null;
   default?: boolean;
   wallets?: { id: string; title: string; icon: string | null }[];
 };
@@ -36,6 +37,7 @@ export type WalletItem = {
   id: string;
   title: string;
   icon: string | null;
+  color: string | null;
   amount: number;
   balance: number;
   spent: number;

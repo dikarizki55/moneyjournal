@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: contentTypeError }, { status: 415 });
     }
 
-    const { name, icon, walletId } = await req.json();
+    const { name, icon, color, walletId } = await req.json();
 
     if (!name || !name.trim()) {
       return NextResponse.json(
@@ -62,6 +62,7 @@ export async function POST(req: NextRequest) {
         user_id: user.id,
         name: name.trim(),
         icon: icon || null,
+        color: color || null,
         default: existingCount === 0,
         ...(walletId && {
           wallets: { connect: { id: walletId } },
@@ -89,7 +90,7 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ message: contentTypeError }, { status: 415 });
     }
 
-    const { id, name, icon } = await req.json();
+    const { id, name, icon, color } = await req.json();
 
     if (!id || !name || !name.trim()) {
       return NextResponse.json(
@@ -114,6 +115,7 @@ export async function PUT(req: NextRequest) {
       data: {
         name: name.trim(),
         icon: icon !== undefined ? icon : existing.icon,
+        color: color !== undefined ? color : existing.color,
       },
     });
 

@@ -2,19 +2,10 @@
 
 import CrudList, { type CrudItem } from "@/components/dashboard-new/CrudList";
 import FormSheet, { type Field } from "@/components/dashboard-new/FormSheet";
-import { colorToClasses, resolveIcon } from "@/lib/icon-map";
+import { colorToClasses, resolveIcon, COLOR_PRESETS } from "@/lib/icon-map";
 import { useCategories } from "@/hooks/use-dashboard-new";
 import { useState } from "react";
 import { toast } from "sonner";
-
-const COLOR_PRESETS = [
-  { id: "#1db252", label: "Green" },
-  { id: "#3477f2", label: "Blue" },
-  { id: "#f60e10", label: "Red" },
-  { id: "#fe530b", label: "Orange" },
-  { id: "#8b5cf6", label: "Purple" },
-  { id: "#0ea5e9", label: "Cyan" },
-];
 
 type Editing = { id: string | null };
 

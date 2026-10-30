@@ -7,7 +7,7 @@ import TransactionList from "@/components/dashboard-new/TransactionList";
 import { IconChevronLeft, IconWallet } from "@/components/dashboard-new/Icon";
 import { formatRupiah } from "@/lib/api";
 import { toListItems } from "@/lib/dashboard-new-mappers";
-import { resolveIcon } from "@/lib/icon-map";
+import { resolveIcon, colorToClasses } from "@/lib/icon-map";
 import { useTransactions, useWallets } from "@/hooks/use-dashboard-new";
 import { useTransactionDrawer } from "@/hooks/use-transaction-drawer";
 import { AnimatePresence, motion } from "framer-motion";
@@ -58,7 +58,7 @@ function WalletPageContent() {
             ? w.paymentSources.map((p) => p.name).join(" • ")
             : "No payment source",
         icon: resolveIcon(w.icon),
-        iconColorTailwind: "bg-new-primary-background text-new-primary",
+        iconColorTailwind: colorToClasses(w.color),
         rightLabel: formatRupiah(w.balance),
       })),
     [wallets],

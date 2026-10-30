@@ -156,6 +156,7 @@ export function useWallets() {
           id: w.id,
           title: w.title,
           icon: w.icon ?? null,
+          color: w.color ?? null,
           amount: Number(w.amount ?? 0),
           balance: Number(w.balance ?? 0),
           spent: Number(w.spent ?? 0),

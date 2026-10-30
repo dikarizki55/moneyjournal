@@ -1,6 +1,7 @@
 "use client";
 
 import Sheet from "@/components/dashboard-new/Sheet";
+import { COLOR_PRESETS, ICON_PRESETS } from "@/lib/icon-map";
 import { formatRupiahPlain } from "@/lib/api";
 import { AnimatePresence, motion } from "framer-motion";
 import { useState, type ReactNode } from "react";
@@ -155,7 +156,32 @@ export default function FormSheet({
             className="w-full text-sm bg-transparent border-none outline-none"
           />
         );
-      case "select":
+      case "select": {
+        const hasColors = field.options.some((o) => o.color);
+        if (hasColors) {
+          const selected = values[field.key] ?? "";
+          return (
+            <div className="grid grid-cols-6 gap-2">
+              {field.options.map((opt) => (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => set(field.key, opt.id)}
+                  className={`w-10 h-10 rounded-full border transition-all ${
+                    selected === opt.id
+                      ? "ring-2 ring-new-primary border-new-primary"
+                      : "border-transparent bg-new-muted-background hover:bg-new-muted-background/80"
+                  } flex items-center justify-center`}
+                >
+                  <span
+                    className="w-5 h-5 rounded-full"
+                    style={{ backgroundColor: opt.color }}
+                  />
+                </button>
+              ))}
+            </div>
+          );
+        }
         return (
           <select
             value={values[field.key] ?? ""}
@@ -170,8 +196,30 @@ export default function FormSheet({
             ))}
           </select>
         );
-      case "icon":
-        return null;
+      }
+      case "icon": {
+        const selected = values[field.key] ?? "";
+        return (
+          <div className="grid grid-cols-5 gap-2">
+            {ICON_PRESETS.map((preset) => (
+              <button
+                key={preset.id}
+                type="button"
+                onClick={() => set(field.key, preset.id)}
+                className={`p-2 rounded-full transition-all ${
+                  selected === preset.id
+                    ? "ring-2 ring-new-primary bg-new-primary/10"
+                    : "bg-new-muted-background hover:bg-new-muted-background/80"
+                }`}
+              >
+                <preset.component
+                  className={`w-6 h-6 ${selected === preset.id ? "text-new-primary" : "text-new-muted-foreground"}`}
+                />
+              </button>
+            ))}
+          </div>
+        );
+      }
     }
   };
 
@@ -186,7 +234,6 @@ export default function FormSheet({
       <div className="px-5 pb-8">
         <div className="rounded-[20px] shadow-soft bg-new-background overflow-hidden">
           {fields.map((field, idx) => {
-            if (field.kind === "icon") return null;
             return (
               <div key={field.key}>
                 {idx !== 0 && (

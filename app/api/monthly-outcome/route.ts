@@ -12,6 +12,7 @@ export async function GET(req: NextRequest) {
       title: string;
       amount: number;
       icon: string | null;
+      color: string | null;
       total_funded: number;
       total_spent: number;
       balance: number;
@@ -54,6 +55,7 @@ export async function GET(req: NextRequest) {
         w.title,
         w.amount,
         w.icon,
+        w.color,
         COALESCE(wt.total_funded, 0) AS total_funded,
         COALESCE(wt.total_spent, 0) AS total_spent,
         COALESCE(wt.total_funded, 0) - COALESCE(wt.total_spent, 0) AS balance,
@@ -76,6 +78,7 @@ export async function GET(req: NextRequest) {
       title: o.title,
       amount: Number(o.amount),
       icon: o.icon,
+      color: o.color,
       spent: Number(o.this_month_spent),
       balance: Number(o.balance),
       totalFunded: Number(o.total_funded),
@@ -103,9 +106,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: contentTypeError }, { status: 415 });
     }
 
-    const { title, amount, icon } = await req.json();
+    const { title, amount, icon, color } = await req.json();
 
-    if (!title || !amount) {
+    if (!title || amount == null) {
       return NextResponse.json(
         { message: "Missing required fields" },
         { status: 400 },
@@ -118,6 +121,7 @@ export async function POST(req: NextRequest) {
         title,
         amount: Number(amount),
         icon: icon || null,
+        color: color || null,
       },
     });
 
@@ -210,7 +214,7 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ message: contentTypeError }, { status: 415 });
     }
 
-    const { id, title, amount, icon } = await req.json();
+    const { id, title, amount, icon, color } = await req.json();
 
     if (!id || !title || !amount) {
       return NextResponse.json(
@@ -228,6 +232,7 @@ export async function PUT(req: NextRequest) {
         title,
         amount: Number(amount),
         icon: icon || null,
+        color: color || null,
       },
     });
 

@@ -2,7 +2,7 @@
 
 import CrudList, { type CrudItem } from "@/components/dashboard-new/CrudList";
 import FormSheet, { type Field } from "@/components/dashboard-new/FormSheet";
-import { resolveIcon } from "@/lib/icon-map";
+import { resolveIcon, colorToClasses, COLOR_PRESETS } from "@/lib/icon-map";
 import { usePaymentSources } from "@/hooks/use-dashboard-new";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -13,6 +13,13 @@ export default function PaymentSourcePage() {
 
   const fields: Field[] = [
     { kind: "text", key: "name", label: "Name", required: true },
+    { kind: "icon", key: "icon", label: "Icon" },
+    {
+      kind: "select",
+      key: "color",
+      label: "Color",
+      options: COLOR_PRESETS,
+    },
   ];
 
   const handleSave = async (values: Record<string, string>) => {
@@ -23,7 +30,12 @@ export default function PaymentSourcePage() {
       method: editing?.id ? "PUT" : "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...(editing?.id ? { id: editing.id } : {}), name }),
+      body: JSON.stringify({
+        ...(editing?.id ? { id: editing.id } : {}),
+        name,
+        icon: values.icon || null,
+        color: values.color || COLOR_PRESETS[0].id,
+      }),
     });
     const body = await res.json();
     if (!res.ok || !body.success) {
@@ -51,7 +63,7 @@ export default function PaymentSourcePage() {
   const items: CrudItem[] = sources.map((p) => ({
     id: p.id,
     icon: resolveIcon(p.icon),
-    iconColorTailwind: "bg-new-primary-background text-new-primary",
+    iconColorTailwind: colorToClasses(p.color),
     title: p.name,
     subtitle: (p.wallets ?? []).length > 0
       ? `Linked to ${(p.wallets ?? []).map((w) => w.title).join(", ")}`
@@ -85,8 +97,15 @@ export default function PaymentSourcePage() {
         fields={fields}
         initial={
           editing?.id
-            ? { name: sources.find((p) => p.id === editing.id)?.name ?? "" }
-            : undefined
+            ? {
+                name: sources.find((p) => p.id === editing.id)?.name ?? "",
+                icon:
+                  sources.find((p) => p.id === editing.id)?.icon ?? "",
+                color:
+                  sources.find((p) => p.id === editing.id)?.color ??
+                  COLOR_PRESETS[0].id,
+              }
+            : { color: COLOR_PRESETS[0].id }
         }
         onSubmit={handleSave}
         submitLabel={editing?.id ? "Save changes" : "Create payment source"}
